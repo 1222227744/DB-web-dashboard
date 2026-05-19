@@ -1,0 +1,1762 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames*,x11names*}{xcolor}
+%
+\documentclass[
+  a4paper,
+  UTF8]{ctexart}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={接口文档},
+  pdfauthor={DBMS 控制台项目},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={blue},
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{接口文档}
+\author{DBMS 控制台项目}
+\date{}
+
+\begin{document}
+\maketitle
+
+\renewcommand*\contentsname{目录}
+{
+\hypersetup{linkcolor=}
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\hypertarget{ux63a5ux53e3ux89c4ux8303}{%
+\section{接口规范}\label{ux63a5ux53e3ux89c4ux8303}}
+
+本文档是项目唯一权威接口文档。早期登录注册草稿《接口文档.md》已合并到本文档，不再单独维护，避免接口设计和接口文档重复导致实现偏差。
+
+\hypertarget{ux63a5ux53e3ux603bux5219}{%
+\subsection{1. 接口总则}\label{ux63a5ux53e3ux603bux5219}}
+
+\hypertarget{base-url}{%
+\subsubsection{1.1 Base URL}\label{base-url}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{/api/v1}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux6210ux529fux54cdux5e94}{%
+\subsubsection{1.2 成功响应}\label{ux6210ux529fux54cdux5e94}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"code"}\FunctionTok{:} \DecValTok{200}\FunctionTok{,}
+  \DataTypeTok{"message"}\FunctionTok{:} \StringTok{"success"}\FunctionTok{,}
+  \DataTypeTok{"data"}\FunctionTok{:} \FunctionTok{\{\},}
+  \DataTypeTok{"traceId"}\FunctionTok{:} \StringTok{"01HZ0000000000000000000000"}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+字段 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+code & number & 是 & 成功固定为 200 \\
+message & string & 是 & 成功提示 \\
+data & any & 是 & 无数据时为 null \\
+traceId & string & 是 & 服务端生成，请求级唯一 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux9519ux8befux54cdux5e94}{%
+\subsubsection{1.3 错误响应}\label{ux9519ux8befux54cdux5e94}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"code"}\FunctionTok{:} \DecValTok{400}\FunctionTok{,}
+  \DataTypeTok{"message"}\FunctionTok{:} \StringTok{"字段 age 不允许为空"}\FunctionTok{,}
+  \DataTypeTok{"data"}\FunctionTok{:} \KeywordTok{null}\FunctionTok{,}
+  \DataTypeTok{"traceId"}\FunctionTok{:} \StringTok{"01HZ0000000000000000000000"}\FunctionTok{,}
+  \DataTypeTok{"error"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"type"}\FunctionTok{:} \StringTok{"MYSQL\_CONSTRAINT\_ERROR"}\FunctionTok{,}
+    \DataTypeTok{"code"}\FunctionTok{:} \StringTok{"DB\_NOT\_NULL\_VIOLATION"}\FunctionTok{,}
+    \DataTypeTok{"source"}\FunctionTok{:} \StringTok{"mysql"}\FunctionTok{,}
+    \DataTypeTok{"details"}\FunctionTok{:} \StringTok{"Column \textquotesingle{}age\textquotesingle{} cannot be null"}\FunctionTok{,}
+    \DataTypeTok{"fieldErrors"}\FunctionTok{:} \OtherTok{[}
+      \FunctionTok{\{}
+        \DataTypeTok{"field"}\FunctionTok{:} \StringTok{"age"}\FunctionTok{,}
+        \DataTypeTok{"message"}\FunctionTok{:} \StringTok{"字段 age 不允许为空"}
+      \FunctionTok{\}}
+    \OtherTok{]}\FunctionTok{,}
+    \DataTypeTok{"mysql"}\FunctionTok{:} \FunctionTok{\{}
+      \DataTypeTok{"errno"}\FunctionTok{:} \DecValTok{1048}\FunctionTok{,}
+      \DataTypeTok{"sqlState"}\FunctionTok{:} \StringTok{"23000"}\FunctionTok{,}
+      \DataTypeTok{"sqlMessage"}\FunctionTok{:} \StringTok{"Column \textquotesingle{}age\textquotesingle{} cannot be null"}\FunctionTok{,}
+      \DataTypeTok{"databaseName"}\FunctionTok{:} \StringTok{"student"}\FunctionTok{,}
+      \DataTypeTok{"tableName"}\FunctionTok{:} \StringTok{"students"}\FunctionTok{,}
+      \DataTypeTok{"columnName"}\FunctionTok{:} \StringTok{"age"}\FunctionTok{,}
+      \DataTypeTok{"constraintName"}\FunctionTok{:} \KeywordTok{null}
+    \FunctionTok{\}}
+  \FunctionTok{\}}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+字段 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+code & number & 是 & 与 HTTP 状态语义一致 \\
+message & string & 是 & 前端直接展示的精准提示 \\
+data & null & 是 & 错误时固定为 null \\
+traceId & string & 是 & 请求级唯一 \\
+error.type & string & 是 & 错误类型枚举 \\
+error.code & string & 是 & 错误码枚举 \\
+error.source & string & 是 & client、server、mysql \\
+error.details & string & 是 & 错误详情，不包含密码和 Token \\
+error.fieldErrors & array & 是 & 字段级错误列表 \\
+error.mysql & object & 是 & 非 MySQL 错误时为 null \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux524dux7aefux672cux5730ux9519ux8befux6a21ux578b}{%
+\subsubsection{1.4
+前端本地错误模型}\label{ux524dux7aefux672cux5730ux9519ux8befux6a21ux578b}}
+
+以下错误没有后端响应，由前端统一构造展示：
+
+\begin{itemize}
+\tightlist
+\item
+  无法连接后端：\texttt{type=NETWORK\_ERROR}；\texttt{code=CLIENT\_BACKEND\_UNREACHABLE}；\texttt{message=无法连接后端服务，请检查服务是否启动}。
+\item
+  请求超时：\texttt{type=HTTP\_TIMEOUT}；\texttt{code=CLIENT\_REQUEST\_TIMEOUT}；\texttt{message=后端响应超时，请稍后重试}。
+\item
+  请求被浏览器取消：\texttt{type=CLIENT\_ABORTED}；\texttt{code=CLIENT\_REQUEST\_ABORTED}；\texttt{message=请求已取消}。
+\end{itemize}
+
+\hypertarget{http-ux72b6ux6001ux7801}{%
+\subsubsection{1.5 HTTP 状态码}\label{http-ux72b6ux6001ux7801}}
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+HTTP & error.type & 使用场景 \\
+\midrule
+\endhead
+400 & VALIDATION\_ERROR & 参数格式错误、字段校验失败 \\
+401 & AUTH\_ERROR & 未登录、Access Token 失效、登录凭证错误 \\
+403 & AUTHZ\_ERROR & 已登录但无权访问资源 \\
+404 & RESOURCE\_NOT\_FOUND & 数据库、表、字段、索引、视图不存在 \\
+409 & RESOURCE\_CONFLICT & 名称重复、状态冲突 \\
+412 & CONFIRMATION\_REQUIRED & 缺少确认信息 \\
+413 & LIMIT\_EXCEEDED & 容量超限 \\
+429 & RATE\_LIMITED & 请求过于频繁 \\
+500 & INTERNAL\_ERROR & 服务端未预期异常 \\
+502 & MYSQL\_CONNECTION\_ERROR & MySQL 连接失败 \\
+503 & MYSQL\_UNAVAILABLE & MySQL 不可用 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux901aux7528ux53c2ux6570ux7ea6ux675f}{%
+\subsection{2.
+通用参数约束}\label{ux901aux7528ux53c2ux6570ux7ea6ux675f}}
+
+\hypertarget{ux6807ux8bc6ux7b26}{%
+\subsubsection{2.1 标识符}\label{ux6807ux8bc6ux7b26}}
+
+数据库显示名、表名、字段名、索引名、约束名、视图名：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\^{}[A{-}Za{-}z][A{-}Za{-}z0{-}9\_]\{0,63\}$}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux5206ux9875}{%
+\subsubsection{2.2 分页}\label{ux5206ux9875}}
+
+\begin{longtable}[]{@{}lllll@{}}
+\toprule
+参数 & 类型 & 必填 & 默认值 & 约束 \\
+\midrule
+\endhead
+page & number & 否 & 1 & 整数，最小 1 \\
+pageSize & number & 否 & 20 & 整数，最小 1，最大 100 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux786eux8ba4ux5bf9ux8c61}{%
+\subsubsection{2.3 确认对象}\label{ux786eux8ba4ux5bf9ux8c61}}
+
+高风险请求统一使用：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"confirmation"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"confirmed"}\FunctionTok{:} \KeywordTok{true}\FunctionTok{,}
+    \DataTypeTok{"confirmText"}\FunctionTok{:} \StringTok{"students"}\FunctionTok{,}
+    \DataTypeTok{"disableSameTypePrompt"}\FunctionTok{:} \KeywordTok{false}
+  \FunctionTok{\}}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+字段 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+confirmed & boolean & 是 & 必须为 true \\
+confirmText & string & 是 & 必须与后端要求文本完全一致 \\
+disableSameTypePrompt & boolean & 否 & 只对中风险操作生效 \\
+\bottomrule
+\end{longtable}
+
+强制确认操作忽略 \texttt{disableSameTypePrompt}。
+
+\hypertarget{ux9ed8ux8ba4ux5bb9ux91cfux9650ux5236}{%
+\subsubsection{2.4
+默认容量限制}\label{ux9ed8ux8ba4ux5bb9ux91cfux9650ux5236}}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+限制项 & 默认值 \\
+\midrule
+\endhead
+单用户数据库数量 & 10 \\
+单数据库表数量 & 100 \\
+单数据库视图数量 & 50 \\
+单表字段数量 & 80 \\
+单表索引数量 & 16 \\
+单用户物理数据总量 & 1GB \\
+单数据库物理数据量 & 512MB \\
+单表物理数据量 & 256MB \\
+单次分页返回行数 & 100 \\
+单次查询最大返回行数 & 1000 \\
+单次批量插入行数 & 500 \\
+单次批量修改影响行数 & 200 \\
+单次批量删除影响行数 & 200 \\
+查询最大 JOIN 数 & 8 \\
+查询最大子查询深度 & 3 \\
+查询最大执行时间 & 10 秒 \\
+查询 AST 最大体积 & 64KB \\
+头像文件大小 & 2MB \\
+背景图文件大小 & 8MB \\
+单用户资源总量 & 100MB \\
+\bottomrule
+\end{longtable}
+
+服务端可以通过配置调整默认值。接口文档中的默认值用于本地课程项目落地。
+
+\hypertarget{ux9519ux8befux7801ux679aux4e3e}{%
+\subsection{3. 错误码枚举}\label{ux9519ux8befux7801ux679aux4e3e}}
+
+\hypertarget{ux901aux7528ux9519ux8befux7801}{%
+\subsubsection{3.1 通用错误码}\label{ux901aux7528ux9519ux8befux7801}}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+code & message 模板 \\
+\midrule
+\endhead
+VALIDATION\_FIELD\_REQUIRED & \texttt{\{field\}\ 为必填项} \\
+VALIDATION\_IDENTIFIER\_INVALID & \texttt{\{field\}\ 名称格式不正确} \\
+VALIDATION\_ENUM\_INVALID & \texttt{\{field\}\ 不在允许范围内} \\
+RESOURCE\_NOT\_FOUND & \texttt{\{resource\}\ 不存在} \\
+RESOURCE\_CONFLICT & \texttt{\{resource\}\ 已存在} \\
+AUTH\_TOKEN\_MISSING & \texttt{登录状态缺失，请重新登录} \\
+AUTH\_TOKEN\_EXPIRED & \texttt{登录已过期，请重新登录} \\
+AUTH\_CREDENTIAL\_INVALID & \texttt{账号与密码不匹配} \\
+AUTHZ\_DATABASE\_FORBIDDEN & \texttt{无权访问该数据库} \\
+CONFIRMATION\_TEXT\_MISMATCH & \texttt{确认文本不匹配} \\
+LIMIT\_EXCEEDED & \texttt{操作超过系统限制} \\
+INTERNAL\_ERROR & \texttt{服务端异常，请联系维护者并提供追踪编号} \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{mysql-ux9519ux8befux7801ux6620ux5c04}{%
+\subsubsection{3.2 MySQL
+错误码映射}\label{mysql-ux9519ux8befux7801ux6620ux5c04}}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{1044} /
+  \texttt{42000}：\texttt{DB\_ACCESS\_DENIED}；\texttt{数据库访问被拒绝}。
+\item
+  \texttt{1045} /
+  \texttt{28000}：\texttt{DB\_AUTH\_FAILED}；\texttt{数据库账号认证失败}。
+\item
+  \texttt{1046} /
+  \texttt{3D000}：\texttt{DB\_NOT\_SELECTED}；\texttt{未选择数据库}。
+\item
+  \texttt{1048} /
+  \texttt{23000}：\texttt{DB\_NOT\_NULL\_VIOLATION}；\texttt{字段\ \{columnName\}\ 不允许为空}。
+\item
+  \texttt{1050} /
+  \texttt{42S01}：\texttt{DB\_TABLE\_EXISTS}；\texttt{表\ \{tableName\}\ 已存在}。
+\item
+  \texttt{1051} /
+  \texttt{42S02}：\texttt{DB\_TABLE\_NOT\_FOUND}；\texttt{表\ \{tableName\}\ 不存在}。
+\item
+  \texttt{1054} /
+  \texttt{42S22}：\texttt{DB\_COLUMN\_NOT\_FOUND}；\texttt{字段\ \{columnName\}\ 不存在}。
+\item
+  \texttt{1062} /
+  \texttt{23000}：\texttt{DB\_DUPLICATE\_ENTRY}；\texttt{唯一约束冲突：\{constraintName\}}。
+\item
+  \texttt{1064} /
+  \texttt{42000}：\texttt{DB\_SQL\_SYNTAX\_ERROR}；\texttt{系统生成的\ SQL\ 语法错误}。
+\item
+  \texttt{1072} /
+  \texttt{42000}：\texttt{DB\_KEY\_COLUMN\_NOT\_FOUND}；\texttt{索引字段\ \{columnName\}\ 不存在}。
+\item
+  \texttt{1215} /
+  \texttt{HY000}：\texttt{DB\_FOREIGN\_KEY\_CREATE\_FAILED}；\texttt{外键创建失败}。
+\item
+  \texttt{1216} /
+  \texttt{23000}：\texttt{DB\_FOREIGN\_KEY\_CHILD\_FAILED}；\texttt{外键约束失败，引用数据不存在}。
+\item
+  \texttt{1217} /
+  \texttt{23000}：\texttt{DB\_FOREIGN\_KEY\_PARENT\_FAILED}；\texttt{外键约束失败，存在关联数据}。
+\item
+  \texttt{1451} /
+  \texttt{23000}：\texttt{DB\_FOREIGN\_KEY\_RESTRICT}；\texttt{存在关联数据，删除被外键限制}。
+\item
+  \texttt{1452} /
+  \texttt{23000}：\texttt{DB\_FOREIGN\_KEY\_REFERENCE\_MISSING}；\texttt{外键引用的目标数据不存在}。
+\item
+  \texttt{3819} /
+  \texttt{HY000}：\texttt{DB\_CHECK\_CONSTRAINT\_FAILED}；\texttt{检查约束\ \{constraintName\}\ 不满足}。
+\end{itemize}
+
+\hypertarget{ux8ba4ux8bc1ux63a5ux53e3}{%
+\subsection{4. 认证接口}\label{ux8ba4ux8bc1ux63a5ux53e3}}
+
+\hypertarget{api-auth-001-ux6ce8ux518c}{%
+\subsubsection{API-AUTH-001 注册}\label{api-auth-001-ux6ce8ux518c}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/auth/register}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+userName & string & 是 & trim 后长度 2-20 \\
+password & string & 是 & 8-16 位，包含英文字母和数字 \\
+\bottomrule
+\end{longtable}
+
+成功响应 \texttt{data}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+accountNo & string & 10 位数字 \\
+userName & string & 展示昵称 \\
+\bottomrule
+\end{longtable}
+
+错误：
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+code & message \\
+\midrule
+\endhead
+VALIDATION\_FIELD\_REQUIRED & 昵称和密码均为必填项 \\
+VALIDATION\_PASSWORD\_INVALID & 密码必须为 8-16
+位且包含英文字母和数字 \\
+INTERNAL\_ERROR & 注册失败，请提供追踪编号联系维护者 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-auth-002-ux767bux5f55}{%
+\subsubsection{API-AUTH-002 登录}\label{api-auth-002-ux767bux5f55}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/auth/login}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+accountNo & string & 是 & 10 位数字 \\
+password & string & 是 & 非空字符串 \\
+\bottomrule
+\end{longtable}
+
+成功响应 \texttt{data}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+accessToken & string & JWT \\
+user.userID & number & 用户 ID \\
+user.accountNo & string & 10 位账号 \\
+user.displayName & string & 展示昵称 \\
+\bottomrule
+\end{longtable}
+
+Refresh Token 通过 HttpOnly Cookie 写入。
+
+错误：
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+code & message \\
+\midrule
+\endhead
+VALIDATION\_IDENTIFIER\_INVALID & 账号格式不正确 \\
+AUTH\_CREDENTIAL\_INVALID & 账号与密码不匹配 \\
+MYSQL\_CONNECTION\_ERROR & 数据库连接失败，登录未完成 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-auth-003-ux5237ux65b0-token}{%
+\subsubsection{API-AUTH-003 刷新
+Token}\label{api-auth-003-ux5237ux65b0-token}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/auth/refresh}
+\end{Highlighting}
+\end{Shaded}
+
+请求：
+
+\begin{itemize}
+\tightlist
+\item
+  无请求体。
+\item
+  必须携带 Refresh Token Cookie。
+\end{itemize}
+
+成功响应 \texttt{data}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+accessToken & string & 新 Access Token \\
+\bottomrule
+\end{longtable}
+
+错误：
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+code & message \\
+\midrule
+\endhead
+AUTH\_REFRESH\_MISSING & 刷新凭证缺失，请重新登录 \\
+AUTH\_REFRESH\_EXPIRED & 登录状态已失效，请重新登录 \\
+AUTH\_REFRESH\_REUSE\_DETECTED & 登录状态异常，请重新登录 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-auth-004-ux9000ux51faux767bux5f55}{%
+\subsubsection{API-AUTH-004
+退出登录}\label{api-auth-004-ux9000ux51faux767bux5f55}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/auth/logout}
+\end{Highlighting}
+\end{Shaded}
+
+请求：
+
+\begin{itemize}
+\tightlist
+\item
+  必须携带 Refresh Token Cookie。
+\end{itemize}
+
+成功响应：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"code"}\FunctionTok{:} \DecValTok{200}\FunctionTok{,}
+  \DataTypeTok{"message"}\FunctionTok{:} \StringTok{"退出登录成功"}\FunctionTok{,}
+  \DataTypeTok{"data"}\FunctionTok{:} \KeywordTok{null}\FunctionTok{,}
+  \DataTypeTok{"traceId"}\FunctionTok{:} \StringTok{"01HZ0000000000000000000000"}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{api-auth-005-ux5f53ux524dux7528ux6237}{%
+\subsubsection{API-AUTH-005
+当前用户}\label{api-auth-005-ux5f53ux524dux7528ux6237}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/auth/me}
+\end{Highlighting}
+\end{Shaded}
+
+成功响应 \texttt{data}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+userID & number & 用户 ID \\
+accountNo & string & 10 位账号 \\
+displayName & string & 展示昵称 \\
+status & string & active \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux5de5ux4f5cux53f0ux4e0eux504fux597dux63a5ux53e3}{%
+\subsection{5.
+工作台与偏好接口}\label{ux5de5ux4f5cux53f0ux4e0eux504fux597dux63a5ux53e3}}
+
+\hypertarget{api-workbench-001-ux5de5ux4f5cux53f0ux6982ux89c8}{%
+\subsubsection{API-WORKBENCH-001
+工作台概览}\label{api-workbench-001-ux5de5ux4f5cux53f0ux6982ux89c8}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/workbench/overview}
+\end{Highlighting}
+\end{Shaded}
+
+成功响应 \texttt{data}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+user.userID & number & 当前用户 ID \\
+user.displayName & string & 展示昵称 \\
+summary.databaseCount & number & 当前用户数据库数量 \\
+summary.tableCount & number & 当前用户表数量 \\
+summary.viewCount & number & 当前用户视图数量 \\
+summary.indexCount & number & 当前用户索引数量 \\
+summary.rowCountEstimated & number & 估算行数 \\
+recentOperations & array & 最近操作，按时间倒序 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-pref-001-ux83b7ux53d6ux504fux597d}{%
+\subsubsection{API-PREF-001
+获取偏好}\label{api-pref-001-ux83b7ux53d6ux504fux597d}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/users/me/preferences}
+\end{Highlighting}
+\end{Shaded}
+
+成功响应 \texttt{data}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+themeMode & string & dark、light \\
+themeHue & number & 0-359 \\
+backgroundPreset & string & particle \\
+tablePageSize & number & 1 到服务端最大分页 \\
+confirmBatchInsert & boolean & 布尔值 \\
+confirmBatchUpdate & boolean & 布尔值 \\
+confirmBatchDelete & boolean & 布尔值 \\
+confirmCascadeDelete & boolean & 布尔值 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-pref-002-ux66f4ux65b0ux504fux597d}{%
+\subsubsection{API-PREF-002
+更新偏好}\label{api-pref-002-ux66f4ux65b0ux504fux597d}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{PATCH /api/v1/users/me/preferences}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+themeHue & number & 否 & 0-359 \\
+tablePageSize & number & 否 & 1 到服务端最大分页 \\
+confirmBatchInsert & boolean & 否 & 布尔值 \\
+confirmBatchUpdate & boolean & 否 & 布尔值 \\
+confirmBatchDelete & boolean & 否 & 布尔值 \\
+confirmCascadeDelete & boolean & 否 & 布尔值 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux6570ux636eux5e93ux63a5ux53e3}{%
+\subsection{6. 数据库接口}\label{ux6570ux636eux5e93ux63a5ux53e3}}
+
+\hypertarget{api-db-001-ux6570ux636eux5e93ux5217ux8868}{%
+\subsubsection{API-DB-001
+数据库列表}\label{api-db-001-ux6570ux636eux5e93ux5217ux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/databases}
+\end{Highlighting}
+\end{Shaded}
+
+成功响应 \texttt{data.items{[}{]}}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+id & number & 平台数据库 ID \\
+displayName & string & 显示名 \\
+charset & string & 字符集 \\
+collation & string & 排序规则 \\
+tableCount & number & 表数量 \\
+viewCount & number & 视图数量 \\
+createdAt & string & ISO 时间 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-db-002-ux521bux5efaux6570ux636eux5e93}{%
+\subsubsection{API-DB-002
+创建数据库}\label{api-db-002-ux521bux5efaux6570ux636eux5e93}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/databases}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+displayName & string & 是 & 标识符规则 \\
+charset & string & 是 & utf8mb4 \\
+collation & string & 是 & utf8mb4\_unicode\_ci \\
+\bottomrule
+\end{longtable}
+
+错误：
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+code & message \\
+\midrule
+\endhead
+VALIDATION\_IDENTIFIER\_INVALID & 数据库名称格式不正确 \\
+RESOURCE\_CONFLICT & 数据库名称已存在 \\
+LIMIT\_EXCEEDED & 数据库数量超过系统限制 \\
+MYSQL\_EXECUTION\_ERROR & 数据库创建失败：\{mysql.sqlMessage\} \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-db-003-ux4feeux6539ux6570ux636eux5e93}{%
+\subsubsection{API-DB-003
+修改数据库}\label{api-db-003-ux4feeux6539ux6570ux636eux5e93}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{PATCH /api/v1/databases/:databaseId}
+\end{Highlighting}
+\end{Shaded}
+
+路径参数：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+参数 & 类型 & 约束 \\
+\midrule
+\endhead
+databaseId & number & 正整数 \\
+\bottomrule
+\end{longtable}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+displayName & string & 否 & 标识符规则 \\
+charset & string & 否 & utf8mb4 \\
+collation & string & 否 & utf8mb4\_unicode\_ci \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-db-004-ux5220ux9664ux6570ux636eux5e93}{%
+\subsubsection{API-DB-004
+删除数据库}\label{api-db-004-ux5220ux9664ux6570ux636eux5e93}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{DELETE /api/v1/databases/:databaseId}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+confirmation.confirmed & boolean & 是 & true \\
+confirmation.confirmText & string & 是 & 等于数据库显示名 \\
+\bottomrule
+\end{longtable}
+
+错误：
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+code & message \\
+\midrule
+\endhead
+CONFIRMATION\_REQUIRED & 删除数据库需要二次确认 \\
+CONFIRMATION\_TEXT\_MISMATCH & 数据库名称确认失败 \\
+AUTHZ\_DATABASE\_FORBIDDEN & 无权删除该数据库 \\
+MYSQL\_EXECUTION\_ERROR & 数据库删除失败：\{mysql.sqlMessage\} \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux8868ux7ed3ux6784ux63a5ux53e3}{%
+\subsection{7. 表结构接口}\label{ux8868ux7ed3ux6784ux63a5ux53e3}}
+
+\hypertarget{api-table-001-ux5bf9ux8c61ux5217ux8868}{%
+\subsubsection{API-TABLE-001
+对象列表}\label{api-table-001-ux5bf9ux8c61ux5217ux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/databases/:databaseId/objects}
+\end{Highlighting}
+\end{Shaded}
+
+查询参数：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+objectType & string & 否 & table、view \\
+\bottomrule
+\end{longtable}
+
+成功响应 \texttt{data.items{[}{]}}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+objectType & string & table、view \\
+name & string & 对象名 \\
+rowCountEstimated & number & 估算行数 \\
+dataLength & number & 数据大小 \\
+indexLength & number & 索引大小 \\
+createdAt & string & ISO 时间 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-table-002-ux521bux5efaux8868}{%
+\subsubsection{API-TABLE-002
+创建表}\label{api-table-002-ux521bux5efaux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/databases/:databaseId/tables}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+tableName & string & 是 & 标识符规则 \\
+columns & array & 是 & 长度 1 到服务端上限 \\
+constraints & array & 否 & 约束定义 \\
+indexes & array & 否 & 索引定义 \\
+\bottomrule
+\end{longtable}
+
+\texttt{columns{[}{]}}：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+字段 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+name & string & 是 & 标识符规则 \\
+type & string & 是 & 支持的数据类型 \\
+length & number & 否 & CHAR、VARCHAR 使用，1-65535 \\
+precision & number & 否 & DECIMAL 使用，1-65 \\
+scale & number & 否 & DECIMAL 使用，0 到 precision \\
+unsigned & boolean & 否 & 数值类型使用 \\
+nullable & boolean & 是 & 布尔值 \\
+defaultValue & any & 否 & 与字段类型兼容 \\
+autoIncrement & boolean & 否 & 整数类型使用 \\
+comment & string & 否 & 最大 255 字符 \\
+\bottomrule
+\end{longtable}
+
+支持的数据类型：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{TINYINT, SMALLINT, INT, BIGINT, DECIMAL, FLOAT, DOUBLE,}
+\NormalTok{CHAR, VARCHAR, TEXT, MEDIUMTEXT, LONGTEXT,}
+\NormalTok{DATE, TIME, DATETIME, TIMESTAMP, BOOLEAN, JSON,}
+\NormalTok{BLOB, MEDIUMBLOB, LONGBLOB}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{constraints{[}{]}}：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{name}：\texttt{string}；必填；标识符规则。
+\item
+  \texttt{type}：\texttt{string}；必填；取值为
+  \texttt{PRIMARY\_KEY}、\texttt{FOREIGN\_KEY}、\texttt{UNIQUE}、\texttt{CHECK}。
+\item
+  \texttt{columns}：\texttt{array}；必填；字段名数组，字段必须存在。
+\item
+  \texttt{referencedTable}：\texttt{string}；条件必填；外键使用。
+\item
+  \texttt{referencedColumns}：\texttt{array}；条件必填；外键使用。
+\item
+  \texttt{onDelete}：\texttt{string}；条件必填；取值为
+  \texttt{RESTRICT}、\texttt{CASCADE}、\texttt{SET\ NULL}、\texttt{NO\ ACTION}。
+\item
+  \texttt{onUpdate}：\texttt{string}；条件必填；取值为
+  \texttt{RESTRICT}、\texttt{CASCADE}、\texttt{SET\ NULL}、\texttt{NO\ ACTION}。
+\item
+  \texttt{expression}：\texttt{string}；条件必填；\texttt{CHECK}
+  使用，后端表达式白名单校验。
+\end{itemize}
+
+\texttt{indexes{[}{]}}：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+字段 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+name & string & 是 & 标识符规则 \\
+unique & boolean & 是 & 布尔值 \\
+columns & array & 是 & 索引字段定义 \\
+\bottomrule
+\end{longtable}
+
+\texttt{indexes{[}{]}.columns{[}{]}}：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+字段 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+name & string & 是 & 字段必须存在 \\
+order & string & 是 & ASC、DESC \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-table-003-ux8868ux7ed3ux6784}{%
+\subsubsection{API-TABLE-003
+表结构}\label{api-table-003-ux8868ux7ed3ux6784}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/databases/:databaseId/tables/:tableName/schema}
+\end{Highlighting}
+\end{Shaded}
+
+成功响应 \texttt{data}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+tableName & string & 表名 \\
+columns & array & 字段列表 \\
+constraints & array & 约束列表 \\
+indexes & array & 索引列表 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-table-004-ux4feeux6539ux8868ux7ed3ux6784}{%
+\subsubsection{API-TABLE-004
+修改表结构}\label{api-table-004-ux4feeux6539ux8868ux7ed3ux6784}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{PATCH /api/v1/databases/:databaseId/tables/:tableName/schema}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+operations & array & 是 & 长度 1 到服务端上限 \\
+confirmation & object & 条件必填 & 高风险操作必填 \\
+\bottomrule
+\end{longtable}
+
+\texttt{operations{[}{]}}：
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+action & 必填字段 \\
+\midrule
+\endhead
+ADD\_COLUMN & column \\
+MODIFY\_COLUMN & oldName、column \\
+RENAME\_COLUMN & oldName、newName \\
+DROP\_COLUMN & name \\
+ADD\_CONSTRAINT & constraint \\
+DROP\_CONSTRAINT & name \\
+ADD\_INDEX & index \\
+DROP\_INDEX & name \\
+\bottomrule
+\end{longtable}
+
+错误：
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+code & message \\
+\midrule
+\endhead
+RESOURCE\_NOT\_FOUND & 表不存在 \\
+VALIDATION\_IDENTIFIER\_INVALID & 字段名称格式不正确 \\
+CONFIRMATION\_REQUIRED & 该结构变更需要二次确认 \\
+MYSQL\_EXECUTION\_ERROR & 表结构修改失败：\{mysql.sqlMessage\} \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-table-005-ux5220ux9664ux8868}{%
+\subsubsection{API-TABLE-005
+删除表}\label{api-table-005-ux5220ux9664ux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{DELETE /api/v1/databases/:databaseId/tables/:tableName}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+confirmation.confirmed & boolean & 是 & true \\
+confirmation.confirmText & string & 是 & 等于表名 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux7ea6ux675fux63a5ux53e3}{%
+\subsection{8. 约束接口}\label{ux7ea6ux675fux63a5ux53e3}}
+
+\hypertarget{api-constraint-001-ux521bux5efaux7ea6ux675f}{%
+\subsubsection{API-CONSTRAINT-001
+创建约束}\label{api-constraint-001-ux521bux5efaux7ea6ux675f}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/databases/:databaseId/tables/:tableName/constraints}
+\end{Highlighting}
+\end{Shaded}
+
+请求体同 \texttt{constraints{[}{]}} 单项定义。
+
+\hypertarget{api-constraint-002-ux5220ux9664ux7ea6ux675f}{%
+\subsubsection{API-CONSTRAINT-002
+删除约束}\label{api-constraint-002-ux5220ux9664ux7ea6ux675f}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{DELETE /api/v1/databases/:databaseId/tables/:tableName/constraints/:constraintName}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+confirmation.confirmed & boolean & 条件必填 & 高风险约束必填 true \\
+confirmation.confirmText & string & 条件必填 & 等于约束名 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux7d22ux5f15ux63a5ux53e3}{%
+\subsection{9. 索引接口}\label{ux7d22ux5f15ux63a5ux53e3}}
+
+\hypertarget{api-index-001-ux521bux5efaux7d22ux5f15}{%
+\subsubsection{API-INDEX-001
+创建索引}\label{api-index-001-ux521bux5efaux7d22ux5f15}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/databases/:databaseId/tables/:tableName/indexes}
+\end{Highlighting}
+\end{Shaded}
+
+请求体同 \texttt{indexes{[}{]}} 单项定义。
+
+\hypertarget{api-index-002-ux5220ux9664ux7d22ux5f15}{%
+\subsubsection{API-INDEX-002
+删除索引}\label{api-index-002-ux5220ux9664ux7d22ux5f15}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{DELETE /api/v1/databases/:databaseId/tables/:tableName/indexes/:indexName}
+\end{Highlighting}
+\end{Shaded}
+
+成功响应 \texttt{data} 固定为 null。
+
+\hypertarget{ux89c6ux56feux63a5ux53e3}{%
+\subsection{10. 视图接口}\label{ux89c6ux56feux63a5ux53e3}}
+
+\hypertarget{api-view-001-ux89c6ux56feux5217ux8868}{%
+\subsubsection{API-VIEW-001
+视图列表}\label{api-view-001-ux89c6ux56feux5217ux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/databases/:databaseId/views}
+\end{Highlighting}
+\end{Shaded}
+
+成功响应 \texttt{data.items{[}{]}}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+viewName & string & 视图名 \\
+updatable & boolean & 是否可更新 \\
+createdAt & string & ISO 时间 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-view-002-ux521bux5efaux89c6ux56fe}{%
+\subsubsection{API-VIEW-002
+创建视图}\label{api-view-002-ux521bux5efaux89c6ux56fe}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/databases/:databaseId/views}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+viewName & string & 是 & 标识符规则 \\
+selectDefinition & object & 是 & 同 API-QUERY-001 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-view-003-ux4feeux6539ux89c6ux56fe}{%
+\subsubsection{API-VIEW-003
+修改视图}\label{api-view-003-ux4feeux6539ux89c6ux56fe}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{PATCH /api/v1/databases/:databaseId/views/:viewName}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+selectDefinition & object & 是 & 同 API-QUERY-001 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-view-004-ux5220ux9664ux89c6ux56fe}{%
+\subsubsection{API-VIEW-004
+删除视图}\label{api-view-004-ux5220ux9664ux89c6ux56fe}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{DELETE /api/v1/databases/:databaseId/views/:viewName}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+confirmation.confirmed & boolean & 是 & true \\
+confirmation.confirmText & string & 是 & 等于视图名 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux8868ux6570ux636eux63a5ux53e3}{%
+\subsection{11. 表数据接口}\label{ux8868ux6570ux636eux63a5ux53e3}}
+
+\hypertarget{api-row-001-ux5206ux9875ux67e5ux8be2ux6570ux636e}{%
+\subsubsection{API-ROW-001
+分页查询数据}\label{api-row-001-ux5206ux9875ux67e5ux8be2ux6570ux636e}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/databases/:databaseId/tables/:tableName/rows}
+\end{Highlighting}
+\end{Shaded}
+
+查询参数：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+page & number & 否 & 最小 1 \\
+pageSize & number & 否 & 服务端最大值限制 \\
+orderBy & string & 否 & 必须是存在字段 \\
+order & string & 否 & ASC、DESC \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-row-002-ux65b0ux589eux6570ux636e}{%
+\subsubsection{API-ROW-002
+新增数据}\label{api-row-002-ux65b0ux589eux6570ux636e}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/databases/:databaseId/tables/:tableName/rows}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+rows & array & 是 & 长度 1 到服务端批量上限 \\
+transactionId & string & 否 & 活跃事务 ID \\
+\bottomrule
+\end{longtable}
+
+\texttt{rows{[}{]}} 是字段名到字段值的对象。字段名必须存在于目标表。
+
+批量插入错误响应必须包含：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"error"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"type"}\FunctionTok{:} \StringTok{"MYSQL\_CONSTRAINT\_ERROR"}\FunctionTok{,}
+    \DataTypeTok{"code"}\FunctionTok{:} \StringTok{"DB\_NOT\_NULL\_VIOLATION"}\FunctionTok{,}
+    \DataTypeTok{"details"}\FunctionTok{:} \StringTok{"批量插入第 3 行失败"}\FunctionTok{,}
+    \DataTypeTok{"fieldErrors"}\FunctionTok{:} \OtherTok{[}
+      \FunctionTok{\{}
+        \DataTypeTok{"rowIndex"}\FunctionTok{:} \DecValTok{2}\FunctionTok{,}
+        \DataTypeTok{"field"}\FunctionTok{:} \StringTok{"age"}\FunctionTok{,}
+        \DataTypeTok{"message"}\FunctionTok{:} \StringTok{"字段 age 不允许为空"}
+      \FunctionTok{\}}
+    \OtherTok{]}\FunctionTok{,}
+    \DataTypeTok{"mysql"}\FunctionTok{:} \FunctionTok{\{}
+      \DataTypeTok{"errno"}\FunctionTok{:} \DecValTok{1048}\FunctionTok{,}
+      \DataTypeTok{"sqlState"}\FunctionTok{:} \StringTok{"23000"}\FunctionTok{,}
+      \DataTypeTok{"sqlMessage"}\FunctionTok{:} \StringTok{"Column \textquotesingle{}age\textquotesingle{} cannot be null"}
+    \FunctionTok{\}}
+  \FunctionTok{\}}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{api-row-003-ux4feeux6539ux6570ux636e}{%
+\subsubsection{API-ROW-003
+修改数据}\label{api-row-003-ux4feeux6539ux6570ux636e}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{PATCH /api/v1/databases/:databaseId/tables/:tableName/rows}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+set & object & 是 & 字段名到新值的对象 \\
+primaryKey & object & 条件必填 & 行内编辑提交时必填 \\
+where & object & 条件必填 & 批量条件修改时必填 \\
+transactionId & string & 否 & 活跃事务 ID \\
+confirmation & object & 条件必填 & 影响行数达到阈值时必填 \\
+\bottomrule
+\end{longtable}
+
+行内编辑提交规则：
+
+\begin{itemize}
+\tightlist
+\item
+  用户在前端表格中直接修改单元格时，前端只保存本地草稿，不立即调用该接口。
+\item
+  用户点击该行旁边``更新/提交''按钮后，前端调用该接口。
+\item
+  行内编辑必须优先携带 \texttt{primaryKey}，后端使用主键定位唯一行。
+\item
+  \texttt{set} 只提交被修改字段，不提交整行数据。
+\item
+  用户点击``取消''时前端丢弃草稿，不调用后端。
+\end{itemize}
+
+行内编辑请求示例：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"primaryKey"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"id"}\FunctionTok{:} \DecValTok{1}
+  \FunctionTok{\},}
+  \DataTypeTok{"set"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"name"}\FunctionTok{:} \StringTok{"Alice"}\FunctionTok{,}
+    \DataTypeTok{"age"}\FunctionTok{:} \DecValTok{18}
+  \FunctionTok{\}}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+批量条件修改规则：
+
+\begin{itemize}
+\tightlist
+\item
+  使用 \texttt{where} GUI 条件对象。
+\item
+  不允许无条件批量修改。
+\item
+  影响行数超过阈值时必须携带 \texttt{confirmation}。
+\end{itemize}
+
+\hypertarget{api-row-004-ux5220ux9664ux6570ux636e}{%
+\subsubsection{API-ROW-004
+删除数据}\label{api-row-004-ux5220ux9664ux6570ux636e}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{DELETE /api/v1/databases/:databaseId/tables/:tableName/rows}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+where & object & 是 & GUI 条件对象 \\
+transactionId & string & 否 & 活跃事务 ID \\
+confirmation & object & 条件必填 & 影响行数达到阈值时必填 \\
+\bottomrule
+\end{longtable}
+
+级联影响响应：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"code"}\FunctionTok{:} \DecValTok{412}\FunctionTok{,}
+  \DataTypeTok{"message"}\FunctionTok{:} \StringTok{"删除将影响关联表数据，请确认"}\FunctionTok{,}
+  \DataTypeTok{"data"}\FunctionTok{:} \KeywordTok{null}\FunctionTok{,}
+  \DataTypeTok{"traceId"}\FunctionTok{:} \StringTok{"01HZ0000000000000000000000"}\FunctionTok{,}
+  \DataTypeTok{"error"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"type"}\FunctionTok{:} \StringTok{"CONFIRMATION\_REQUIRED"}\FunctionTok{,}
+    \DataTypeTok{"code"}\FunctionTok{:} \StringTok{"CONFIRMATION\_CASCADE\_DELETE"}\FunctionTok{,}
+    \DataTypeTok{"source"}\FunctionTok{:} \StringTok{"server"}\FunctionTok{,}
+    \DataTypeTok{"details"}\FunctionTok{:} \StringTok{"删除 students 中 1 行将级联影响 scores 中 5 行"}\FunctionTok{,}
+    \DataTypeTok{"fieldErrors"}\FunctionTok{:} \OtherTok{[]}\FunctionTok{,}
+    \DataTypeTok{"mysql"}\FunctionTok{:} \KeywordTok{null}
+  \FunctionTok{\}}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{gui-ux67e5ux8be2ux63a5ux53e3}{%
+\subsection{12. GUI 查询接口}\label{gui-ux67e5ux8be2ux63a5ux53e3}}
+
+\hypertarget{api-query-001-ux7ed3ux6784ux5316-select}{%
+\subsubsection{API-QUERY-001 结构化
+SELECT}\label{api-query-001-ux7ed3ux6784ux5316-select}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/databases/:databaseId/query/select}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+from & object & 是 & 主查询来源，支持表、视图、派生表子查询 \\
+joins & array & 否 & 连接定义 \\
+fields & array & 是 & 查询字段，长度 1 到服务端上限 \\
+filters & array & 否 & 筛选条件 \\
+groups & array & 否 & 分组字段 \\
+having & array & 否 & 聚合筛选 \\
+sorts & array & 否 & 排序 \\
+page & number & 否 & 最小 1 \\
+pageSize & number & 否 & 服务端最大值限制 \\
+\bottomrule
+\end{longtable}
+
+\texttt{from} 和 \texttt{joins{[}{]}.source} 使用统一来源对象：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+字段 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+type & string & 是 & table、view、subquery \\
+table & string & 条件必填 & type=table 时必填，表名存在 \\
+view & string & 条件必填 & type=view 时必填，视图名存在 \\
+query & object & 条件必填 & type=subquery 时必填，结构同 API-QUERY-001
+请求体 \\
+alias & string & 否 & type=subquery 时必填，标识符规则 \\
+\bottomrule
+\end{longtable}
+
+\texttt{joins{[}{]}}：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+字段 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+type & string & 是 & INNER、LEFT、RIGHT \\
+source & object & 是 & 来源对象，支持表、视图、子查询 \\
+alias & string & 是 & 标识符规则 \\
+on & array & 是 & 连接条件 \\
+\bottomrule
+\end{longtable}
+
+\texttt{fields{[}{]}}：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+字段 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+tableAlias & string & 否 & 已声明别名 \\
+name & string & 是 & 字段存在 \\
+alias & string & 否 & 标识符规则 \\
+aggregate & string & 否 & COUNT、SUM、AVG、MIN、MAX \\
+\bottomrule
+\end{longtable}
+
+\texttt{filters{[}{]}} 和 \texttt{having{[}{]}}：
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}@{}}
+\toprule
+字段 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+field & string & 是 & 字段存在 \\
+operator & string & 是 &
+eq、ne、gt、gte、lt、lte、like、in、notIn、between、isNull、isNotNull、exists、notExists \\
+value & any & 条件必填 & 与字段类型兼容 \\
+subquery & object & 条件必填 &
+in、notIn、exists、notExists、标量比较时使用 \\
+logic & string & 否 & AND、OR \\
+\bottomrule
+\end{longtable}
+
+子查询规则：
+
+\begin{itemize}
+\tightlist
+\item
+  子查询本身也是结构化查询 AST。
+\item
+  支持派生表子查询、\texttt{IN} / \texttt{NOT\ IN}
+  子查询、\texttt{EXISTS} / \texttt{NOT\ EXISTS} 子查询和标量子查询。
+\item
+  最大子查询嵌套深度为 3。
+\item
+  子查询和主查询合计 JOIN 数不得超过 8。
+\item
+  所有子查询仍然只能生成 \texttt{SELECT} SQL。
+\item
+  子查询引用字段必须能在当前查询作用域中解析。
+\end{itemize}
+
+结构化子查询示例：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"from"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"type"}\FunctionTok{:} \StringTok{"table"}\FunctionTok{,}
+    \DataTypeTok{"table"}\FunctionTok{:} \StringTok{"students"}\FunctionTok{,}
+    \DataTypeTok{"alias"}\FunctionTok{:} \StringTok{"s"}
+  \FunctionTok{\},}
+  \DataTypeTok{"fields"}\FunctionTok{:} \OtherTok{[}
+    \FunctionTok{\{}
+      \DataTypeTok{"tableAlias"}\FunctionTok{:} \StringTok{"s"}\FunctionTok{,}
+      \DataTypeTok{"name"}\FunctionTok{:} \StringTok{"name"}
+    \FunctionTok{\}}
+  \OtherTok{]}\FunctionTok{,}
+  \DataTypeTok{"filters"}\FunctionTok{:} \OtherTok{[}
+    \FunctionTok{\{}
+      \DataTypeTok{"field"}\FunctionTok{:} \StringTok{"s.id"}\FunctionTok{,}
+      \DataTypeTok{"operator"}\FunctionTok{:} \StringTok{"in"}\FunctionTok{,}
+      \DataTypeTok{"subquery"}\FunctionTok{:} \FunctionTok{\{}
+        \DataTypeTok{"from"}\FunctionTok{:} \FunctionTok{\{}
+          \DataTypeTok{"type"}\FunctionTok{:} \StringTok{"table"}\FunctionTok{,}
+          \DataTypeTok{"table"}\FunctionTok{:} \StringTok{"scores"}\FunctionTok{,}
+          \DataTypeTok{"alias"}\FunctionTok{:} \StringTok{"sc"}
+        \FunctionTok{\},}
+        \DataTypeTok{"fields"}\FunctionTok{:} \OtherTok{[}
+          \FunctionTok{\{}
+            \DataTypeTok{"tableAlias"}\FunctionTok{:} \StringTok{"sc"}\FunctionTok{,}
+            \DataTypeTok{"name"}\FunctionTok{:} \StringTok{"student\_id"}
+          \FunctionTok{\}}
+        \OtherTok{]}\FunctionTok{,}
+        \DataTypeTok{"filters"}\FunctionTok{:} \OtherTok{[}
+          \FunctionTok{\{}
+            \DataTypeTok{"field"}\FunctionTok{:} \StringTok{"sc.score"}\FunctionTok{,}
+            \DataTypeTok{"operator"}\FunctionTok{:} \StringTok{"gte"}\FunctionTok{,}
+            \DataTypeTok{"value"}\FunctionTok{:} \DecValTok{60}
+          \FunctionTok{\}}
+        \OtherTok{]}
+      \FunctionTok{\}}
+    \FunctionTok{\}}
+  \OtherTok{]}\FunctionTok{,}
+  \DataTypeTok{"page"}\FunctionTok{:} \DecValTok{1}\FunctionTok{,}
+  \DataTypeTok{"pageSize"}\FunctionTok{:} \DecValTok{20}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux4e8bux52a1ux63a5ux53e3}{%
+\subsection{13. 事务接口}\label{ux4e8bux52a1ux63a5ux53e3}}
+
+\hypertarget{api-tx-001-ux5f00ux542fux4e8bux52a1}{%
+\subsubsection{API-TX-001
+开启事务}\label{api-tx-001-ux5f00ux542fux4e8bux52a1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/databases/:databaseId/transactions}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{isolationLevel}：\texttt{string}；必填；取值为
+  \texttt{READ\ COMMITTED}、\texttt{REPEATABLE\ READ}、\texttt{SERIALIZABLE}。
+\end{itemize}
+
+成功响应 \texttt{data}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+transactionId & string & 事务 ID \\
+status & string & active \\
+expiresAt & string & ISO 时间 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-tx-002-ux63d0ux4ea4ux4e8bux52a1}{%
+\subsubsection{API-TX-002
+提交事务}\label{api-tx-002-ux63d0ux4ea4ux4e8bux52a1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/transactions/:transactionId/commit}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{api-tx-003-ux56deux6edaux4e8bux52a1}{%
+\subsubsection{API-TX-003
+回滚事务}\label{api-tx-003-ux56deux6edaux4e8bux52a1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/transactions/:transactionId/rollback}
+\end{Highlighting}
+\end{Shaded}
+
+错误：
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+code & message \\
+\midrule
+\endhead
+RESOURCE\_NOT\_FOUND & 事务不存在 \\
+TRANSACTION\_EXPIRED & 事务已超时并回滚 \\
+AUTHZ\_TRANSACTION\_FORBIDDEN & 无权操作该事务 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux7edfux8ba1ux63a5ux53e3}{%
+\subsection{14. 统计接口}\label{ux7edfux8ba1ux63a5ux53e3}}
+
+\hypertarget{api-stats-001-ux7528ux6237ux7edfux8ba1}{%
+\subsubsection{API-STATS-001
+用户统计}\label{api-stats-001-ux7528ux6237ux7edfux8ba1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/stats/user}
+\end{Highlighting}
+\end{Shaded}
+
+返回数据库数量、表数量、视图数量、索引数量、估算行数、操作趋势。
+
+\hypertarget{api-stats-002-ux6570ux636eux5e93ux7edfux8ba1}{%
+\subsubsection{API-STATS-002
+数据库统计}\label{api-stats-002-ux6570ux636eux5e93ux7edfux8ba1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/stats/databases/:databaseId}
+\end{Highlighting}
+\end{Shaded}
+
+返回表数量、视图数量、索引数量、数据大小、索引大小、字段类型分布。
+
+\hypertarget{api-stats-003-ux8868ux7edfux8ba1}{%
+\subsubsection{API-STATS-003
+表统计}\label{api-stats-003-ux8868ux7edfux8ba1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/stats/databases/:databaseId/tables/:tableName}
+\end{Highlighting}
+\end{Shaded}
+
+返回字段数量、主键信息、外键信息、索引信息、空值统计、数值聚合统计。
+
+\hypertarget{ux5ba1ux8ba1ux63a5ux53e3}{%
+\subsection{15. 审计接口}\label{ux5ba1ux8ba1ux63a5ux53e3}}
+
+\hypertarget{api-audit-001-ux64cdux4f5cux65e5ux5fd7ux5217ux8868}{%
+\subsubsection{API-AUDIT-001
+操作日志列表}\label{api-audit-001-ux64cdux4f5cux65e5ux5fd7ux5217ux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/audit{-}logs}
+\end{Highlighting}
+\end{Shaded}
+
+查询参数：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+page & number & 否 & 最小 1 \\
+pageSize & number & 否 & 服务端最大值限制 \\
+actionType & string & 否 & 审计动作枚举 \\
+objectType & string & 否 & 对象类型枚举 \\
+databaseId & number & 否 & 正整数 \\
+traceId & string & 否 & 追踪 ID \\
+startDate & string & 否 & ISO 时间 \\
+endDate & string & 否 & ISO 时间 \\
+\bottomrule
+\end{longtable}
+
+成功响应 \texttt{data.items{[}{]}}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+id & number & 日志 ID \\
+traceId & string & 追踪 ID \\
+actionType & string & 操作类型 \\
+objectType & string & 对象类型 \\
+objectName & string & 对象名 \\
+summary & string & 摘要 \\
+success & boolean & 成功状态 \\
+errorCode & string & 错误码 \\
+createdAt & string & ISO 时间 \\
+\bottomrule
+\end{longtable}
+
+\end{document}

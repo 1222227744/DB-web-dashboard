@@ -1,0 +1,380 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames*,x11names*}{xcolor}
+%
+\documentclass[
+  a4paper,
+  UTF8]{ctexart}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={需求文档},
+  pdfauthor={DBMS 控制台项目},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={blue},
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{需求文档}
+\author{DBMS 控制台项目}
+\date{}
+
+\begin{document}
+\maketitle
+
+\renewcommand*\contentsname{目录}
+{
+\hypersetup{linkcolor=}
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\hypertarget{ux9700ux6c42ux6587ux6863}{%
+\section{需求文档}\label{ux9700ux6c42ux6587ux6863}}
+
+\hypertarget{ux6587ux6863ux76eeux7684}{%
+\subsection{1. 文档目的}\label{ux6587ux6863ux76eeux7684}}
+
+本文档从产品视角描述 DBMS
+控制台项目的建设目标、用户价值、业务边界、核心功能、非功能要求和版本规划。它用于统一项目参与者对产品方向的理解，并作为《需求规格说明书》的上层依据。
+
+\hypertarget{ux9879ux76eeux80ccux666f}{%
+\subsection{2. 项目背景}\label{ux9879ux76eeux80ccux666f}}
+
+当前项目已经具备基础登录注册能力，后续目标是建设一个面向个人用户的本地
+MySQL 可视化管理与数据工作台。系统不重新实现数据库内核，而是在本地 MySQL
+之上提供安全、易用、可视化、可个性化的数据库管理体验。
+
+\hypertarget{ux4ea7ux54c1ux5b9aux4f4d}{%
+\subsection{3. 产品定位}\label{ux4ea7ux54c1ux5b9aux4f4d}}
+
+系统定位为：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{面向个人用户的本地 MySQL 可视化管理与数据工作台}
+\end{Highlighting}
+\end{Shaded}
+
+它同时具备两类属性：
+
+\begin{itemize}
+\tightlist
+\item
+  DBMS
+  控制台：管理用户自己的数据库、表结构、索引、约束、视图、表数据和查询。
+\item
+  个人工作台：支持头像、偏好、背景、主题、统计卡片和面板布局。
+\end{itemize}
+
+\hypertarget{ux7528ux6237ux4e0eux4f7fux7528ux573aux666f}{%
+\subsection{4.
+用户与使用场景}\label{ux7528ux6237ux4e0eux4f7fux7528ux573aux666f}}
+
+\hypertarget{ux76eeux6807ux7528ux6237}{%
+\subsubsection{4.1 目标用户}\label{ux76eeux6807ux7528ux6237}}
+
+第一阶段目标用户为单机环境下的个人学习用户或课程项目使用者。
+
+\hypertarget{ux5178ux578bux573aux666f}{%
+\subsubsection{4.2 典型场景}\label{ux5178ux578bux573aux666f}}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+场景 & 用户目标 \\
+\midrule
+\endhead
+登录系统 & 进入个人数据库工作台 \\
+创建数据库 & 为课程、实验或业务数据建立独立数据库 \\
+设计表结构 & 用 GUI 创建字段、主键、外键、索引和约束 \\
+浏览表数据 & 分页查看、排序、筛选表数据 \\
+修改表数据 & 在表格中编辑草稿，点击更新后提交数据库 \\
+构造查询 & 通过 GUI 完成 JOIN、聚合、分组、子查询等 SELECT 查询 \\
+查看统计 & 通过图表了解用户、数据库、表的使用情况 \\
+个性化工作台 & 设置头像、背景、主题色和面板卡片 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux4ea7ux54c1ux8303ux56f4}{%
+\subsection{5. 产品范围}\label{ux4ea7ux54c1ux8303ux56f4}}
+
+\hypertarget{ux8303ux56f4ux5185}{%
+\subsubsection{5.1 范围内}\label{ux8303ux56f4ux5185}}
+
+\begin{itemize}
+\tightlist
+\item
+  用户注册、登录、双 Token 会话设计。
+\item
+  用户资料、头像、偏好设置。
+\item
+  自定义背景、主题色和 Dashboard 卡片。
+\item
+  用户自己的数据库管理。
+\item
+  表、字段、索引、约束、视图管理。
+\item
+  表数据分页浏览、新增、修改、删除。
+\item
+  行内编辑草稿与显式更新提交。
+\item
+  GUI SELECT 查询构造器，支持 JOIN、聚合、分组、HAVING、子查询。
+\item
+  事务会话设计。
+\item
+  用户级、数据库级、表级统计。
+\item
+  审计日志、traceId、错误追踪。
+\item
+  容量限制、频率限制、安全防御。
+\end{itemize}
+
+\hypertarget{ux8303ux56f4ux5916}{%
+\subsubsection{5.2 范围外}\label{ux8303ux56f4ux5916}}
+
+第一阶段暂不实现：
+
+\begin{itemize}
+\tightlist
+\item
+  多用户共享同一个数据库。
+\item
+  远程 MySQL 实例接入。
+\item
+  MySQL 用户账号和权限系统管理。
+\item
+  任意 SQL 编辑器。
+\item
+  递归查询、窗口函数、CTE、UNION 等高级 SQL 构造。
+\item
+  云端对象存储。
+\end{itemize}
+
+\hypertarget{ux4ea7ux54c1ux7ed3ux6784}{%
+\subsection{6. 产品结构}\label{ux4ea7ux54c1ux7ed3ux6784}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{DBMS 控制台}
+\NormalTok{+{-} 用户系统}
+\NormalTok{|  +{-} 注册登录}
+\NormalTok{|  +{-} 双 Token 会话}
+\NormalTok{|  +{-} 用户资料}
+\NormalTok{|  +{-} 偏好设置}
+\NormalTok{|  +{-} 资源管理}
+\NormalTok{+{-} 个人工作台}
+\NormalTok{|  +{-} 顶部栏}
+\NormalTok{|  +{-} 数据库导航树}
+\NormalTok{|  +{-} 自定义面板}
+\NormalTok{|  +{-} 背景和主题}
+\NormalTok{|  +{-} 最近操作}
+\NormalTok{+{-} 数据库管理}
+\NormalTok{|  +{-} 创建数据库}
+\NormalTok{|  +{-} 修改数据库属性}
+\NormalTok{|  +{-} 删除数据库}
+\NormalTok{|  +{-} 数据库统计}
+\NormalTok{+{-} 表结构管理}
+\NormalTok{|  +{-} 表}
+\NormalTok{|  +{-} 字段}
+\NormalTok{|  +{-} 索引}
+\NormalTok{|  +{-} 约束}
+\NormalTok{|  +{-} 视图}
+\NormalTok{+{-} 数据管理}
+\NormalTok{|  +{-} 分页浏览}
+\NormalTok{|  +{-} 新增数据}
+\NormalTok{|  +{-} 行内草稿编辑}
+\NormalTok{|  +{-} 显式更新提交}
+\NormalTok{|  +{-} 删除数据}
+\NormalTok{+{-} 查询构造器}
+\NormalTok{|  +{-} 字段选择}
+\NormalTok{|  +{-} 条件组}
+\NormalTok{|  +{-} JOIN}
+\NormalTok{|  +{-} 聚合分组}
+\NormalTok{|  +{-} HAVING}
+\NormalTok{|  +{-} 子查询}
+\NormalTok{+{-} 统计与审计}
+\NormalTok{   +{-} 统计图表}
+\NormalTok{   +{-} 操作趋势}
+\NormalTok{   +{-} 审计日志}
+\NormalTok{   +{-} traceId 追踪}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux6838ux5fc3ux4ea7ux54c1ux89c4ux5219}{%
+\subsection{7.
+核心产品规则}\label{ux6838ux5fc3ux4ea7ux54c1ux89c4ux5219}}
+
+\hypertarget{ux6570ux636eux9694ux79bb}{%
+\subsubsection{7.1 数据隔离}\label{ux6570ux636eux9694ux79bb}}
+
+每个用户只能操作自己的数据库。前端只传
+\texttt{databaseId}，后端根据当前登录用户和系统库映射关系解析真实物理库名。
+
+\hypertarget{ux6570ux636eux4feeux6539ux786eux8ba4}{%
+\subsubsection{7.2
+数据修改确认}\label{ux6570ux636eux4feeux6539ux786eux8ba4}}
+
+用户在网页表格中直接修改表项时，修改只进入本地草稿态。只有点击行旁``更新/提交''按钮后，系统才向后端提交修改并写入数据库。
+
+\hypertarget{ux67e5ux8be2ux5b89ux5168}{%
+\subsubsection{7.3 查询安全}\label{ux67e5ux8be2ux5b89ux5168}}
+
+灵活查询通过结构化 AST 实现，不开放任意 SQL 字符串。查询 AST 支持多表
+JOIN、聚合、分组、HAVING、派生表子查询、\texttt{IN}
+子查询、\texttt{EXISTS} 子查询和标量子查询。
+
+\hypertarget{ux8d44ux6e90ux5b58ux50a8}{%
+\subsubsection{7.4 资源存储}\label{ux8d44ux6e90ux5b58ux50a8}}
+
+头像、背景图等用户资源以文件形式保存，系统库仅保存资源元信息和归属关系，不建议将图片二进制直接保存到数据库表中。
+
+\hypertarget{ux5bb9ux91cfux9650ux5236}{%
+\subsubsection{7.5 容量限制}\label{ux5bb9ux91cfux9650ux5236}}
+
+系统必须限制数据库数量、表数量、索引数量、查询复杂度、批量写入规模、文件大小和用户资源总量，避免本地
+MySQL 和前端页面被误操作拖垮。
+
+\hypertarget{ux7248ux672cux89c4ux5212}{%
+\subsection{8. 版本规划}\label{ux7248ux672cux89c4ux5212}}
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+阶段 & 目标 & 主要交付 \\
+\midrule
+\endhead
+V1 & 认证与工作台地基 & 双 Token、用户信息、Home 骨架、偏好基础 \\
+V2 & 数据库管理 & 数据库列表、创建、修改、删除、容量限制 \\
+V3 & 表结构管理 & 表、字段、索引、约束、视图管理 \\
+V4 & 数据 CRUD & 分页、新增、行内编辑、显式提交、删除 \\
+V5 & GUI 查询 & JOIN、聚合、分组、HAVING、子查询 \\
+V6 & 统计与 DIY & 图表、审计、Dashboard 卡片、布局偏好 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux6210ux529fux6807ux51c6}{%
+\subsection{9. 成功标准}\label{ux6210ux529fux6807ux51c6}}
+
+项目达到以下标准时，认为核心目标落地：
+
+\begin{itemize}
+\tightlist
+\item
+  用户能登录并进入自己的个性化工作台。
+\item
+  用户能创建和管理自己的 MySQL 数据库。
+\item
+  用户能通过 GUI 创建和修改表结构。
+\item
+  用户能安全地浏览和修改表数据。
+\item
+  用户能通过 GUI 构造常用复杂 SELECT 查询。
+\item
+  用户能看到用户级、数据库级、表级统计图表。
+\item
+  系统具备认证、授权、SQL 防护、容量限制、审计日志和错误追踪。
+\end{itemize}
+
+\hypertarget{ux5173ux8054ux6587ux6863}{%
+\subsection{10. 关联文档}\label{ux5173ux8054ux6587ux6863}}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+文档 & 说明 \\
+\midrule
+\endhead
+\texttt{需求规格说明书} & 详细需求和验收标准 \\
+\texttt{概要设计说明书} & 系统总体设计 \\
+\texttt{详细设计说明书} & 模块、流程、伪代码和落地设计 \\
+\texttt{接口文档} & API 契约 \\
+\bottomrule
+\end{longtable}
+
+\end{document}

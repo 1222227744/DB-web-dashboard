@@ -1,0 +1,3949 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames*,x11names*}{xcolor}
+%
+\documentclass[
+  a4paper,
+  UTF8]{ctexart}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={详细设计说明书},
+  pdfauthor={DBMS 控制台项目},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={blue},
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{详细设计说明书}
+\author{DBMS 控制台项目}
+\date{}
+
+\begin{document}
+\maketitle
+
+\renewcommand*\contentsname{目录}
+{
+\hypersetup{linkcolor=}
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\hypertarget{ux8be6ux7ec6ux8bbeux8ba1}{%
+\section{详细设计}\label{ux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{ux6587ux6863ux5b9aux4f4d}{%
+\subsection{1. 文档定位}\label{ux6587ux6863ux5b9aux4f4d}}
+
+本文档承接以下文档：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{需求规格说明书.md}：说明系统要实现什么。
+\item
+  \texttt{概要设计.md}：说明系统总体怎么拆分。
+\item
+  \texttt{数据库设计.md}：说明系统数据如何持久化。
+\item
+  \texttt{接口规范.md}：说明前后端如何通信。
+\item
+  \texttt{安全设计.md}：说明认证、授权、SQL、文件、容量限制等安全规则。
+\end{itemize}
+
+本文档重点说明``如何落地实现''，包括模块职责、关键数据结构、核心流程、伪代码、状态设计和实现顺序。
+
+\hypertarget{ux8be6ux7ec6ux8bbeux8ba1ux76eeux6807}{%
+\subsection{2.
+详细设计目标}\label{ux8be6ux7ec6ux8bbeux8ba1ux76eeux6807}}
+
+\hypertarget{dd-001-ux5b9eux73b0ux53efux8ffdux8e2a}{%
+\subsubsection{DD-001
+实现可追踪}\label{dd-001-ux5b9eux73b0ux53efux8ffdux8e2a}}
+
+每个核心模块都应能追踪到需求编号、接口编号、安全编号或数据设计编号。
+
+\hypertarget{dd-002-ux5b9eux73b0ux53efux5206ux9636ux6bb5}{%
+\subsubsection{DD-002
+实现可分阶段}\label{dd-002-ux5b9eux73b0ux53efux5206ux9636ux6bb5}}
+
+设计必须支持从最小闭环逐步扩展：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{认证与工作台}
+\NormalTok{  {-}\textgreater{} 数据库管理}
+\NormalTok{  {-}\textgreater{} 表结构管理}
+\NormalTok{  {-}\textgreater{} 表数据 CRUD}
+\NormalTok{  {-}\textgreater{} 查询构造器}
+\NormalTok{  {-}\textgreater{} 事务}
+\NormalTok{  {-}\textgreater{} 统计和 DIY 工作台}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{dd-003-ux5b9eux73b0ux53efux7ef4ux62a4}{%
+\subsubsection{DD-003
+实现可维护}\label{dd-003-ux5b9eux73b0ux53efux7ef4ux62a4}}
+
+后端 controller 不直接拼
+SQL，不直接写复杂业务；前端页面不直接堆全部逻辑，复杂逻辑下沉到
+composable、store 和组件。
+
+\hypertarget{dd-004-ux5b9eux73b0ux5b89ux5168ux9ed8ux8ba4}{%
+\subsubsection{DD-004
+实现安全默认}\label{dd-004-ux5b9eux73b0ux5b89ux5168ux9ed8ux8ba4}}
+
+所有数据库、表、字段、视图、索引、约束、资源都必须基于当前用户上下文做归属校验。
+
+\hypertarget{dd-005-ux9759ux6001ux8bbeux8ba1ux4e0eux52a8ux6001ux8bbeux8ba1ux663eux5f0fux5206ux5c42}{%
+\subsubsection{DD-005
+静态设计与动态设计显式分层}\label{dd-005-ux9759ux6001ux8bbeux8ba1ux4e0eux52a8ux6001ux8bbeux8ba1ux663eux5f0fux5206ux5c42}}
+
+详细设计同时包含静态设计和动态设计。
+
+静态设计描述系统由哪些结构组成，包括：
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+静态设计内容 & 所在位置 \\
+\midrule
+\endhead
+后端目录、controller、service、repository、SQL 工具 &
+本文档``后端详细设计'' \\
+前端目录、store、composable、layout、component &
+本文档``前端详细设计'' \\
+系统库表、字段、约束、索引 & \texttt{数据库设计.md} \\
+接口路径、请求、响应、错误码 & \texttt{接口规范.md} \\
+\bottomrule
+\end{longtable}
+
+动态设计描述系统运行时如何流转，包括：
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+动态设计内容 & 所在位置 \\
+\midrule
+\endhead
+请求处理链路 & 本文档``请求处理链路'' \\
+登录、刷新 Token、退出登录 & 本文档``认证与会话详细设计'' \\
+创建数据库和失败补偿 & 本文档``数据库管理详细设计'' \\
+行内编辑草稿、提交、取消 & 本文档``表数据详细设计'' \\
+查询 AST 校验、作用域解析、SQL 生成 & 本文档``结构化查询详细设计'' \\
+事务开启、提交、回滚、超时回滚 & 本文档``事务详细设计'' \\
+前后端交互流程 & 本文档``前后端交互流程'' \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux540eux7aefux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{3.
+后端详细设计}\label{ux540eux7aefux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{ux63a8ux8350ux76eeux5f55ux7ed3ux6784}{%
+\subsubsection{3.1
+推荐目录结构}\label{ux63a8ux8350ux76eeux5f55ux7ed3ux6784}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{backend/src/}
+\NormalTok{  app.ts}
+\NormalTok{  server.ts}
+
+\NormalTok{  config/}
+\NormalTok{    env.ts}
+\NormalTok{    db.ts}
+\NormalTok{    limits.ts}
+
+\NormalTok{  middlewares/}
+\NormalTok{    authMiddleware.ts}
+\NormalTok{    errorMiddleware.ts}
+\NormalTok{    traceMiddleware.ts}
+\NormalTok{    rateLimitMiddleware.ts}
+
+\NormalTok{  routes/}
+\NormalTok{    authRoutes.ts}
+\NormalTok{    workbenchRoutes.ts}
+\NormalTok{    databaseRoutes.ts}
+\NormalTok{    tableRoutes.ts}
+\NormalTok{    rowRoutes.ts}
+\NormalTok{    queryRoutes.ts}
+\NormalTok{    transactionRoutes.ts}
+\NormalTok{    statsRoutes.ts}
+\NormalTok{    auditRoutes.ts}
+\NormalTok{    assetRoutes.ts}
+
+\NormalTok{  controllers/}
+\NormalTok{    authController.ts}
+\NormalTok{    workbenchController.ts}
+\NormalTok{    databaseController.ts}
+\NormalTok{    tableController.ts}
+\NormalTok{    rowController.ts}
+\NormalTok{    queryController.ts}
+\NormalTok{    transactionController.ts}
+\NormalTok{    statsController.ts}
+\NormalTok{    auditController.ts}
+\NormalTok{    assetController.ts}
+
+\NormalTok{  services/}
+\NormalTok{    authService.ts}
+\NormalTok{    tokenService.ts}
+\NormalTok{    userService.ts}
+\NormalTok{    preferenceService.ts}
+\NormalTok{    assetService.ts}
+\NormalTok{    databaseService.ts}
+\NormalTok{    metadataService.ts}
+\NormalTok{    tableService.ts}
+\NormalTok{    rowService.ts}
+\NormalTok{    queryService.ts}
+\NormalTok{    transactionService.ts}
+\NormalTok{    statsService.ts}
+\NormalTok{    auditService.ts}
+\NormalTok{    limitService.ts}
+
+\NormalTok{  repositories/}
+\NormalTok{    userRepository.ts}
+\NormalTok{    refreshTokenRepository.ts}
+\NormalTok{    preferenceRepository.ts}
+\NormalTok{    assetRepository.ts}
+\NormalTok{    userDatabaseRepository.ts}
+\NormalTok{    auditRepository.ts}
+\NormalTok{    transactionRepository.ts}
+
+\NormalTok{  sql/}
+\NormalTok{    identifier.ts}
+\NormalTok{    escape.ts}
+\NormalTok{    schemaBuilder.ts}
+\NormalTok{    rowBuilder.ts}
+\NormalTok{    queryAst.ts}
+\NormalTok{    queryBuilder.ts}
+\NormalTok{    conditionBuilder.ts}
+
+\NormalTok{  types/}
+\NormalTok{    auth.ts}
+\NormalTok{    request.ts}
+\NormalTok{    response.ts}
+\NormalTok{    database.ts}
+\NormalTok{    table.ts}
+\NormalTok{    row.ts}
+\NormalTok{    query.ts}
+\NormalTok{    error.ts}
+
+\NormalTok{  utils/}
+\NormalTok{    response.ts}
+\NormalTok{    errors.ts}
+\NormalTok{    crypto.ts}
+\NormalTok{    time.ts}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux8bf7ux6c42ux5904ux7406ux94feux8def}{%
+\subsubsection{3.2
+请求处理链路}\label{ux8bf7ux6c42ux5904ux7406ux94feux8def}}
+
+所有业务请求按固定顺序处理：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{HTTP Request}
+\NormalTok{  {-}\textgreater{} traceMiddleware 生成 traceId}
+\NormalTok{  {-}\textgreater{} rateLimitMiddleware 做基础频率限制}
+\NormalTok{  {-}\textgreater{} express.json / multipart 解析}
+\NormalTok{  {-}\textgreater{} authMiddleware 解析当前用户}
+\NormalTok{  {-}\textgreater{} route}
+\NormalTok{  {-}\textgreater{} controller 读取参数}
+\NormalTok{  {-}\textgreater{} service 执行业务逻辑}
+\NormalTok{  {-}\textgreater{} repository / sql builder / mysql pool}
+\NormalTok{  {-}\textgreater{} auditService 记录审计}
+\NormalTok{  {-}\textgreater{} response.success 返回}
+\NormalTok{  {-}\textgreater{} errorMiddleware 统一错误响应}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{tracemiddleware}{%
+\subsubsection{3.3 traceMiddleware}\label{tracemiddleware}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  为每个请求生成 \texttt{traceId}。
+\item
+  若前端传入 \texttt{X-Trace-Id}，后端可以复用合法 traceId。
+\item
+  将 \texttt{traceId} 写入请求上下文。
+\item
+  响应中必须返回 \texttt{traceId}。
+\end{itemize}
+
+伪代码：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{function} \FunctionTok{traceMiddleware}\NormalTok{(req}\OperatorTok{,}\NormalTok{ res}\OperatorTok{,}\NormalTok{ next) \{}
+\NormalTok{  req}\OperatorTok{.}\AttributeTok{traceId} \OperatorTok{=} \FunctionTok{normalizeTraceId}\NormalTok{(req}\OperatorTok{.}\AttributeTok{headers}\NormalTok{[}\StringTok{\textquotesingle{}x{-}trace{-}id\textquotesingle{}}\NormalTok{]) }\OperatorTok{??} \FunctionTok{generateTraceId}\NormalTok{()}\OperatorTok{;}
+\NormalTok{  res}\OperatorTok{.}\FunctionTok{setHeader}\NormalTok{(}\StringTok{\textquotesingle{}X{-}Trace{-}Id\textquotesingle{}}\OperatorTok{,}\NormalTok{ req}\OperatorTok{.}\AttributeTok{traceId}\NormalTok{)}\OperatorTok{;}
+  \FunctionTok{next}\NormalTok{()}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{authmiddleware}{%
+\subsubsection{3.4 authMiddleware}\label{authmiddleware}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  从
+  \texttt{Authorization:\ Bearer\ \textless{}accessToken\textgreater{}}
+  读取 Access Token。
+\item
+  校验签名、有效期和 payload。
+\item
+  查询用户状态是否可用。
+\item
+  将 \texttt{currentUser} 写入请求上下文。
+\end{itemize}
+
+请求上下文建议：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{type}\NormalTok{ CurrentUser }\OperatorTok{=}\NormalTok{ \{}
+\NormalTok{  userID}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{  accountNo}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  status}\OperatorTok{:} \StringTok{\textquotesingle{}active\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}disabled\textquotesingle{}}\OperatorTok{;}
+\NormalTok{\}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+认证失败返回：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{HTTP 401}
+\NormalTok{error.code = AUTH\_TOKEN\_MISSING / AUTH\_TOKEN\_EXPIRED / AUTH\_TOKEN\_INVALID}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{errormiddleware}{%
+\subsubsection{3.5 errorMiddleware}\label{errormiddleware}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  捕获 controller、service、repository 抛出的错误。
+\item
+  将系统错误转换为 \texttt{接口规范.md} 的统一错误响应。
+\item
+  MySQL 错误需要映射为明确错误码。
+\item
+  不返回密码、Token、真实物理库名、服务端文件绝对路径。
+\end{itemize}
+
+错误类型建议：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{class AppError extends Error \{}
+\NormalTok{  httpStatus}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{  type}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  code}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  details}\OperatorTok{?:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  fieldErrors}\OperatorTok{?:}\NormalTok{ FieldError[]}\OperatorTok{;}
+\NormalTok{  mysql}\OperatorTok{?:}\NormalTok{ MysqlSafeError }\OperatorTok{|} \DataTypeTok{null}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux914dux7f6eux4e0eux9650ux5236ux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{4.
+配置与限制详细设计}\label{ux914dux7f6eux4e0eux9650ux5236ux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{env.ts}{%
+\subsubsection{4.1 env.ts}\label{env.ts}}
+
+\texttt{env.ts} 统一读取环境变量。关键环境变量缺失时服务必须启动失败。
+
+必需项：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{DB\_HOST}
+\NormalTok{DB\_USER}
+\NormalTok{DB\_PASSWORD}
+\NormalTok{DB\_NAME}
+\NormalTok{JWT\_ACCESS\_SECRET}
+\NormalTok{JWT\_REFRESH\_SECRET}
+\end{Highlighting}
+\end{Shaded}
+
+可选项：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{PORT}
+\NormalTok{CORS\_ORIGIN}
+\NormalTok{UPLOAD\_ROOT}
+\NormalTok{COOKIE\_SECURE}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{limits.ts}{%
+\subsubsection{4.2 limits.ts}\label{limits.ts}}
+
+容量限制集中定义：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{export const limits }\OperatorTok{=}\NormalTok{ \{}
+\NormalTok{  maxDatabasesPerUser}\OperatorTok{:} \DecValTok{10}\OperatorTok{,}
+\NormalTok{  maxTablesPerDatabase}\OperatorTok{:} \DecValTok{100}\OperatorTok{,}
+\NormalTok{  maxViewsPerDatabase}\OperatorTok{:} \DecValTok{50}\OperatorTok{,}
+\NormalTok{  maxColumnsPerTable}\OperatorTok{:} \DecValTok{80}\OperatorTok{,}
+\NormalTok{  maxIndexesPerTable}\OperatorTok{:} \DecValTok{16}\OperatorTok{,}
+\NormalTok{  maxUserStorageBytes}\OperatorTok{:} \DecValTok{1024} \OperatorTok{*} \DecValTok{1024} \OperatorTok{*} \DecValTok{1024}\OperatorTok{,}
+\NormalTok{  maxDatabaseStorageBytes}\OperatorTok{:} \DecValTok{512} \OperatorTok{*} \DecValTok{1024} \OperatorTok{*} \DecValTok{1024}\OperatorTok{,}
+\NormalTok{  maxTableStorageBytes}\OperatorTok{:} \DecValTok{256} \OperatorTok{*} \DecValTok{1024} \OperatorTok{*} \DecValTok{1024}\OperatorTok{,}
+\NormalTok{  maxPageSize}\OperatorTok{:} \DecValTok{100}\OperatorTok{,}
+\NormalTok{  maxQueryRows}\OperatorTok{:} \DecValTok{1000}\OperatorTok{,}
+\NormalTok{  maxBatchInsertRows}\OperatorTok{:} \DecValTok{500}\OperatorTok{,}
+\NormalTok{  maxBatchWriteAffectedRows}\OperatorTok{:} \DecValTok{200}\OperatorTok{,}
+\NormalTok{  maxJoinCount}\OperatorTok{:} \DecValTok{8}\OperatorTok{,}
+\NormalTok{  maxSubqueryDepth}\OperatorTok{:} \DecValTok{3}\OperatorTok{,}
+\NormalTok{  maxQueryDurationMs}\OperatorTok{:} \DecValTok{10000}\OperatorTok{,}
+\NormalTok{  maxQueryAstBytes}\OperatorTok{:} \DecValTok{64} \OperatorTok{*} \DecValTok{1024}\OperatorTok{,}
+\NormalTok{  maxAvatarBytes}\OperatorTok{:} \DecValTok{2} \OperatorTok{*} \DecValTok{1024} \OperatorTok{*} \DecValTok{1024}\OperatorTok{,}
+\NormalTok{  maxBackgroundBytes}\OperatorTok{:} \DecValTok{8} \OperatorTok{*} \DecValTok{1024} \OperatorTok{*} \DecValTok{1024}\OperatorTok{,}
+\NormalTok{  maxUserAssetBytes}\OperatorTok{:} \DecValTok{100} \OperatorTok{*} \DecValTok{1024} \OperatorTok{*} \DecValTok{1024}\OperatorTok{,}
+\NormalTok{\}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{limitservice}{%
+\subsubsection{4.3 limitService}\label{limitservice}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  创建数据库前检查单用户数据库数量。
+\item
+  创建表前检查单库表数量。
+\item
+  新增字段前检查字段数量。
+\item
+  创建索引前检查索引数量。
+\item
+  执行查询前检查 AST 体积、JOIN 数、子查询深度、pageSize。
+\item
+  批量写入前检查请求行数。
+\item
+  批量修改/删除前检查影响行数。
+\item
+  上传资源前检查单文件大小和用户资源总量。
+\end{itemize}
+
+超限错误：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{throw }\KeywordTok{new} \FunctionTok{AppError}\NormalTok{(\{}
+\NormalTok{  httpStatus}\OperatorTok{:} \DecValTok{413}\OperatorTok{,}
+\NormalTok{  type}\OperatorTok{:} \StringTok{\textquotesingle{}LIMIT\_EXCEEDED\textquotesingle{}}\OperatorTok{,}
+\NormalTok{  code}\OperatorTok{:} \StringTok{\textquotesingle{}LIMIT\_EXCEEDED\textquotesingle{}}\OperatorTok{,}
+\NormalTok{  details}\OperatorTok{:} \StringTok{\textquotesingle{}单用户数据库数量已达到上限：10\textquotesingle{}}\OperatorTok{,}
+\NormalTok{\})}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux8ba4ux8bc1ux4e0eux4f1aux8bddux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{5.
+认证与会话详细设计}\label{ux8ba4ux8bc1ux4e0eux4f1aux8bddux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{authservice}{%
+\subsubsection{5.1 authService}\label{authservice}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  注册用户。
+\item
+  登录校验。
+\item
+  更新最近登录时间。
+\item
+  调用 tokenService 签发双 Token。
+\item
+  调用 auditService 记录认证日志。
+\end{itemize}
+
+\hypertarget{tokenservice}{%
+\subsubsection{5.2 tokenService}\label{tokenservice}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  生成 Access Token。
+\item
+  生成 Refresh Token。
+\item
+  哈希 Refresh Token 后写入 \texttt{refresh\_tokens}。
+\item
+  刷新 Token 时执行 Refresh Token Rotation。
+\item
+  退出登录时撤销 Refresh Token。
+\end{itemize}
+
+\hypertarget{ux767bux5f55ux6d41ux7a0b}{%
+\subsubsection{5.3 登录流程}\label{ux767bux5f55ux6d41ux7a0b}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/auth/login}
+\NormalTok{  {-}\textgreater{} 校验 accountNo、password}
+\NormalTok{  {-}\textgreater{} 查询 users}
+\NormalTok{  {-}\textgreater{} bcrypt.compare}
+\NormalTok{  {-}\textgreater{} 生成 accessToken，15 分钟有效}
+\NormalTok{  {-}\textgreater{} 生成 refreshToken，7/30 天有效}
+\NormalTok{  {-}\textgreater{} refreshToken 哈希写入 refresh\_tokens}
+\NormalTok{  {-}\textgreater{} refreshToken 设置 HttpOnly Cookie}
+\NormalTok{  {-}\textgreater{} 返回 accessToken 和用户展示信息}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{refresh-token-rotation}{%
+\subsubsection{5.4 Refresh Token
+Rotation}\label{refresh-token-rotation}}
+
+刷新流程：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/auth/refresh}
+\NormalTok{  {-}\textgreater{} 从 HttpOnly Cookie 读取 refreshToken}
+\NormalTok{  {-}\textgreater{} 哈希后查询 refresh\_tokens}
+\NormalTok{  {-}\textgreater{} 校验未过期、未撤销}
+\NormalTok{  {-}\textgreater{} 撤销旧 refreshToken}
+\NormalTok{  {-}\textgreater{} 新增新 refreshToken}
+\NormalTok{  {-}\textgreater{} 返回新 accessToken}
+\NormalTok{  {-}\textgreater{} 设置新 refreshToken Cookie}
+\end{Highlighting}
+\end{Shaded}
+
+异常处理：
+
+\begin{itemize}
+\tightlist
+\item
+  旧 token 不存在：返回 401。
+\item
+  旧 token 已撤销但再次使用：可能存在 token 盗用，撤销同一 token\_family
+  下所有 token。
+\item
+  用户状态 disabled：返回 403。
+\end{itemize}
+
+\hypertarget{ux7528ux6237ux5de5ux4f5cux53f0ux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{6.
+用户工作台详细设计}\label{ux7528ux6237ux5de5ux4f5cux53f0ux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{workbenchservice}{%
+\subsubsection{6.1 workbenchService}\label{workbenchservice}}
+
+工作台概览聚合以下数据：
+
+\begin{itemize}
+\tightlist
+\item
+  当前用户资料。
+\item
+  用户偏好。
+\item
+  用户资源引用。
+\item
+  默认 Dashboard 布局。
+\item
+  最近访问数据库。
+\item
+  最近操作日志。
+\item
+  用户级统计摘要。
+\end{itemize}
+
+\hypertarget{preferenceservice}{%
+\subsubsection{6.2 preferenceService}\label{preferenceservice}}
+
+管理：
+
+\begin{itemize}
+\tightlist
+\item
+  主题模式。
+\item
+  主题色相。
+\item
+  背景类型。
+\item
+  背景资源。
+\item
+  默认分页大小。
+\item
+  二次确认偏好。
+\end{itemize}
+
+偏好更新必须只允许当前用户更新自己的记录。
+
+\hypertarget{assetservice}{%
+\subsubsection{6.3 assetService}\label{assetservice}}
+
+资源类型：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{avatar}
+\NormalTok{background}
+\end{Highlighting}
+\end{Shaded}
+
+存储原则：
+
+\begin{itemize}
+\tightlist
+\item
+  文件实体保存到 \texttt{UPLOAD\_ROOT}。
+\item
+  系统库 \texttt{user\_assets} 保存元信息。
+\item
+  文件名由服务端随机生成。
+\item
+  读取资源必须校验 \texttt{asset.user\_id\ =\ currentUserId}。
+\item
+  SVG 固定拒绝。
+\end{itemize}
+
+\hypertarget{ux6570ux636eux5e93ux7ba1ux7406ux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{7.
+数据库管理详细设计}\label{ux6570ux636eux5e93ux7ba1ux7406ux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{databaseservice.createdatabase}{%
+\subsubsection{7.1
+databaseService.createDatabase}\label{databaseservice.createdatabase}}
+
+输入：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{type}\NormalTok{ CreateDatabaseInput }\OperatorTok{=}\NormalTok{ \{}
+\NormalTok{  userID}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{  displayName}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  charset}\OperatorTok{?:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  collation}\OperatorTok{?:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{\}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+流程：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{1. 校验 displayName 标识符。}
+\NormalTok{2. 检查当前用户数据库数量。}
+\NormalTok{3. 检查当前用户 displayName 是否重复。}
+\NormalTok{4. 生成 physicalName。}
+\NormalTok{5. 执行 CREATE DATABASE。}
+\NormalTok{6. 写入 user\_databases。}
+\NormalTok{7. 写入 audit\_logs。}
+\NormalTok{8. 返回 databaseId 和 displayName。}
+\end{Highlighting}
+\end{Shaded}
+
+补偿策略：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{如果 CREATE DATABASE 成功但 user\_databases 写入失败：}
+\NormalTok{  {-}\textgreater{} 尝试 DROP DATABASE physicalName}
+\NormalTok{  {-}\textgreater{} 记录失败审计}
+\NormalTok{  {-}\textgreater{} 返回系统错误}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{physicalname-ux751fux6210}{%
+\subsubsection{7.2 physicalName 生成}\label{physicalname-ux751fux6210}}
+
+规则：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{dbapp\_u\{userID\}\_\{displayName\}\_\{suffix\}}
+\end{Highlighting}
+\end{Shaded}
+
+其中：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{displayName} 已经符合标识符规则。
+\item
+  \texttt{suffix} 使用短随机字符串，防止重名冲突。
+\item
+  \texttt{physicalName} 不返回前端。
+\end{itemize}
+
+\hypertarget{databaseresolver}{%
+\subsubsection{7.3 databaseResolver}\label{databaseresolver}}
+
+所有涉及数据库的接口必须先解析：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{async }\KeywordTok{function} \FunctionTok{resolveUserDatabase}\NormalTok{(userID}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{,}\NormalTok{ databaseId}\OperatorTok{:} \DataTypeTok{number}\NormalTok{) \{}
+\NormalTok{  const db }\OperatorTok{=}\NormalTok{ await userDatabaseRepository}\OperatorTok{.}\FunctionTok{findActiveByIdAndUser}\NormalTok{(databaseId}\OperatorTok{,}\NormalTok{ userID)}\OperatorTok{;}
+  \FunctionTok{if}\NormalTok{ (}\OperatorTok{!}\NormalTok{db) throw }\FunctionTok{forbiddenOrNotFound}\NormalTok{()}\OperatorTok{;}
+\NormalTok{  return db}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+默认返回 403 还是 404：
+
+\begin{itemize}
+\tightlist
+\item
+  如果资源存在但不属于当前用户，不应暴露存在性，推荐统一返回 404
+  或统一业务提示。
+\item
+  管理类项目为了调试清晰，可以返回 403，但不能包含真实物理库名。
+\end{itemize}
+
+\hypertarget{ux5143ux6570ux636eux4e0eux8868ux7ed3ux6784ux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{8.
+元数据与表结构详细设计}\label{ux5143ux6570ux636eux4e0eux8868ux7ed3ux6784ux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{metadataservice}{%
+\subsubsection{8.1 metadataService}\label{metadataservice}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  查询表、视图列表。
+\item
+  查询字段列表。
+\item
+  查询主键。
+\item
+  查询索引。
+\item
+  查询约束。
+\item
+  判断表/视图/字段是否存在。
+\end{itemize}
+
+数据来源：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{information\_schema.tables}
+\NormalTok{information\_schema.columns}
+\NormalTok{information\_schema.statistics}
+\NormalTok{information\_schema.table\_constraints}
+\NormalTok{information\_schema.key\_column\_usage}
+\NormalTok{information\_schema.views}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{identifier-ux5de5ux5177}{%
+\subsubsection{8.2 identifier 工具}\label{identifier-ux5de5ux5177}}
+
+禁止业务代码直接拼接用户输入的数据库名、表名、字段名。
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{function} \FunctionTok{assertIdentifier}\NormalTok{(value}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{,}\NormalTok{ label}\OperatorTok{:} \DataTypeTok{string}\NormalTok{)}\OperatorTok{:} \DataTypeTok{void}\OperatorTok{;}
+\KeywordTok{function} \FunctionTok{quoteIdentifier}\NormalTok{(value}\OperatorTok{:} \DataTypeTok{string}\NormalTok{)}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\KeywordTok{function} \FunctionTok{quotePath}\NormalTok{(parts}\OperatorTok{:} \DataTypeTok{string}\NormalTok{[])}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+规则：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\^{}[A{-}Za{-}z][A{-}Za{-}z0{-}9\_]\{0,63\}$}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{schemabuilder}{%
+\subsubsection{8.3 schemaBuilder}\label{schemabuilder}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  根据结构化表定义生成 \texttt{CREATE\ TABLE}。
+\item
+  根据结构化变更生成 \texttt{ALTER\ TABLE}。
+\item
+  控制字段类型白名单。
+\item
+  控制约束、索引、外键策略白名单。
+\end{itemize}
+
+\texttt{CREATE\ TABLE} 生成流程：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{1. 校验 tableName。}
+\NormalTok{2. 校验 columns 长度。}
+\NormalTok{3. 对每个 column 校验 name、type、length、precision、scale、defaultValue。}
+\NormalTok{4. 校验 constraints 引用字段存在。}
+\NormalTok{5. 校验 indexes 引用字段存在。}
+\NormalTok{6. 至少存在一个主键。}
+\NormalTok{7. 生成字段定义 SQL。}
+\NormalTok{8. 生成约束 SQL。}
+\NormalTok{9. 生成索引 SQL。}
+\NormalTok{10. 组合 CREATE TABLE。}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux8868ux6570ux636eux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{9.
+表数据详细设计}\label{ux8868ux6570ux636eux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{rowservice.queryrows}{%
+\subsubsection{9.1 rowService.queryRows}\label{rowservice.queryrows}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  分页查询表数据。
+\item
+  查询字段结构。
+\item
+  校验排序字段。
+\item
+  限制 pageSize。
+\item
+  返回 columns、items、pagination。
+\end{itemize}
+
+流程：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{1. resolveUserDatabase。}
+\NormalTok{2. 校验 tableName。}
+\NormalTok{3. metadataService 确认表存在。}
+\NormalTok{4. metadataService 查询字段和主键。}
+\NormalTok{5. 校验 orderBy 是否真实字段。}
+\NormalTok{6. 构造 SELECT。}
+\NormalTok{7. 查询 total。}
+\NormalTok{8. 查询分页数据。}
+\NormalTok{9. 返回。}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux884cux5185ux7f16ux8f91ux8349ux7a3fux673aux5236}{%
+\subsubsection{9.2
+行内编辑草稿机制}\label{ux884cux5185ux7f16ux8f91ux8349ux7a3fux673aux5236}}
+
+行内编辑由前端负责草稿态，后端只接收明确提交。
+
+前端状态：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{type}\NormalTok{ RowDraftState }\OperatorTok{=}\NormalTok{ \{}
+\NormalTok{  rowKey}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  original}\OperatorTok{:} \BuiltInTok{Record}\OperatorTok{\textless{}}\DataTypeTok{string}\OperatorTok{,} \DataTypeTok{unknown}\OperatorTok{\textgreater{};}
+\NormalTok{  draft}\OperatorTok{:} \BuiltInTok{Record}\OperatorTok{\textless{}}\DataTypeTok{string}\OperatorTok{,} \DataTypeTok{unknown}\OperatorTok{\textgreater{};}
+\NormalTok{  changedFields}\OperatorTok{:} \BuiltInTok{Record}\OperatorTok{\textless{}}\DataTypeTok{string}\OperatorTok{,} \DataTypeTok{unknown}\OperatorTok{\textgreater{};}
+\NormalTok{  status}\OperatorTok{:} \StringTok{\textquotesingle{}clean\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}dirty\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}saving\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}error\textquotesingle{}}\OperatorTok{;}
+\NormalTok{  errorMessage}\OperatorTok{?:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{\}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+交互流程：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{用户修改单元格}
+\NormalTok{  {-}\textgreater{} 前端更新 draft}
+\NormalTok{  {-}\textgreater{} 对比 original 生成 changedFields}
+\NormalTok{  {-}\textgreater{} 行状态变为 dirty}
+\NormalTok{  {-}\textgreater{} 显示“更新”和“取消”}
+
+\NormalTok{用户点击更新}
+\NormalTok{  {-}\textgreater{} 调用 PATCH /rows}
+\NormalTok{  {-}\textgreater{} 请求体包含 primaryKey + set}
+\NormalTok{  {-}\textgreater{} 成功后 original = draft}
+\NormalTok{  {-}\textgreater{} 行状态变为 clean}
+
+\NormalTok{用户点击取消}
+\NormalTok{  {-}\textgreater{} draft = original}
+\NormalTok{  {-}\textgreater{} changedFields 清空}
+\NormalTok{  {-}\textgreater{} 行状态变为 clean}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{rowservice.updaterows}{%
+\subsubsection{9.3 rowService.updateRows}\label{rowservice.updaterows}}
+
+单行更新：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{1. resolveUserDatabase。}
+\NormalTok{2. 校验 tableName。}
+\NormalTok{3. 读取表结构和主键。}
+\NormalTok{4. 校验 primaryKey 完整。}
+\NormalTok{5. 校验 set 字段存在且不是禁止修改字段。}
+\NormalTok{6. 构造 UPDATE ... WHERE pk = ?。}
+\NormalTok{7. 执行更新。}
+\NormalTok{8. 写入审计日志。}
+\end{Highlighting}
+\end{Shaded}
+
+批量更新：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{1. 校验 where GUI 条件对象。}
+\NormalTok{2. 先执行 SELECT COUNT(*) 预估影响行数。}
+\NormalTok{3. 超过阈值时要求 confirmation。}
+\NormalTok{4. 构造 UPDATE。}
+\NormalTok{5. 执行并审计。}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux65e0ux4e3bux952eux8868ux7b56ux7565}{%
+\subsubsection{9.4
+无主键表策略}\label{ux65e0ux4e3bux952eux8868ux7b56ux7565}}
+
+第一阶段建议：
+
+\begin{itemize}
+\tightlist
+\item
+  允许浏览无主键表。
+\item
+  允许新增数据。
+\item
+  禁止行内编辑。
+\item
+  禁止单行删除。
+\item
+  批量修改/删除必须通过 GUI 条件构造器和二次确认。
+\end{itemize}
+
+原因：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{没有主键就无法稳定定位“用户正在编辑的那一行”}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux7ed3ux6784ux5316ux67e5ux8be2ux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{10.
+结构化查询详细设计}\label{ux7ed3ux6784ux5316ux67e5ux8be2ux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{ux67e5ux8be2-ast}{%
+\subsubsection{10.1 查询 AST}\label{ux67e5ux8be2-ast}}
+
+前端不提交原始 SQL，而是提交查询 AST。
+
+核心结构：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{type}\NormalTok{ SelectQueryAst }\OperatorTok{=}\NormalTok{ \{}
+\NormalTok{  from}\OperatorTok{:}\NormalTok{ QuerySource}\OperatorTok{;}
+\NormalTok{  joins}\OperatorTok{?:}\NormalTok{ JoinNode[]}\OperatorTok{;}
+\NormalTok{  fields}\OperatorTok{:}\NormalTok{ FieldNode[]}\OperatorTok{;}
+\NormalTok{  filters}\OperatorTok{?:}\NormalTok{ ConditionNode[]}\OperatorTok{;}
+\NormalTok{  groups}\OperatorTok{?:}\NormalTok{ FieldRef[]}\OperatorTok{;}
+\NormalTok{  having}\OperatorTok{?:}\NormalTok{ ConditionNode[]}\OperatorTok{;}
+\NormalTok{  sorts}\OperatorTok{?:}\NormalTok{ SortNode[]}\OperatorTok{;}
+\NormalTok{  page}\OperatorTok{?:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{  pageSize}\OperatorTok{?:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{\}}\OperatorTok{;}
+
+\KeywordTok{type}\NormalTok{ QuerySource }\OperatorTok{=}
+  \OperatorTok{|}\NormalTok{ \{ type}\OperatorTok{:} \StringTok{\textquotesingle{}table\textquotesingle{}}\OperatorTok{;}\NormalTok{ table}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}\NormalTok{ alias}\OperatorTok{?:} \DataTypeTok{string}\NormalTok{ \}}
+  \OperatorTok{|}\NormalTok{ \{ type}\OperatorTok{:} \StringTok{\textquotesingle{}view\textquotesingle{}}\OperatorTok{;}\NormalTok{ view}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}\NormalTok{ alias}\OperatorTok{?:} \DataTypeTok{string}\NormalTok{ \}}
+  \OperatorTok{|}\NormalTok{ \{ type}\OperatorTok{:} \StringTok{\textquotesingle{}subquery\textquotesingle{}}\OperatorTok{;}\NormalTok{ query}\OperatorTok{:}\NormalTok{ SelectQueryAst}\OperatorTok{;}\NormalTok{ alias}\OperatorTok{:} \DataTypeTok{string}\NormalTok{ \}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+条件节点：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{type}\NormalTok{ ConditionNode }\OperatorTok{=}\NormalTok{ \{}
+\NormalTok{  field}\OperatorTok{?:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  operator}\OperatorTok{:} \StringTok{\textquotesingle{}eq\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}ne\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}gt\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}gte\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}lt\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}lte\textquotesingle{}} \OperatorTok{|}
+    \StringTok{\textquotesingle{}like\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}in\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}notIn\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}between\textquotesingle{}} \OperatorTok{|}
+    \StringTok{\textquotesingle{}isNull\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}isNotNull\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}exists\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}notExists\textquotesingle{}}\OperatorTok{;}
+\NormalTok{  value}\OperatorTok{?:} \DataTypeTok{unknown}\OperatorTok{;}
+\NormalTok{  values}\OperatorTok{?:} \DataTypeTok{unknown}\NormalTok{[]}\OperatorTok{;}
+\NormalTok{  subquery}\OperatorTok{?:}\NormalTok{ SelectQueryAst}\OperatorTok{;}
+\NormalTok{  logic}\OperatorTok{?:} \StringTok{\textquotesingle{}AND\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}OR\textquotesingle{}}\OperatorTok{;}
+\NormalTok{\}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{queryvalidator}{%
+\subsubsection{10.2 queryValidator}\label{queryvalidator}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  校验 AST 体积。
+\item
+  校验主表存在。
+\item
+  校验 JOIN 来源存在。
+\item
+  校验子查询深度不超过 3。
+\item
+  校验总 JOIN 数不超过 8。
+\item
+  校验字段引用在当前作用域存在。
+\item
+  校验聚合函数白名单。
+\item
+  校验操作符白名单。
+\item
+  校验分页上限。
+\end{itemize}
+
+\hypertarget{ux67e5ux8be2ux4f5cux7528ux57df}{%
+\subsubsection{10.3 查询作用域}\label{ux67e5ux8be2ux4f5cux7528ux57df}}
+
+查询构造器需要维护作用域：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{scope:}
+\NormalTok{  alias {-}\textgreater{} source}
+\NormalTok{  alias.field {-}\textgreater{} column metadata}
+\end{Highlighting}
+\end{Shaded}
+
+当遇到子查询：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{1. 创建子 scope。}
+\NormalTok{2. 注册子查询 from 和 joins。}
+\NormalTok{3. 校验子查询 fields 和 filters。}
+\NormalTok{4. 子查询输出字段作为派生表字段暴露给父 scope。}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{querybuilder}{%
+\subsubsection{10.4 queryBuilder}\label{querybuilder}}
+
+生成 SQL 流程：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{buildSelect(ast, context)}
+\NormalTok{  {-}\textgreater{} validate ast}
+\NormalTok{  {-}\textgreater{} build FROM}
+\NormalTok{  {-}\textgreater{} build JOIN}
+\NormalTok{  {-}\textgreater{} build SELECT fields}
+\NormalTok{  {-}\textgreater{} build WHERE}
+\NormalTok{  {-}\textgreater{} build GROUP BY}
+\NormalTok{  {-}\textgreater{} build HAVING}
+\NormalTok{  {-}\textgreater{} build ORDER BY}
+\NormalTok{  {-}\textgreater{} build LIMIT OFFSET}
+\NormalTok{  {-}\textgreater{} 返回 \{ sql, params \}}
+\end{Highlighting}
+\end{Shaded}
+
+所有字段、表名、别名使用 \texttt{quoteIdentifier}。所有值放入
+\texttt{params}。
+
+\hypertarget{ux5b50ux67e5ux8be2ux652fux6301ux8303ux56f4}{%
+\subsubsection{10.5
+子查询支持范围}\label{ux5b50ux67e5ux8be2ux652fux6301ux8303ux56f4}}
+
+第一阶段支持：
+
+\begin{itemize}
+\tightlist
+\item
+  派生表：\texttt{FROM\ (SELECT\ ...)\ alias}
+\item
+  \texttt{IN\ (SELECT\ ...)}
+\item
+  \texttt{NOT\ IN\ (SELECT\ ...)}
+\item
+  \texttt{EXISTS\ (SELECT\ ...)}
+\item
+  \texttt{NOT\ EXISTS\ (SELECT\ ...)}
+\item
+  标量子查询：\texttt{field\ \textgreater{}\ (SELECT\ AVG(...))}
+\end{itemize}
+
+第一阶段不支持：
+
+\begin{itemize}
+\tightlist
+\item
+  CTE：\texttt{WITH\ ...}
+\item
+  窗口函数。
+\item
+  递归查询。
+\item
+  UNION。
+\item
+  用户输入原始 SQL 片段。
+\end{itemize}
+
+这些能力后续可以作为高级查询功能扩展。
+
+\hypertarget{ux4e8bux52a1ux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{11.
+事务详细设计}\label{ux4e8bux52a1ux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{transactionservice}{%
+\subsubsection{11.1 transactionService}\label{transactionservice}}
+
+事务会话绑定后端 MySQL 连接。
+
+核心状态：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{type}\NormalTok{ TransactionSession }\OperatorTok{=}\NormalTok{ \{}
+\NormalTok{  id}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  userID}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{  databaseId}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{  physicalName}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  connectionId}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{  status}\OperatorTok{:} \StringTok{\textquotesingle{}active\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}committed\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}rolled\_back\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}expired\textquotesingle{}}\OperatorTok{;}
+\NormalTok{  isolationLevel}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  expiresAt}\OperatorTok{:}\NormalTok{ Date}\OperatorTok{;}
+\NormalTok{\}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux5f00ux542fux4e8bux52a1}{%
+\subsubsection{11.2 开启事务}\label{ux5f00ux542fux4e8bux52a1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{1. resolveUserDatabase。}
+\NormalTok{2. 从连接池获取连接。}
+\NormalTok{3. USE \textasciigrave{}physicalName\textasciigrave{}。}
+\NormalTok{4. SET TRANSACTION ISOLATION LEVEL ...}
+\NormalTok{5. BEGIN。}
+\NormalTok{6. 写入 transaction\_sessions。}
+\NormalTok{7. 返回 transactionId。}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux4e8bux52a1ux5185ux64cdux4f5c}{%
+\subsubsection{11.3 事务内操作}\label{ux4e8bux52a1ux5185ux64cdux4f5c}}
+
+写操作如果携带 \texttt{transactionId}：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{1. 校验事务存在。}
+\NormalTok{2. 校验事务属于当前用户。}
+\NormalTok{3. 校验事务属于当前 databaseId。}
+\NormalTok{4. 校验事务未过期。}
+\NormalTok{5. 使用事务绑定连接执行 SQL。}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux8d85ux65f6ux56deux6eda}{%
+\subsubsection{11.4 超时回滚}\label{ux8d85ux65f6ux56deux6eda}}
+
+事务超时后：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{1. 自动 ROLLBACK。}
+\NormalTok{2. 释放连接。}
+\NormalTok{3. transaction\_sessions 状态改为 expired。}
+\NormalTok{4. 写入审计日志。}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux7edfux8ba1ux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{12.
+统计详细设计}\label{ux7edfux8ba1ux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{statsservice.useroverview}{%
+\subsubsection{12.1
+statsService.userOverview}\label{statsservice.useroverview}}
+
+数据来源：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{user\_databases}。
+\item
+  \texttt{information\_schema.tables}。
+\item
+  \texttt{audit\_logs}。
+\item
+  \texttt{user\_assets}。
+\end{itemize}
+
+返回：
+
+\begin{itemize}
+\tightlist
+\item
+  数据库数量。
+\item
+  表数量。
+\item
+  视图数量。
+\item
+  索引数量。
+\item
+  估算行数。
+\item
+  操作趋势。
+\item
+  最近操作。
+\end{itemize}
+
+\hypertarget{statsservice.databaseoverview}{%
+\subsubsection{12.2
+statsService.databaseOverview}\label{statsservice.databaseoverview}}
+
+流程：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{1. resolveUserDatabase。}
+\NormalTok{2. 查询 information\_schema.tables。}
+\NormalTok{3. 查询 information\_schema.columns。}
+\NormalTok{4. 聚合表数量、视图数量、数据大小、索引大小。}
+\NormalTok{5. 统计字段类型分布。}
+\NormalTok{6. 查询 audit\_logs 得到最近操作。}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{statsservice.tableoverview}{%
+\subsubsection{12.3
+statsService.tableOverview}\label{statsservice.tableoverview}}
+
+表级统计涉及用户数据表，必须限制字段和执行时间。
+
+支持：
+
+\begin{itemize}
+\tightlist
+\item
+  行数估算。
+\item
+  字段数量。
+\item
+  主键信息。
+\item
+  空值比例。
+\item
+  数值字段 min、max、avg。
+\item
+  分类字段 Top N。
+\end{itemize}
+
+统计查询必须使用字段白名单，不允许前端传入聚合 SQL。
+
+\hypertarget{ux5ba1ux8ba1ux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{13.
+审计详细设计}\label{ux5ba1ux8ba1ux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{auditservice}{%
+\subsubsection{13.1 auditService}\label{auditservice}}
+
+所有关键操作都调用：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{auditService}\OperatorTok{.}\FunctionTok{record}\NormalTok{(\{}
+\NormalTok{  traceId}\OperatorTok{,}
+\NormalTok{  userID}\OperatorTok{,}
+\NormalTok{  databaseId}\OperatorTok{,}
+\NormalTok{  tableName}\OperatorTok{,}
+\NormalTok{  actionType}\OperatorTok{,}
+\NormalTok{  targetType}\OperatorTok{,}
+\NormalTok{  summary}\OperatorTok{,}
+\NormalTok{  detail}\OperatorTok{,}
+\NormalTok{  success}\OperatorTok{,}
+\NormalTok{  errorMessage}\OperatorTok{,}
+\NormalTok{  durationMs}\OperatorTok{,}
+\NormalTok{\})}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux5ba1ux8ba1ux5185ux5bb9ux8131ux654f}{%
+\subsubsection{13.2
+审计内容脱敏}\label{ux5ba1ux8ba1ux5185ux5bb9ux8131ux654f}}
+
+禁止写入：
+
+\begin{itemize}
+\tightlist
+\item
+  密码。
+\item
+  密码哈希。
+\item
+  Access Token。
+\item
+  Refresh Token。
+\item
+  Refresh Token 哈希。
+\item
+  文件绝对路径。
+\item
+  真实物理库名。
+\end{itemize}
+
+允许写入：
+
+\begin{itemize}
+\tightlist
+\item
+  用户可见数据库名。
+\item
+  表名。
+\item
+  字段名。
+\item
+  影响行数。
+\item
+  错误码。
+\item
+  traceId。
+\end{itemize}
+
+\hypertarget{ux524dux7aefux8be6ux7ec6ux8bbeux8ba1}{%
+\subsection{14.
+前端详细设计}\label{ux524dux7aefux8be6ux7ec6ux8bbeux8ba1}}
+
+\hypertarget{ux63a8ux8350ux76eeux5f55ux7ed3ux6784-1}{%
+\subsubsection{14.1
+推荐目录结构}\label{ux63a8ux8350ux76eeux5f55ux7ed3ux6784-1}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{frontend/src/}
+\NormalTok{  assets/}
+\NormalTok{    theme.css}
+\NormalTok{    glass.css}
+\NormalTok{    global.css}
+
+\NormalTok{  router/}
+\NormalTok{    index.ts}
+
+\NormalTok{  utils/}
+\NormalTok{    request.ts}
+\NormalTok{    errorMessage.ts}
+
+\NormalTok{  api/}
+\NormalTok{    authApi.ts}
+\NormalTok{    workbenchApi.ts}
+\NormalTok{    databaseApi.ts}
+\NormalTok{    tableApi.ts}
+\NormalTok{    rowApi.ts}
+\NormalTok{    queryApi.ts}
+\NormalTok{    statsApi.ts}
+\NormalTok{    assetApi.ts}
+
+\NormalTok{  stores/}
+\NormalTok{    authStore.ts}
+\NormalTok{    preferenceStore.ts}
+\NormalTok{    databaseStore.ts}
+\NormalTok{    workbenchStore.ts}
+
+\NormalTok{  composables/}
+\NormalTok{    useAuth.ts}
+\NormalTok{    useDatabaseTree.ts}
+\NormalTok{    useDataGrid.ts}
+\NormalTok{    useQueryBuilder.ts}
+\NormalTok{    useDashboardLayout.ts}
+
+\NormalTok{  layouts/}
+\NormalTok{    WorkbenchLayout.vue}
+
+\NormalTok{  views/}
+\NormalTok{    Login.vue}
+\NormalTok{    Register.vue}
+\NormalTok{    Home.vue}
+\NormalTok{    DatabaseDashboard.vue}
+\NormalTok{    TableDesigner.vue}
+\NormalTok{    TableData.vue}
+\NormalTok{    QueryBuilder.vue}
+
+\NormalTok{  components/}
+\NormalTok{    ParticleBackground.vue}
+\NormalTok{    AppHeader.vue}
+\NormalTok{    UserAvatar.vue}
+\NormalTok{    DbTree.vue}
+\NormalTok{    DataGrid.vue}
+\NormalTok{    DataGridToolbar.vue}
+\NormalTok{    ColumnDesigner.vue}
+\NormalTok{    QueryBuilderPanel.vue}
+\NormalTok{    DashboardWidget.vue}
+\NormalTok{    ChartCard.vue}
+\NormalTok{    ConfirmDialog.vue}
+\end{Highlighting}
+\end{Shaded}
+
+如果暂时不引入 Pinia，可以先用 composable + local
+state；当页面状态变复杂时再引入 Pinia。正式设计推荐使用 Pinia
+管理登录、偏好、数据库树和工作台布局。
+
+\hypertarget{authstore}{%
+\subsubsection{14.2 authStore}\label{authstore}}
+
+状态：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{type}\NormalTok{ AuthState }\OperatorTok{=}\NormalTok{ \{}
+\NormalTok{  accessToken}\OperatorTok{:} \DataTypeTok{string} \OperatorTok{|} \DataTypeTok{null}\OperatorTok{;}
+\NormalTok{  user}\OperatorTok{:}\NormalTok{ \{}
+\NormalTok{    userID}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{    accountNo}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{    userName}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{    avatarUrl}\OperatorTok{?:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  \} }\OperatorTok{|}\NormalTok{ null}\OperatorTok{;}
+\NormalTok{\}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+行为：
+
+\begin{itemize}
+\tightlist
+\item
+  login。
+\item
+  refreshAccessToken。
+\item
+  logout。
+\item
+  fetchMe。
+\end{itemize}
+
+\hypertarget{request.ts}{%
+\subsubsection{14.3 request.ts}\label{request.ts}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  自动注入 Access Token。
+\item
+  401 时尝试调用 \texttt{/auth/refresh}。
+\item
+  refresh 成功后重放原请求。
+\item
+  refresh 失败后清理登录状态并跳转登录页。
+\item
+  展示后端精准错误 message。
+\end{itemize}
+
+需要避免刷新风暴：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{多个请求同时 401 时，只允许一个 refresh 请求进行；}
+\NormalTok{其他请求等待 refresh 完成后重试。}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{workbenchlayout}{%
+\subsubsection{14.4 WorkbenchLayout}\label{workbenchlayout}}
+
+布局：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{顶部 AppHeader}
+\NormalTok{左侧 DbTree}
+\NormalTok{中间 RouterView / 动态工作区}
+\NormalTok{右侧可选信息栏}
+\NormalTok{背景 ParticleBackground}
+\end{Highlighting}
+\end{Shaded}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  加载用户偏好。
+\item
+  应用主题变量。
+\item
+  加载数据库树。
+\item
+  提供全局刷新入口。
+\item
+  提供退出登录入口。
+\end{itemize}
+
+\hypertarget{dbtree}{%
+\subsubsection{14.5 DbTree}\label{dbtree}}
+
+节点类型：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{type}\NormalTok{ DbTreeNode }\OperatorTok{=}
+  \OperatorTok{|}\NormalTok{ \{ type}\OperatorTok{:} \StringTok{\textquotesingle{}database\textquotesingle{}}\OperatorTok{;}\NormalTok{ databaseId}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}\NormalTok{ displayName}\OperatorTok{:} \DataTypeTok{string}\NormalTok{ \}}
+  \OperatorTok{|}\NormalTok{ \{ type}\OperatorTok{:} \StringTok{\textquotesingle{}table\textquotesingle{}}\OperatorTok{;}\NormalTok{ databaseId}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}\NormalTok{ tableName}\OperatorTok{:} \DataTypeTok{string}\NormalTok{ \}}
+  \OperatorTok{|}\NormalTok{ \{ type}\OperatorTok{:} \StringTok{\textquotesingle{}view\textquotesingle{}}\OperatorTok{;}\NormalTok{ databaseId}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}\NormalTok{ viewName}\OperatorTok{:} \DataTypeTok{string}\NormalTok{ \}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+交互：
+
+\begin{itemize}
+\tightlist
+\item
+  点击数据库打开数据库看板。
+\item
+  点击表打开表数据页。
+\item
+  右键数据库：创建表、刷新、删除数据库。
+\item
+  右键表：查看结构、打开数据、删除表。
+\end{itemize}
+
+\hypertarget{datagrid}{%
+\subsubsection{14.6 DataGrid}\label{datagrid}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  显示 \texttt{API-ROW-001} 返回的 columns 和 items。
+\item
+  支持分页、排序、列显示控制。
+\item
+  支持行内编辑草稿态。
+\item
+  支持单行更新、取消。
+\item
+  支持新增行。
+\item
+  支持批量删除。
+\end{itemize}
+
+行状态：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{type}\NormalTok{ DataGridRowState }\OperatorTok{=}\NormalTok{ \{}
+\NormalTok{  rowKey}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  original}\OperatorTok{:} \BuiltInTok{Record}\OperatorTok{\textless{}}\DataTypeTok{string}\OperatorTok{,} \DataTypeTok{unknown}\OperatorTok{\textgreater{};}
+\NormalTok{  draft}\OperatorTok{:} \BuiltInTok{Record}\OperatorTok{\textless{}}\DataTypeTok{string}\OperatorTok{,} \DataTypeTok{unknown}\OperatorTok{\textgreater{};}
+\NormalTok{  changedFields}\OperatorTok{:} \BuiltInTok{Record}\OperatorTok{\textless{}}\DataTypeTok{string}\OperatorTok{,} \DataTypeTok{unknown}\OperatorTok{\textgreater{};}
+\NormalTok{  status}\OperatorTok{:} \StringTok{\textquotesingle{}clean\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}dirty\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}saving\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}error\textquotesingle{}}\OperatorTok{;}
+\NormalTok{\}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+主键生成 rowKey：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{单主键：String(row[pk])}
+\NormalTok{复合主键：JSON.stringify(pkValues)}
+\NormalTok{无主键：只读模式}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{querybuilderpanel}{%
+\subsubsection{14.7 QueryBuilderPanel}\label{querybuilderpanel}}
+
+职责：
+
+\begin{itemize}
+\tightlist
+\item
+  通过 GUI 构建查询 AST。
+\item
+  支持主表、JOIN、字段、条件、分组、聚合、排序、分页。
+\item
+  支持子查询节点编辑。
+\item
+  在前端做基础结构校验。
+\item
+  提交给后端做最终校验和执行。
+\end{itemize}
+
+前端只负责构建 AST，不负责拼 SQL。
+
+\hypertarget{dashboardwidget}{%
+\subsubsection{14.8 DashboardWidget}\label{dashboardwidget}}
+
+工作台卡片类型：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{stat{-}number}
+\NormalTok{line{-}chart}
+\NormalTok{bar{-}chart}
+\NormalTok{pie{-}chart}
+\NormalTok{recent{-}operations}
+\NormalTok{database{-}shortcut}
+\NormalTok{quick{-}action}
+\end{Highlighting}
+\end{Shaded}
+
+布局状态：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{type}\NormalTok{ DashboardWidgetState }\OperatorTok{=}\NormalTok{ \{}
+\NormalTok{  id}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  widgetType}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  title}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  x}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{  y}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{  width}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{  height}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
+\NormalTok{  config}\OperatorTok{:} \BuiltInTok{Record}\OperatorTok{\textless{}}\DataTypeTok{string}\OperatorTok{,} \DataTypeTok{unknown}\OperatorTok{\textgreater{};}
+\NormalTok{  visible}\OperatorTok{:} \DataTypeTok{boolean}\OperatorTok{;}
+\NormalTok{\}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+第一阶段可以先支持显示、隐藏、排序；拖拽布局作为后续增强。
+
+\hypertarget{ux524dux540eux7aefux4ea4ux4e92ux6d41ux7a0b}{%
+\subsection{15.
+前后端交互流程}\label{ux524dux540eux7aefux4ea4ux4e92ux6d41ux7a0b}}
+
+\hypertarget{ux767bux5f55ux540eux8fdbux5165ux5de5ux4f5cux53f0}{%
+\subsubsection{15.1
+登录后进入工作台}\label{ux767bux5f55ux540eux8fdbux5165ux5de5ux4f5cux53f0}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Login.vue}
+\NormalTok{  {-}\textgreater{} authApi.login}
+\NormalTok{  {-}\textgreater{} 保存 accessToken}
+\NormalTok{  {-}\textgreater{} router.push(\textquotesingle{}/home\textquotesingle{})}
+
+\NormalTok{Home.vue / WorkbenchLayout}
+\NormalTok{  {-}\textgreater{} authApi.me}
+\NormalTok{  {-}\textgreater{} preferenceApi.get}
+\NormalTok{  {-}\textgreater{} workbenchApi.overview}
+\NormalTok{  {-}\textgreater{} databaseApi.list}
+\NormalTok{  {-}\textgreater{} 渲染工作台}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux521bux5efaux6570ux636eux5e93}{%
+\subsubsection{15.2 创建数据库}\label{ux521bux5efaux6570ux636eux5e93}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{用户点击创建数据库}
+\NormalTok{  {-}\textgreater{} 前端校验名称格式}
+\NormalTok{  {-}\textgreater{} POST /databases}
+\NormalTok{  {-}\textgreater{} 后端校验 token}
+\NormalTok{  {-}\textgreater{} 后端检查容量限制}
+\NormalTok{  {-}\textgreater{} 后端 CREATE DATABASE}
+\NormalTok{  {-}\textgreater{} 后端写 user\_databases}
+\NormalTok{  {-}\textgreater{} 后端写 audit\_logs}
+\NormalTok{  {-}\textgreater{} 前端刷新 DbTree}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux884cux5185ux7f16ux8f91ux63d0ux4ea4}{%
+\subsubsection{15.3
+行内编辑提交}\label{ux884cux5185ux7f16ux8f91ux63d0ux4ea4}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{用户编辑单元格}
+\NormalTok{  {-}\textgreater{} DataGrid 标记 dirty}
+\NormalTok{  {-}\textgreater{} 用户点击行级更新}
+\NormalTok{  {-}\textgreater{} PATCH /rows \{ primaryKey, set \}}
+\NormalTok{  {-}\textgreater{} 后端校验归属、表、字段、主键}
+\NormalTok{  {-}\textgreater{} 后端 UPDATE}
+\NormalTok{  {-}\textgreater{} 后端写 audit\_logs}
+\NormalTok{  {-}\textgreater{} 前端更新 original}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux7ed3ux6784ux5316ux67e5ux8be2}{%
+\subsubsection{15.4 结构化查询}\label{ux7ed3ux6784ux5316ux67e5ux8be2}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{用户在 QueryBuilder 中配置查询}
+\NormalTok{  {-}\textgreater{} 前端生成 AST}
+\NormalTok{  {-}\textgreater{} 前端基础校验}
+\NormalTok{  {-}\textgreater{} POST /query/select}
+\NormalTok{  {-}\textgreater{} 后端 AST 校验}
+\NormalTok{  {-}\textgreater{} 后端作用域解析}
+\NormalTok{  {-}\textgreater{} 后端生成 SELECT + params}
+\NormalTok{  {-}\textgreater{} 后端执行}
+\NormalTok{  {-}\textgreater{} 返回 columns、items、pagination}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux5f00ux53d1ux843dux5730ux987aux5e8f}{%
+\subsection{16.
+开发落地顺序}\label{ux5f00ux53d1ux843dux5730ux987aux5e8f}}
+
+\hypertarget{phase-1ux8ba4ux8bc1ux4e0eux5de5ux4f5cux53f0ux5730ux57fa}{%
+\subsubsection{Phase
+1：认证与工作台地基}\label{phase-1ux8ba4ux8bc1ux4e0eux5de5ux4f5cux53f0ux5730ux57fa}}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{env.ts} 完整化。
+\item
+  \texttt{traceMiddleware}。
+\item
+  \texttt{errorMiddleware}。
+\item
+  双 Token 设计中的 Access Token 先落地，Refresh Token 可紧随其后。
+\item
+  \texttt{GET\ /auth/me}。
+\item
+  \texttt{Home.vue} / \texttt{WorkbenchLayout} 骨架。
+\end{itemize}
+
+\hypertarget{phase-2ux7528ux6237ux504fux597dux548cux8d44ux6e90}{%
+\subsubsection{Phase
+2：用户偏好和资源}\label{phase-2ux7528ux6237ux504fux597dux548cux8d44ux6e90}}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{user\_profiles}。
+\item
+  \texttt{user\_preferences}。
+\item
+  头像和背景资源元信息。
+\item
+  主题色和背景配置。
+\end{itemize}
+
+\hypertarget{phase-3ux6570ux636eux5e93ux7ba1ux7406}{%
+\subsubsection{Phase
+3：数据库管理}\label{phase-3ux6570ux636eux5e93ux7ba1ux7406}}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{user\_databases}。
+\item
+  数据库列表。
+\item
+  创建数据库。
+\item
+  删除数据库。
+\item
+  容量限制。
+\item
+  审计日志。
+\end{itemize}
+
+\hypertarget{phase-4ux8868ux7ed3ux6784ux7ba1ux7406}{%
+\subsubsection{Phase
+4：表结构管理}\label{phase-4ux8868ux7ed3ux6784ux7ba1ux7406}}
+
+\begin{itemize}
+\tightlist
+\item
+  表列表。
+\item
+  创建表。
+\item
+  表结构查看。
+\item
+  删除表。
+\item
+  索引、约束、视图逐步扩展。
+\end{itemize}
+
+\hypertarget{phase-5ux8868ux6570ux636e-crud}{%
+\subsubsection{Phase 5：表数据
+CRUD}\label{phase-5ux8868ux6570ux636e-crud}}
+
+\begin{itemize}
+\tightlist
+\item
+  分页查询。
+\item
+  新增行。
+\item
+  行内编辑草稿态。
+\item
+  行级更新。
+\item
+  删除行。
+\item
+  批量写入限制和二次确认。
+\end{itemize}
+
+\hypertarget{phase-6gui-ux67e5ux8be2ux6784ux9020ux5668}{%
+\subsubsection{Phase 6：GUI
+查询构造器}\label{phase-6gui-ux67e5ux8be2ux6784ux9020ux5668}}
+
+\begin{itemize}
+\tightlist
+\item
+  基础 SELECT。
+\item
+  JOIN。
+\item
+  聚合。
+\item
+  分组。
+\item
+  HAVING。
+\item
+  子查询。
+\item
+  查询复杂度限制。
+\end{itemize}
+
+\hypertarget{phase-7ux7edfux8ba1ux548c-diy-ux5de5ux4f5cux53f0}{%
+\subsubsection{Phase 7：统计和 DIY
+工作台}\label{phase-7ux7edfux8ba1ux548c-diy-ux5de5ux4f5cux53f0}}
+
+\begin{itemize}
+\tightlist
+\item
+  用户级统计。
+\item
+  数据库级统计。
+\item
+  表级统计。
+\item
+  Dashboard 卡片。
+\item
+  面板显示、隐藏、排序。
+\item
+  后续增强拖拽布局。
+\end{itemize}
+
+\hypertarget{ux5b9eux73b0ux68c0ux67e5ux6e05ux5355}{%
+\subsection{17.
+实现检查清单}\label{ux5b9eux73b0ux68c0ux67e5ux6e05ux5355}}
+
+后端实现一个接口时必须检查：
+
+\begin{itemize}
+\tightlist
+\item
+  是否经过 authMiddleware。
+\item
+  是否生成 traceId。
+\item
+  是否校验数据库归属。
+\item
+  是否校验标识符。
+\item
+  是否使用 SQL builder。
+\item
+  是否参数化字段值。
+\item
+  是否执行容量限制。
+\item
+  是否记录审计日志。
+\item
+  是否返回统一响应。
+\item
+  是否映射 MySQL 错误。
+\end{itemize}
+
+前端实现一个页面时必须检查：
+
+\begin{itemize}
+\tightlist
+\item
+  是否使用 request 统一请求。
+\item
+  是否处理 loading。
+\item
+  是否展示后端精准错误。
+\item
+  是否处理 401 自动刷新。
+\item
+  是否避免直接拼 SQL。
+\item
+  是否把待提交修改和已保存数据区分。
+\item
+  是否给高风险操作二次确认。
+\end{itemize}
+
+\hypertarget{ux975eux529fux80fdux6027ux8bbeux8ba1}{%
+\subsection{18.
+非功能性设计}\label{ux975eux529fux80fdux6027ux8bbeux8ba1}}
+
+\hypertarget{ux6027ux80fdux8bbeux8ba1}{%
+\subsubsection{18.1 性能设计}\label{ux6027ux80fdux8bbeux8ba1}}
+
+\begin{itemize}
+\tightlist
+\item
+  所有列表接口必须分页，默认 \texttt{pageSize\ =\ 20}，最大
+  \texttt{pageSize\ =\ 100}。
+\item
+  查询构造器最大返回 \texttt{1000} 行，超过必须分页或缩小条件。
+\item
+  查询最大执行时间默认 \texttt{10} 秒，超时后返回容量或超时错误。
+\item
+  统计接口优先使用 \texttt{information\_schema}
+  的估算数据，避免对大表频繁执行 \texttt{COUNT(*)}。
+\item
+  表格数据页只加载当前页，不一次性拉取整表。
+\end{itemize}
+
+\hypertarget{ux53efux7528ux6027ux8bbeux8ba1}{%
+\subsubsection{18.2 可用性设计}\label{ux53efux7528ux6027ux8bbeux8ba1}}
+
+\begin{itemize}
+\tightlist
+\item
+  MySQL 不可用时，数据库管理能力降级为明确错误提示，前端不能白屏。
+\item
+  Access Token 过期时，前端先尝试刷新 Token；刷新失败后才跳转登录页。
+\item
+  高风险操作必须给出影响说明和确认方式。
+\item
+  表格行内编辑必须支持取消，避免误提交。
+\end{itemize}
+
+\hypertarget{ux53efux7ef4ux62a4ux6027ux8bbeux8ba1}{%
+\subsubsection{18.3
+可维护性设计}\label{ux53efux7ef4ux62a4ux6027ux8bbeux8ba1}}
+
+\begin{itemize}
+\tightlist
+\item
+  controller 只处理请求和响应，不拼接 SQL。
+\item
+  SQL 构造集中在 \texttt{sql/} 目录。
+\item
+  错误响应集中在 \texttt{errorMiddleware}。
+\item
+  容量限制集中在 \texttt{limits.ts} 和 \texttt{limitService}。
+\item
+  前端 API 调用集中在 \texttt{api/} 目录。
+\end{itemize}
+
+\hypertarget{ux53efux89c2ux6d4bux6027ux8bbeux8ba1}{%
+\subsubsection{18.4
+可观测性设计}\label{ux53efux89c2ux6d4bux6027ux8bbeux8ba1}}
+
+\begin{itemize}
+\tightlist
+\item
+  每个请求都有 \texttt{traceId}。
+\item
+  关键操作写入 \texttt{audit\_logs}。
+\item
+  后端日志、接口响应、审计日志都包含同一个 \texttt{traceId}。
+\item
+  MySQL 错误必须映射为可读错误码。
+\end{itemize}
+
+\hypertarget{ux53efux6269ux5c55ux6027ux8bbeux8ba1}{%
+\subsubsection{18.5
+可扩展性设计}\label{ux53efux6269ux5c55ux6027ux8bbeux8ba1}}
+
+\begin{itemize}
+\tightlist
+\item
+  用户物理库通过 \texttt{user\_databases} 映射，不把真实库名暴露给前端。
+\item
+  工作台卡片使用 \texttt{widgetType\ +\ config}
+  模型，后续可以扩展新卡片。
+\item
+  查询构造器使用 AST，后续可以扩展更多查询节点。
+\end{itemize}
+
+\hypertarget{ux9632ux5fa1ux6027ux8bbeux8ba1}{%
+\subsection{19. 防御性设计}\label{ux9632ux5fa1ux6027ux8bbeux8ba1}}
+
+\hypertarget{ux8f93ux5165ux9632ux5fa1}{%
+\subsubsection{19.1 输入防御}\label{ux8f93ux5165ux9632ux5fa1}}
+
+\begin{itemize}
+\tightlist
+\item
+  所有请求参数必须经过 controller 或 validator 校验。
+\item
+  数据库名、表名、字段名、索引名、约束名、视图名必须符合标识符规则。
+\item
+  文件上传必须校验 MIME、扩展名、大小和文件头。
+\end{itemize}
+
+\hypertarget{sql-ux9632ux5fa1}{%
+\subsubsection{19.2 SQL 防御}\label{sql-ux9632ux5fa1}}
+
+\begin{itemize}
+\tightlist
+\item
+  字段值只能通过参数化传入。
+\item
+  标识符只能来自校验后的用户输入或 MySQL 元数据。
+\item
+  业务代码不能手写反引号拼接 SQL。
+\item
+  查询构造器只生成 \texttt{SELECT}，不生成写操作 SQL。
+\end{itemize}
+
+\hypertarget{ux6743ux9650ux9632ux5fa1}{%
+\subsubsection{19.3 权限防御}\label{ux6743ux9650ux9632ux5fa1}}
+
+\begin{itemize}
+\tightlist
+\item
+  所有数据库相关接口都先执行 \texttt{databaseResolver}。
+\item
+  事务、资源、偏好、审计查询都必须校验归属。
+\item
+  不向前端返回真实物理库名、文件绝对路径、Token 哈希。
+\end{itemize}
+
+\hypertarget{ux72b6ux6001ux9632ux5fa1}{%
+\subsubsection{19.4 状态防御}\label{ux72b6ux6001ux9632ux5fa1}}
+
+\begin{itemize}
+\tightlist
+\item
+  Refresh Token 使用轮换机制。
+\item
+  事务必须有超时时间，超时自动回滚。
+\item
+  创建数据库时如果系统表写入失败，必须尝试补偿删除物理库。
+\item
+  行内编辑必须先进入草稿态，只有显式提交才写数据库。
+\end{itemize}
+
+\hypertarget{ux5bb9ux91cfux9632ux5fa1}{%
+\subsubsection{19.5 容量防御}\label{ux5bb9ux91cfux9632ux5fa1}}
+
+\begin{itemize}
+\tightlist
+\item
+  创建类操作先检查容量，再执行写入。
+\item
+  查询类操作检查 AST 大小、JOIN 数、子查询深度、分页大小和执行时间。
+\item
+  批量修改和删除先预估影响行数，超过阈值要求确认或拒绝。
+\end{itemize}
+
+\hypertarget{ux8be6ux7ec6ux8bbeux8ba1ux8ffdux8e2a}{%
+\subsection{20.
+详细设计追踪}\label{ux8be6ux7ec6ux8bbeux8ba1ux8ffdux8e2a}}
+
+为避免追踪信息在 PDF 宽表中挤压，详细设计追踪按设计项列出：
+
+\begin{itemize}
+\tightlist
+\item
+  双 Token：对应需求 \texttt{REQ-AUTH}；对应接口
+  \texttt{API-AUTH}；对应安全 \texttt{SEC-AUTH}。
+\item
+  工作台偏好：对应需求
+  \texttt{REQ-WORKBENCH}、\texttt{REQ-PREF}；对应接口
+  \texttt{API-WORKBENCH}、\texttt{API-PREF}；对应安全
+  \texttt{SEC-AUTHZ}。
+\item
+  用户资源：对应需求 \texttt{REQ-ASSET}；对应接口后续补充
+  \texttt{API-ASSET}；对应安全 \texttt{SEC-FILE}。
+\item
+  数据库管理：对应需求 \texttt{REQ-DB}；对应接口
+  \texttt{API-DB}；对应安全 \texttt{SEC-AUTHZ}、\texttt{SEC-SQL}。
+\item
+  表结构管理：对应需求 \texttt{REQ-TABLE}；对应接口
+  \texttt{API-TABLE}；对应安全 \texttt{SEC-SQL}、\texttt{SEC-CONFIRM}。
+\item
+  行内编辑：对应需求 \texttt{REQ-ROW}；对应接口
+  \texttt{API-ROW}；对应安全 \texttt{SEC-SQL}、\texttt{SEC-CONFIRM}。
+\item
+  查询构造器：对应需求 \texttt{REQ-QUERY}；对应接口
+  \texttt{API-QUERY}；对应安全 \texttt{SEC-SQL}、\texttt{SEC-LIMIT}。
+\item
+  事务：对应需求 \texttt{REQ-TX}；对应接口 \texttt{API-TX}；对应安全
+  \texttt{SEC-TX}。
+\item
+  统计：对应需求 \texttt{REQ-STATS}；对应接口
+  \texttt{API-STATS}；对应安全 \texttt{SEC-AUTHZ}、\texttt{SEC-LIMIT}。
+\item
+  审计：对应需求 \texttt{REQ-AUDIT}；对应接口
+  \texttt{API-AUDIT}；对应安全 \texttt{SEC-AUDIT}。
+\item
+  容量限制：对应需求 \texttt{REQ-LIMIT}；对应接口规范
+  \texttt{2.4}；对应安全 \texttt{SEC-LIMIT}。
+\end{itemize}
+
+\hypertarget{ux6570ux636eux5e93ux8bbeux8ba1ux9644ux5f55}{%
+\section{数据库设计附录}\label{ux6570ux636eux5e93ux8bbeux8ba1ux9644ux5f55}}
+
+\hypertarget{ux6570ux636eux5e93ux8bbeux8ba1}{%
+\section{数据库设计}\label{ux6570ux636eux5e93ux8bbeux8ba1}}
+
+\hypertarget{ux8bbeux8ba1ux539fux5219}{%
+\subsection{1. 设计原则}\label{ux8bbeux8ba1ux539fux5219}}
+
+\hypertarget{data-001-ux7cfbux7edfux5e93ux548cux7528ux6237ux7269ux7406ux5e93ux5206ux79bb}{%
+\subsubsection{DATA-001
+系统库和用户物理库分离}\label{data-001-ux7cfbux7edfux5e93ux548cux7528ux6237ux7269ux7406ux5e93ux5206ux79bb}}
+
+系统库 \texttt{DB\_App}
+保存平台元数据。用户物理库保存用户自行创建的真实数据。
+
+\hypertarget{data-002-ux7b2cux4e09ux8303ux5f0f}{%
+\subsubsection{DATA-002
+第三范式}\label{data-002-ux7b2cux4e09ux8303ux5f0f}}
+
+系统库核心表满足第三范式：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{users} 只保存认证信息。
+\item
+  \texttt{user\_profiles} 保存展示资料。
+\item
+  \texttt{user\_preferences} 保存偏好设置。
+\item
+  \texttt{user\_assets} 保存资源元信息。
+\item
+  \texttt{user\_databases} 保存数据库归属关系。
+\item
+  \texttt{refresh\_tokens} 保存会话刷新信息。
+\item
+  \texttt{audit\_logs} 保存操作追踪。
+\end{itemize}
+
+\hypertarget{data-003-ux7528ux6237ux8868ux7ed3ux6784ux81eaux7531}{%
+\subsubsection{DATA-003
+用户表结构自由}\label{data-003-ux7528ux6237ux8868ux7ed3ux6784ux81eaux7531}}
+
+用户物理库中的表由用户通过 GUI
+自行设计。系统只限制安全、容量和权限，不限制用户表的业务字段。
+
+\hypertarget{data-004-ux771fux5b9eux7269ux7406ux5e93ux540dux540eux7aefux751fux6210}{%
+\subsubsection{DATA-004
+真实物理库名后端生成}\label{data-004-ux771fux5b9eux7269ux7406ux5e93ux540dux540eux7aefux751fux6210}}
+
+前端只使用平台数据库 ID。真实 MySQL database 名只由后端生成和使用。
+
+\hypertarget{ux7cfbux7edfux5e93ux8868ux603bux89c8}{%
+\subsection{2.
+系统库表总览}\label{ux7cfbux7edfux5e93ux8868ux603bux89c8}}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+表名 & 说明 \\
+\midrule
+\endhead
+users & 用户认证表 \\
+user\_profiles & 用户资料表 \\
+user\_preferences & 用户偏好表 \\
+user\_assets & 用户资源元信息表 \\
+refresh\_tokens & Refresh Token 表 \\
+user\_databases & 用户数据库归属表 \\
+transaction\_sessions & 事务会话表 \\
+audit\_logs & 操作审计日志表 \\
+stat\_snapshots & 统计快照表 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux547dux540dux89c4ux5219}{%
+\subsection{3. 命名规则}\label{ux547dux540dux89c4ux5219}}
+
+数据库显示名、表名、字段名、索引名、约束名、视图名统一使用：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\^{}[A{-}Za{-}z][A{-}Za{-}z0{-}9\_]\{0,63\}$}
+\end{Highlighting}
+\end{Shaded}
+
+规则：
+
+\begin{itemize}
+\tightlist
+\item
+  必须以英文字母开头。
+\item
+  只允许英文字母、数字、下划线。
+\item
+  最长 64 字符。
+\item
+  不允许空格、中文、横线、点号、反引号。
+\end{itemize}
+
+\hypertarget{users-ux7528ux6237ux8ba4ux8bc1ux8868}{%
+\subsection{4. users
+用户认证表}\label{users-ux7528ux6237ux8ba4ux8bc1ux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ users (}
+  \KeywordTok{id} \DataTypeTok{INT}\NormalTok{ AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户内部唯一 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  account\_no }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{10}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{UNIQUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}10 位登录账号\textquotesingle{}}\NormalTok{,}
+\NormalTok{  password\_hash }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}bcrypt 密码哈希\textquotesingle{}}\NormalTok{,}
+\NormalTok{  status ENUM(}\StringTok{\textquotesingle{}active\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}disabled\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}active\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户状态\textquotesingle{}}\NormalTok{,}
+\NormalTok{  last\_login\_time DATETIME }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}最近登录时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  register\_time }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}注册时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  updated\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{ON} \KeywordTok{UPDATE} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}更新时间\textquotesingle{}}\NormalTok{,}
+
+  \KeywordTok{INDEX}\NormalTok{ idx\_users\_account\_no (account\_no),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_users\_status (status)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户认证表\textquotesingle{}}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{user_profiles-ux7528ux6237ux8d44ux6599ux8868}{%
+\subsection{5. user\_profiles
+用户资料表}\label{user_profiles-ux7528ux6237ux8d44ux6599ux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ user\_profiles (}
+\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  display\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{50}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}展示昵称\textquotesingle{}}\NormalTok{,}
+\NormalTok{  avatar\_asset\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}头像资源 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  bio }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}个人简介\textquotesingle{}}\NormalTok{,}
+\NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  updated\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{ON} \KeywordTok{UPDATE} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}更新时间\textquotesingle{}}\NormalTok{,}
+
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_user\_profiles\_user}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户资料表\textquotesingle{}}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{user_preferences-ux7528ux6237ux504fux597dux8868}{%
+\subsection{6. user\_preferences
+用户偏好表}\label{user_preferences-ux7528ux6237ux504fux597dux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ user\_preferences (}
+\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  theme\_mode ENUM(}\StringTok{\textquotesingle{}dark\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}light\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}dark\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}主题模式\textquotesingle{}}\NormalTok{,}
+\NormalTok{  theme\_hue }\DataTypeTok{SMALLINT}\NormalTok{ UNSIGNED }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \DecValTok{210} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}主题色相，0{-}359\textquotesingle{}}\NormalTok{,}
+\NormalTok{  background\_preset }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{50}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}particle\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}背景预设\textquotesingle{}}\NormalTok{,}
+\NormalTok{  background\_asset\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}背景资源 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  table\_page\_size }\DataTypeTok{INT}\NormalTok{ UNSIGNED }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \DecValTok{20} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}表格默认分页大小\textquotesingle{}}\NormalTok{,}
+\NormalTok{  confirm\_batch\_insert }\DataTypeTok{BOOLEAN} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{TRUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}批量插入确认\textquotesingle{}}\NormalTok{,}
+\NormalTok{  confirm\_batch\_update }\DataTypeTok{BOOLEAN} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{TRUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}批量修改确认\textquotesingle{}}\NormalTok{,}
+\NormalTok{  confirm\_batch\_delete }\DataTypeTok{BOOLEAN} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{TRUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}批量删除确认\textquotesingle{}}\NormalTok{,}
+\NormalTok{  confirm\_cascade\_delete }\DataTypeTok{BOOLEAN} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{TRUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}级联删除确认\textquotesingle{}}\NormalTok{,}
+\NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  updated\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{ON} \KeywordTok{UPDATE} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}更新时间\textquotesingle{}}\NormalTok{,}
+
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_user\_preferences\_user}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户偏好表\textquotesingle{}}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+说明：
+
+\begin{itemize}
+\tightlist
+\item
+  删除数据库、删除表、删除字段属于强制确认，不由偏好关闭。
+\item
+  批量插入、批量修改、批量删除、级联删除提示由偏好控制。
+\end{itemize}
+
+\hypertarget{user_assets-ux7528ux6237ux8d44ux6e90ux5143ux4fe1ux606fux8868}{%
+\subsection{7. user\_assets
+用户资源元信息表}\label{user_assets-ux7528ux6237ux8d44ux6e90ux5143ux4fe1ux606fux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ user\_assets (}
+  \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}资源 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}所属用户 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  asset\_type ENUM(}\StringTok{\textquotesingle{}avatar\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}background\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}other\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}资源类型\textquotesingle{}}\NormalTok{,}
+\NormalTok{  storage\_type }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{30}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}local\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}存储类型\textquotesingle{}}\NormalTok{,}
+\NormalTok{  storage\_key }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{500}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}存储键\textquotesingle{}}\NormalTok{,}
+\NormalTok{  original\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}原始文件名\textquotesingle{}}\NormalTok{,}
+\NormalTok{  mime\_type }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{100}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}MIME 类型\textquotesingle{}}\NormalTok{,}
+\NormalTok{  file\_size BIGINT UNSIGNED }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}文件大小，字节\textquotesingle{}}\NormalTok{,}
+\NormalTok{  checksum }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{128}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}文件校验和\textquotesingle{}}\NormalTok{,}
+\NormalTok{  status ENUM(}\StringTok{\textquotesingle{}active\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}deleted\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}active\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}状态\textquotesingle{}}\NormalTok{,}
+\NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  deleted\_at DATETIME }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}删除时间\textquotesingle{}}\NormalTok{,}
+
+  \KeywordTok{INDEX}\NormalTok{ idx\_user\_assets\_user\_type (user\_id, asset\_type),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_user\_assets\_status (status),}
+
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_user\_assets\_user}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户资源元信息表\textquotesingle{}}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+说明：
+
+\begin{itemize}
+\tightlist
+\item
+  当前存储类型固定写入 \texttt{local}。
+\item
+  \texttt{storage\_key} 保存服务端生成的资源键。
+\item
+  数据库不保存图片二进制。
+\end{itemize}
+
+\hypertarget{refresh_tokens-ux4f1aux8bddux5237ux65b0ux8868}{%
+\subsection{8. refresh\_tokens
+会话刷新表}\label{refresh_tokens-ux4f1aux8bddux5237ux65b0ux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ refresh\_tokens (}
+  \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}Refresh Token ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  token\_hash }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}Refresh Token 哈希\textquotesingle{}}\NormalTok{,}
+\NormalTok{  token\_family }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}Token 家族 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  expires\_at DATETIME }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}过期时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  revoked\_at DATETIME }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}撤销时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  replaced\_by\_token\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}轮换后的新 Token ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  created\_ip }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{45}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建 IP\textquotesingle{}}\NormalTok{,}
+\NormalTok{  user\_agent }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}User{-}Agent\textquotesingle{}}\NormalTok{,}
+\NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
+
+  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_refresh\_token\_hash (token\_hash),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_refresh\_tokens\_user (user\_id),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_refresh\_tokens\_family (token\_family),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_refresh\_tokens\_expires (expires\_at),}
+
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_refresh\_tokens\_user}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}Refresh Token 表\textquotesingle{}}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{user_databases-ux7528ux6237ux6570ux636eux5e93ux5f52ux5c5eux8868}{%
+\subsection{9. user\_databases
+用户数据库归属表}\label{user_databases-ux7528ux6237ux6570ux636eux5e93ux5f52ux5c5eux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ user\_databases (}
+  \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}所属用户 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  display\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户看到的数据库名称\textquotesingle{}}\NormalTok{,}
+\NormalTok{  physical\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{128}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}MySQL 中真实数据库名称\textquotesingle{}}\NormalTok{,}
+\NormalTok{  charset\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{32}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}utf8mb4\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}字符集\textquotesingle{}}\NormalTok{,}
+\NormalTok{  collation\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}utf8mb4\_unicode\_ci\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}排序规则\textquotesingle{}}\NormalTok{,}
+\NormalTok{  status ENUM(}\StringTok{\textquotesingle{}active\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}deleted\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}active\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}状态\textquotesingle{}}\NormalTok{,}
+\NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  updated\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{ON} \KeywordTok{UPDATE} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}更新时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  deleted\_at DATETIME }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}删除时间\textquotesingle{}}\NormalTok{,}
+
+  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_user\_database\_display (user\_id, display\_name),}
+  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_user\_database\_physical (physical\_name),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_user\_databases\_user\_status (user\_id, status),}
+
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_user\_databases\_user}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户数据库归属表\textquotesingle{}}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+物理库命名格式：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{dbapp\_u\{userId\}\_\{safeDisplayName\}}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{transaction_sessions-ux4e8bux52a1ux4f1aux8bddux8868}{%
+\subsection{10. transaction\_sessions
+事务会话表}\label{transaction_sessions-ux4e8bux52a1ux4f1aux8bddux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ transaction\_sessions (}
+  \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}事务会话 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  transaction\_key }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{UNIQUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}对外事务 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  database\_id BIGINT UNSIGNED }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
+  \KeywordTok{isolation\_level}\NormalTok{ ENUM(}\StringTok{\textquotesingle{}READ COMMITTED\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}REPEATABLE READ\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}SERIALIZABLE\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}REPEATABLE READ\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}隔离级别\textquotesingle{}}\NormalTok{,}
+\NormalTok{  status ENUM(}\StringTok{\textquotesingle{}active\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}committed\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}rolled\_back\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}expired\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}active\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}事务状态\textquotesingle{}}\NormalTok{,}
+\NormalTok{  started\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}开始时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  expires\_at DATETIME }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}过期时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  finished\_at DATETIME }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}结束时间\textquotesingle{}}\NormalTok{,}
+
+  \KeywordTok{INDEX}\NormalTok{ idx\_transaction\_user\_status (user\_id, status),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_transaction\_database\_status (database\_id, status),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_transaction\_expires (expires\_at),}
+
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_transaction\_user}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{),}
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_transaction\_database}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (database\_id) }\KeywordTok{REFERENCES}\NormalTok{ user\_databases(}\KeywordTok{id}\NormalTok{)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}事务会话表\textquotesingle{}}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+说明：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{transaction\_key} 是前端使用的事务 ID。
+\item
+  实际数据库连接由后端内存连接池管理。
+\item
+  表中记录用于追踪事务生命周期。
+\end{itemize}
+
+\hypertarget{audit_logs-ux64cdux4f5cux65e5ux5fd7ux8868}{%
+\subsection{11. audit\_logs
+操作日志表}\label{audit_logs-ux64cdux4f5cux65e5ux5fd7ux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ audit\_logs (}
+  \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}日志 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  trace\_id }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}请求追踪 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}操作用户 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  database\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  transaction\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}事务会话 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  object\_type }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{30}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}对象类型\textquotesingle{}}\NormalTok{,}
+\NormalTok{  object\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{128}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}对象名称\textquotesingle{}}\NormalTok{,}
+\NormalTok{  action\_type }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{50}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}操作类型\textquotesingle{}}\NormalTok{,}
+  \KeywordTok{summary} \DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}操作摘要\textquotesingle{}}\NormalTok{,}
+\NormalTok{  detail\_json JSON }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}操作详情\textquotesingle{}}\NormalTok{,}
+\NormalTok{  success }\DataTypeTok{BOOLEAN} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{TRUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}成功状态\textquotesingle{}}\NormalTok{,}
+\NormalTok{  error\_code }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{80}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}错误码\textquotesingle{}}\NormalTok{,}
+\NormalTok{  error\_message }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{500}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}错误消息\textquotesingle{}}\NormalTok{,}
+\NormalTok{  duration\_ms }\DataTypeTok{INT}\NormalTok{ UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}耗时毫秒\textquotesingle{}}\NormalTok{,}
+\NormalTok{  ip\_address }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{45}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}客户端 IP\textquotesingle{}}\NormalTok{,}
+\NormalTok{  user\_agent }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}User{-}Agent\textquotesingle{}}\NormalTok{,}
+\NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
+
+  \KeywordTok{INDEX}\NormalTok{ idx\_audit\_trace (trace\_id),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_audit\_user\_time (user\_id, created\_at),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_audit\_database\_time (database\_id, created\_at),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_audit\_action\_type (action\_type),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_audit\_object\_type (object\_type),}
+
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_audit\_user}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{),}
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_audit\_database}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (database\_id) }\KeywordTok{REFERENCES}\NormalTok{ user\_databases(}\KeywordTok{id}\NormalTok{),}
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_audit\_transaction}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (transaction\_id) }\KeywordTok{REFERENCES}\NormalTok{ transaction\_sessions(}\KeywordTok{id}\NormalTok{)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}操作审计日志表\textquotesingle{}}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{object\_type} 值：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{AUTH}
+\NormalTok{USER}
+\NormalTok{PREFERENCE}
+\NormalTok{DATABASE}
+\NormalTok{TABLE}
+\NormalTok{COLUMN}
+\NormalTok{CONSTRAINT}
+\NormalTok{INDEX}
+\NormalTok{VIEW}
+\NormalTok{ROW}
+\NormalTok{QUERY}
+\NormalTok{TRANSACTION}
+\NormalTok{STATS}
+\NormalTok{ASSET}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{action\_type} 值：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{AUTH\_REGISTER}
+\NormalTok{AUTH\_LOGIN}
+\NormalTok{AUTH\_REFRESH}
+\NormalTok{AUTH\_LOGOUT}
+\NormalTok{PREFERENCE\_UPDATE}
+\NormalTok{DB\_CREATE}
+\NormalTok{DB\_UPDATE}
+\NormalTok{DB\_DELETE}
+\NormalTok{TABLE\_CREATE}
+\NormalTok{TABLE\_ALTER}
+\NormalTok{TABLE\_DELETE}
+\NormalTok{COLUMN\_CREATE}
+\NormalTok{COLUMN\_UPDATE}
+\NormalTok{COLUMN\_DELETE}
+\NormalTok{CONSTRAINT\_CREATE}
+\NormalTok{CONSTRAINT\_DELETE}
+\NormalTok{INDEX\_CREATE}
+\NormalTok{INDEX\_DELETE}
+\NormalTok{VIEW\_CREATE}
+\NormalTok{VIEW\_UPDATE}
+\NormalTok{VIEW\_DELETE}
+\NormalTok{ROW\_SELECT}
+\NormalTok{ROW\_INSERT}
+\NormalTok{ROW\_UPDATE}
+\NormalTok{ROW\_DELETE}
+\NormalTok{QUERY\_SELECT}
+\NormalTok{TX\_BEGIN}
+\NormalTok{TX\_COMMIT}
+\NormalTok{TX\_ROLLBACK}
+\NormalTok{STATS\_VIEW}
+\NormalTok{ASSET\_VIEW}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{stat_snapshots-ux7edfux8ba1ux5febux7167ux8868}{%
+\subsection{12. stat\_snapshots
+统计快照表}\label{stat_snapshots-ux7edfux8ba1ux5febux7167ux8868}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ stat\_snapshots (}
+  \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}快照 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  database\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  table\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}表名\textquotesingle{}}\NormalTok{,}
+  \KeywordTok{scope}\NormalTok{ ENUM(}\StringTok{\textquotesingle{}user\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}database\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}table\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}统计范围\textquotesingle{}}\NormalTok{,}
+\NormalTok{  metric\_json JSON }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}统计指标\textquotesingle{}}\NormalTok{,}
+\NormalTok{  captured\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}采集时间\textquotesingle{}}\NormalTok{,}
+
+  \KeywordTok{INDEX}\NormalTok{ idx\_stat\_user\_scope\_time (user\_id, }\KeywordTok{scope}\NormalTok{, captured\_at),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_stat\_database\_time (database\_id, captured\_at),}
+
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_stat\_user}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{),}
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_stat\_database}
+    \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (database\_id) }\KeywordTok{REFERENCES}\NormalTok{ user\_databases(}\KeywordTok{id}\NormalTok{)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}统计快照表\textquotesingle{}}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{mysql-ux5143ux6570ux636eux6765ux6e90}{%
+\subsection{13. MySQL
+元数据来源}\label{mysql-ux5143ux6570ux636eux6765ux6e90}}
+
+表、字段、索引、约束、视图信息以 MySQL 元数据为准。
+
+表与视图：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{SELECT}\NormalTok{ table\_name, table\_type, table\_rows, data\_length, index\_length, create\_time, update\_time}
+\KeywordTok{FROM}\NormalTok{ information\_schema.}\KeywordTok{tables}
+\KeywordTok{WHERE}\NormalTok{ table\_schema }\OperatorTok{=}\NormalTok{ ?;}
+\end{Highlighting}
+\end{Shaded}
+
+字段：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{SELECT}
+\NormalTok{  column\_name,}
+\NormalTok{  data\_type,}
+\NormalTok{  column\_type,}
+\NormalTok{  is\_nullable,}
+\NormalTok{  column\_key,}
+\NormalTok{  column\_default,}
+\NormalTok{  extra,}
+\NormalTok{  ordinal\_position}
+\KeywordTok{FROM}\NormalTok{ information\_schema.}\KeywordTok{columns}
+\KeywordTok{WHERE}\NormalTok{ table\_schema }\OperatorTok{=}\NormalTok{ ?}
+  \KeywordTok{AND}\NormalTok{ table\_name }\OperatorTok{=}\NormalTok{ ?}
+\KeywordTok{ORDER} \KeywordTok{BY}\NormalTok{ ordinal\_position;}
+\end{Highlighting}
+\end{Shaded}
+
+索引：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{SELECT}
+\NormalTok{  index\_name,}
+\NormalTok{  non\_unique,}
+\NormalTok{  seq\_in\_index,}
+\NormalTok{  column\_name,}
+\NormalTok{  collation,}
+\NormalTok{  index\_type}
+\KeywordTok{FROM}\NormalTok{ information\_schema.}\KeywordTok{statistics}
+\KeywordTok{WHERE}\NormalTok{ table\_schema }\OperatorTok{=}\NormalTok{ ?}
+  \KeywordTok{AND}\NormalTok{ table\_name }\OperatorTok{=}\NormalTok{ ?}
+\KeywordTok{ORDER} \KeywordTok{BY}\NormalTok{ index\_name, seq\_in\_index;}
+\end{Highlighting}
+\end{Shaded}
+
+约束：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{SELECT}
+\NormalTok{  constraint\_name,}
+\NormalTok{  constraint\_type}
+\KeywordTok{FROM}\NormalTok{ information\_schema.table\_constraints}
+\KeywordTok{WHERE}\NormalTok{ table\_schema }\OperatorTok{=}\NormalTok{ ?}
+  \KeywordTok{AND}\NormalTok{ table\_name }\OperatorTok{=}\NormalTok{ ?;}
+\end{Highlighting}
+\end{Shaded}
+
+外键：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{SELECT}
+\NormalTok{  constraint\_name,}
+\NormalTok{  column\_name,}
+\NormalTok{  referenced\_table\_name,}
+\NormalTok{  referenced\_column\_name}
+\KeywordTok{FROM}\NormalTok{ information\_schema.key\_column\_usage}
+\KeywordTok{WHERE}\NormalTok{ table\_schema }\OperatorTok{=}\NormalTok{ ?}
+  \KeywordTok{AND}\NormalTok{ table\_name }\OperatorTok{=}\NormalTok{ ?}
+  \KeywordTok{AND}\NormalTok{ referenced\_table\_name }\KeywordTok{IS} \KeywordTok{NOT} \KeywordTok{NULL}\NormalTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+视图：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{SELECT}\NormalTok{ table\_name, view\_definition, check\_option, is\_updatable}
+\KeywordTok{FROM}\NormalTok{ information\_schema.views}
+\KeywordTok{WHERE}\NormalTok{ table\_schema }\OperatorTok{=}\NormalTok{ ?}
+  \KeywordTok{AND}\NormalTok{ table\_name }\OperatorTok{=}\NormalTok{ ?;}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux652fux6301ux7684ux6570ux636eux7c7bux578b}{%
+\subsection{14.
+支持的数据类型}\label{ux652fux6301ux7684ux6570ux636eux7c7bux578b}}
+
+GUI 字段类型清单：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{TINYINT}
+\NormalTok{SMALLINT}
+\NormalTok{INT}
+\NormalTok{BIGINT}
+\NormalTok{DECIMAL}
+\NormalTok{FLOAT}
+\NormalTok{DOUBLE}
+\NormalTok{CHAR}
+\NormalTok{VARCHAR}
+\NormalTok{TEXT}
+\NormalTok{MEDIUMTEXT}
+\NormalTok{LONGTEXT}
+\NormalTok{DATE}
+\NormalTok{TIME}
+\NormalTok{DATETIME}
+\NormalTok{TIMESTAMP}
+\NormalTok{BOOLEAN}
+\NormalTok{JSON}
+\NormalTok{BLOB}
+\NormalTok{MEDIUMBLOB}
+\NormalTok{LONGBLOB}
+\end{Highlighting}
+\end{Shaded}
+
+字段属性：
+
+\begin{itemize}
+\tightlist
+\item
+  unsigned
+\item
+  length
+\item
+  precision
+\item
+  scale
+\item
+  nullable
+\item
+  defaultValue
+\item
+  autoIncrement
+\item
+  comment
+\end{itemize}
+
+\hypertarget{ux7d22ux5f15ux8bbeux8ba1}{%
+\subsection{15. 索引设计}\label{ux7d22ux5f15ux8bbeux8ba1}}
+
+\hypertarget{data-idx-001-ux7d22ux5f15ux8bbeux8ba1ux539fux5219}{%
+\subsubsection{DATA-IDX-001
+索引设计原则}\label{data-idx-001-ux7d22ux5f15ux8bbeux8ba1ux539fux5219}}
+
+系统库索引必须服务于高频查询、归属校验、唯一性约束和审计检索。
+
+索引设计原则：
+
+\begin{itemize}
+\tightlist
+\item
+  主键使用自增 ID 或稳定唯一 ID。
+\item
+  外键字段必须建立索引。
+\item
+  高频登录字段必须唯一索引。
+\item
+  高频按用户查询的表必须包含 \texttt{user\_id} 前缀索引。
+\item
+  高频时间列表查询使用组合索引，例如 \texttt{(user\_id,\ created\_at)}。
+\item
+  不为低选择性布尔字段单独建索引，除非与高选择性字段组合。
+\item
+  JSON 字段默认不建索引；若后续需要查询 JSON
+  内部字段，再考虑生成列索引。
+\end{itemize}
+
+\hypertarget{data-idx-002-ux7cfbux7edfux5e93ux7d22ux5f15ux6e05ux5355}{%
+\subsubsection{DATA-IDX-002
+系统库索引清单}\label{data-idx-002-ux7cfbux7edfux5e93ux7d22ux5f15ux6e05ux5355}}
+
+为避免长索引名在 PDF
+表格中挤压列宽，本清单按表分组维护；每条记录仍保持``索引、类型、目的''三项信息。
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{users}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{uk\_users\_account\_no(account\_no)}：唯一索引；登录账号唯一和登录查询。
+  \item
+    \texttt{idx\_users\_status(status)}：普通索引；后台筛选用户状态，当前阶段可选。
+  \end{itemize}
+\item
+  \texttt{user\_profiles}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{pk\_user\_profiles(user\_id)}：主键/唯一；一个用户一份资料。
+  \end{itemize}
+\item
+  \texttt{user\_preferences}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{pk\_user\_preferences(user\_id)}：主键/唯一；一个用户一份偏好。
+  \end{itemize}
+\item
+  \texttt{user\_assets}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{idx\_assets\_user\_type(user\_id,\ asset\_type)}：普通索引；查询用户头像、背景等资源。
+  \item
+    \texttt{idx\_assets\_user\_time(user\_id,\ created\_at)}：普通索引；用户资源列表。
+  \end{itemize}
+\item
+  \texttt{refresh\_tokens}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{idx\_refresh\_token\_hash(token\_hash)}：唯一索引；快速校验
+    Refresh Token。
+  \item
+    \texttt{idx\_refresh\_user\_family(user\_id,\ token\_family)}：普通索引；Token
+    家族撤销。
+  \item
+    \texttt{idx\_refresh\_user\_expires(user\_id,\ expires\_at)}：普通索引；清理过期
+    Token。
+  \end{itemize}
+\item
+  \texttt{user\_databases}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{uk\_user\_display\_name(user\_id,\ display\_name)}：唯一索引；同一用户下数据库显示名唯一。
+  \item
+    \texttt{uk\_physical\_name(physical\_name)}：唯一索引；真实物理库名唯一。
+  \item
+    \texttt{idx\_user\_db\_status(user\_id,\ status)}：普通索引；查询当前用户有效数据库。
+  \end{itemize}
+\item
+  \texttt{transaction\_sessions}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{idx\_tx\_user\_status(user\_id,\ status)}：普通索引；查询用户活跃事务。
+  \item
+    \texttt{idx\_tx\_expires\_at(expires\_at)}：普通索引；超时事务扫描。
+  \end{itemize}
+\item
+  \texttt{audit\_logs}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{idx\_audit\_user\_time(user\_id,\ created\_at)}：普通索引；用户操作日志分页。
+  \item
+    \texttt{idx\_audit\_database\_time(database\_id,\ created\_at)}：普通索引；数据库级操作日志。
+  \item
+    \texttt{idx\_audit\_action\_time(action\_type,\ created\_at)}：普通索引；操作类型统计。
+  \item
+    \texttt{idx\_audit\_trace\_id(trace\_id)}：普通索引；根据 traceId
+    排查问题。
+  \end{itemize}
+\item
+  \texttt{stat\_snapshots}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{idx\_stat\_user\_scope\_time(user\_id,\ scope,\ captured\_at)}：普通索引；用户统计趋势。
+  \item
+    \texttt{idx\_stat\_database\_time(database\_id,\ captured\_at)}：普通索引；数据库统计趋势。
+  \end{itemize}
+\end{itemize}
+
+\hypertarget{data-idx-003-ux7528ux6237ux7269ux7406ux5e93ux7d22ux5f15ux7b56ux7565}{%
+\subsubsection{DATA-IDX-003
+用户物理库索引策略}\label{data-idx-003-ux7528ux6237ux7269ux7406ux5e93ux7d22ux5f15ux7b56ux7565}}
+
+用户创建表时，索引由 GUI 显式配置。系统不自动为所有字段创建索引。
+
+默认策略：
+
+\begin{itemize}
+\tightlist
+\item
+  主键必须创建主键索引。
+\item
+  唯一约束必须创建唯一索引。
+\item
+  外键字段建议创建普通索引；若 MySQL 自动创建则复用。
+\item
+  用户显式创建普通索引或唯一索引时，字段必须存在。
+\item
+  单表索引数量默认最多 \texttt{16} 个。
+\item
+  复合索引字段顺序由用户在 GUI 中配置。
+\end{itemize}
+
+\hypertarget{data-idx-004-ux7d22ux5f15ux53d8ux66f4ux5b89ux5168}{%
+\subsubsection{DATA-IDX-004
+索引变更安全}\label{data-idx-004-ux7d22ux5f15ux53d8ux66f4ux5b89ux5168}}
+
+创建或删除索引前必须：
+
+\begin{itemize}
+\tightlist
+\item
+  校验数据库归属。
+\item
+  校验表存在。
+\item
+  校验字段存在。
+\item
+  校验索引名符合标识符规则。
+\item
+  校验单表索引数量上限。
+\item
+  对删除唯一索引、删除外键相关索引等高风险操作要求二次确认。
+\item
+  写入审计日志。
+\end{itemize}
+
+\hypertarget{data-idx-005-ux7d22ux5f15ux7edfux8ba1ux6765ux6e90}{%
+\subsubsection{DATA-IDX-005
+索引统计来源}\label{data-idx-005-ux7d22ux5f15ux7edfux8ba1ux6765ux6e90}}
+
+索引元数据以 MySQL 为准：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{SELECT}
+\NormalTok{  index\_name,}
+\NormalTok{  non\_unique,}
+\NormalTok{  column\_name,}
+\NormalTok{  seq\_in\_index,}
+\NormalTok{  collation,}
+\NormalTok{  index\_type}
+\KeywordTok{FROM}\NormalTok{ information\_schema.}\KeywordTok{statistics}
+\KeywordTok{WHERE}\NormalTok{ table\_schema }\OperatorTok{=}\NormalTok{ ?}
+  \KeywordTok{AND}\NormalTok{ table\_name }\OperatorTok{=}\NormalTok{ ?}
+\KeywordTok{ORDER} \KeywordTok{BY}\NormalTok{ index\_name, seq\_in\_index;}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux5bb9ux91cfux9650ux5236}{%
+\subsection{16. 容量限制}\label{ux5bb9ux91cfux9650ux5236}}
+
+\hypertarget{data-limit-001-ux9650ux5236ux6765ux6e90}{%
+\subsubsection{DATA-LIMIT-001
+限制来源}\label{data-limit-001-ux9650ux5236ux6765ux6e90}}
+
+容量限制来自服务端配置。系统库默认不保存限制值，避免把部署策略和业务数据耦合。
+
+如果后续需要不同用户套餐，可以新增独立表：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{plans}
+\NormalTok{user\_plan\_assignments}
+\end{Highlighting}
+\end{Shaded}
+
+当前阶段不设计套餐表，统一使用服务端默认限制。
+
+\hypertarget{data-limit-002-ux9ed8ux8ba4ux5bb9ux91cfux9650ux5236}{%
+\subsubsection{DATA-LIMIT-002
+默认容量限制}\label{data-limit-002-ux9ed8ux8ba4ux5bb9ux91cfux9650ux5236}}
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+限制项 & 默认值 & 校验依据 \\
+\midrule
+\endhead
+单用户数据库数量 & 10 & \texttt{user\_databases} \\
+单数据库表数量 & 100 & \texttt{information\_schema.tables} \\
+单数据库视图数量 & 50 & \texttt{information\_schema.views} \\
+单表字段数量 & 80 & \texttt{information\_schema.columns} \\
+单表索引数量 & 16 & \texttt{information\_schema.statistics} \\
+单用户物理数据总量 & 1GB &
+\texttt{information\_schema.tables.data\_length\ +\ index\_length} \\
+单数据库物理数据量 & 512MB & \texttt{information\_schema.tables} \\
+单表物理数据量 & 256MB & \texttt{information\_schema.tables} \\
+单次分页返回行数 & 100 & API 参数 \\
+单次查询最大返回行数 & 1000 & 查询服务层 \\
+单次批量插入行数 & 500 & API 请求体 \\
+单次批量修改影响行数 & 200 & 影响行数预估 \\
+单次批量删除影响行数 & 200 & 影响行数预估 \\
+查询最大 JOIN 数 & 8 & 查询 AST \\
+查询最大子查询深度 & 3 & 查询 AST \\
+查询最大执行时间 & 10 秒 & MySQL 会话级限制或应用层超时 \\
+查询 AST 最大体积 & 64KB & 请求体大小 \\
+头像文件大小 & 2MB & 上传服务 \\
+背景图文件大小 & 8MB & 上传服务 \\
+单用户资源总量 & 100MB & \texttt{user\_assets.file\_size} \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{data-limit-003-ux5bb9ux91cfux7edfux8ba1ux539fux5219}{%
+\subsubsection{DATA-LIMIT-003
+容量统计原则}\label{data-limit-003-ux5bb9ux91cfux7edfux8ba1ux539fux5219}}
+
+\begin{itemize}
+\tightlist
+\item
+  数据库、表、视图、字段、索引数量以 MySQL 元数据为准。
+\item
+  物理容量以 \texttt{information\_schema.tables} 的
+  \texttt{data\_length\ +\ index\_length} 估算。
+\item
+  用户资源容量以系统库 \texttt{user\_assets.file\_size} 汇总。
+\item
+  容量限制校验必须发生在写入或创建操作之前。
+\item
+  统计值允许存在短暂延迟，但限制判断必须尽量使用实时查询。
+\end{itemize}
+
+\hypertarget{ux5b89ux5168ux8bbeux8ba1ux9644ux5f55}{%
+\section{安全设计附录}\label{ux5b89ux5168ux8bbeux8ba1ux9644ux5f55}}
+
+\hypertarget{ux5b89ux5168ux8bbeux8ba1}{%
+\section{安全设计}\label{ux5b89ux5168ux8bbeux8ba1}}
+
+\hypertarget{ux5b89ux5168ux76eeux6807}{%
+\subsection{1. 安全目标}\label{ux5b89ux5168ux76eeux6807}}
+
+系统必须满足以下安全目标：
+
+\begin{itemize}
+\tightlist
+\item
+  未登录用户不能访问工作台接口。
+\item
+  用户不能访问他人数据库。
+\item
+  前端不能直接执行任意 SQL。
+\item
+  动态 SQL 不产生注入风险。
+\item
+  Access Token 泄露后的有效时间受限。
+\item
+  Refresh Token 被服务端追踪和轮换。
+\item
+  高风险操作具备二次确认。
+\item
+  批量操作具备影响分析和容量限制。
+\item
+  数据库错误被精准归类并安全返回。
+\item
+  关键操作具备 traceId 和审计日志。
+\end{itemize}
+
+\hypertarget{ux53cc-token-ux5b89ux5168}{%
+\subsection{2. 双 Token 安全}\label{ux53cc-token-ux5b89ux5168}}
+
+\hypertarget{sec-auth-001-access-token}{%
+\subsubsection{SEC-AUTH-001 Access
+Token}\label{sec-auth-001-access-token}}
+
+Access Token 用于访问普通 API。
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+属性 & 规则 \\
+\midrule
+\endhead
+有效期 & 15 分钟 \\
+签名密钥 & \texttt{JWT\_ACCESS\_SECRET} \\
+传输方式 &
+\texttt{Authorization:\ Bearer\ \textless{}accessToken\textgreater{}} \\
+Payload & \texttt{userID}、\texttt{accountNo} \\
+\bottomrule
+\end{longtable}
+
+Payload 禁止包含：
+
+\begin{itemize}
+\tightlist
+\item
+  密码。
+\item
+  密码哈希。
+\item
+  Refresh Token。
+\item
+  数据库列表。
+\item
+  用户资源路径。
+\end{itemize}
+
+\hypertarget{sec-auth-002-refresh-token}{%
+\subsubsection{SEC-AUTH-002 Refresh
+Token}\label{sec-auth-002-refresh-token}}
+
+Refresh Token 用于刷新 Access Token。
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+属性 & 规则 \\
+\midrule
+\endhead
+有效期 & 7 天 \\
+签名密钥 & \texttt{JWT\_REFRESH\_SECRET} \\
+存放位置 & HttpOnly Cookie \\
+服务端存储 & token 哈希 \\
+\bottomrule
+\end{longtable}
+
+Cookie 属性：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{HttpOnly = true}
+\NormalTok{Secure = true}
+\NormalTok{SameSite = Strict}
+\NormalTok{Path = /api/v1/auth}
+\end{Highlighting}
+\end{Shaded}
+
+开发环境通过环境变量关闭 \texttt{Secure}，生产环境必须开启
+\texttt{Secure}。
+
+\hypertarget{sec-auth-003-refresh-token-rotation}{%
+\subsubsection{SEC-AUTH-003 Refresh Token
+Rotation}\label{sec-auth-003-refresh-token-rotation}}
+
+刷新流程：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{校验 Refresh Token}
+\NormalTok{校验 token\_hash 存在且未撤销}
+\NormalTok{撤销旧 Refresh Token}
+\NormalTok{签发新 Access Token}
+\NormalTok{签发新 Refresh Token}
+\NormalTok{保存新 Refresh Token 哈希}
+\NormalTok{设置新 Refresh Token Cookie}
+\NormalTok{写入审计日志}
+\end{Highlighting}
+\end{Shaded}
+
+被撤销的 Refresh Token 再次出现时，系统撤销同一 token family
+下的全部活跃 Refresh Token。
+
+\hypertarget{sec-auth-004-ux9000ux51faux767bux5f55}{%
+\subsubsection{SEC-AUTH-004
+退出登录}\label{sec-auth-004-ux9000ux51faux767bux5f55}}
+
+退出登录流程：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{校验 Refresh Token}
+\NormalTok{撤销 Refresh Token}
+\NormalTok{清除 Refresh Token Cookie}
+\NormalTok{写入审计日志}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux6388ux6743ux5b89ux5168}{%
+\subsection{3. 授权安全}\label{ux6388ux6743ux5b89ux5168}}
+
+\hypertarget{sec-authz-001-ux7528ux6237ux4e0aux4e0bux6587}{%
+\subsubsection{SEC-AUTHZ-001
+用户上下文}\label{sec-authz-001-ux7528ux6237ux4e0aux4e0bux6587}}
+
+所有受保护接口必须经过鉴权中间件。鉴权中间件将当前用户 ID
+写入请求上下文。
+
+\hypertarget{sec-authz-002-ux6570ux636eux5e93ux5f52ux5c5eux6821ux9a8c}{%
+\subsubsection{SEC-AUTHZ-002
+数据库归属校验}\label{sec-authz-002-ux6570ux636eux5e93ux5f52ux5c5eux6821ux9a8c}}
+
+所有数据库对象接口必须执行：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{currentUserId + databaseId + status active}
+\end{Highlighting}
+\end{Shaded}
+
+查询 \texttt{user\_databases} 成功后才能获得 \texttt{physical\_name}。
+
+\hypertarget{sec-authz-003-ux5bf9ux8c61ux5f52ux5c5eux7ee7ux627f}{%
+\subsubsection{SEC-AUTHZ-003
+对象归属继承}\label{sec-authz-003-ux5bf9ux8c61ux5f52ux5c5eux7ee7ux627f}}
+
+表、字段、索引、约束、视图、数据行、事务均继承数据库归属权限。没有通过数据库归属校验的请求不能继续访问
+MySQL 用户物理库。
+
+\hypertarget{sec-authz-004-ux4e8bux52a1ux5f52ux5c5eux6821ux9a8c}{%
+\subsubsection{SEC-AUTHZ-004
+事务归属校验}\label{sec-authz-004-ux4e8bux52a1ux5f52ux5c5eux6821ux9a8c}}
+
+事务提交、回滚和事务内写操作必须校验：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{transactionId + currentUserId + databaseId + status active}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{sql-ux5b89ux5168}{%
+\subsection{4. SQL 安全}\label{sql-ux5b89ux5168}}
+
+\hypertarget{sec-sql-001-ux503cux53c2ux6570ux5316}{%
+\subsubsection{SEC-SQL-001
+值参数化}\label{sec-sql-001-ux503cux53c2ux6570ux5316}}
+
+所有用户输入值必须使用参数化查询。
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{WHERE}\NormalTok{ \textasciigrave{}name\textasciigrave{} }\OperatorTok{=}\NormalTok{ ?}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{sec-sql-002-ux6807ux8bc6ux7b26ux6821ux9a8c}{%
+\subsubsection{SEC-SQL-002
+标识符校验}\label{sec-sql-002-ux6807ux8bc6ux7b26ux6821ux9a8c}}
+
+数据库显示名、表名、字段名、索引名、约束名、视图名必须符合：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\^{}[A{-}Za{-}z][A{-}Za{-}z0{-}9\_]\{0,63\}$}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{sec-sql-003-ux6807ux8bc6ux7b26ux6765ux6e90ux6821ux9a8c}{%
+\subsubsection{SEC-SQL-003
+标识符来源校验}\label{sec-sql-003-ux6807ux8bc6ux7b26ux6765ux6e90ux6821ux9a8c}}
+
+动态标识符必须满足：
+
+\begin{itemize}
+\tightlist
+\item
+  数据库真实名来自 \texttt{user\_databases.physical\_name}。
+\item
+  表名来自 \texttt{information\_schema.tables}。
+\item
+  字段名来自 \texttt{information\_schema.columns}。
+\item
+  索引名来自 \texttt{information\_schema.statistics}。
+\item
+  约束名来自 \texttt{information\_schema.table\_constraints}。
+\item
+  视图名来自 \texttt{information\_schema.views}。
+\end{itemize}
+
+\hypertarget{sec-sql-004-ux7edfux4e00ux8f6cux4e49}{%
+\subsubsection{SEC-SQL-004
+统一转义}\label{sec-sql-004-ux7edfux4e00ux8f6cux4e49}}
+
+后端通过统一工具封装反引号。业务代码不能手写反引号拼接。
+
+\hypertarget{sec-sql-005-gui-ux67e5ux8be2ux9650ux5236}{%
+\subsubsection{SEC-SQL-005 GUI
+查询限制}\label{sec-sql-005-gui-ux67e5ux8be2ux9650ux5236}}
+
+GUI 查询必须执行：
+
+\begin{itemize}
+\tightlist
+\item
+  主表存在校验。
+\item
+  JOIN 表存在校验。
+\item
+  派生表子查询校验。
+\item
+  \texttt{IN}、\texttt{EXISTS}、标量子查询校验。
+\item
+  字段存在校验。
+\item
+  操作符白名单校验。
+\item
+  聚合函数白名单校验。
+\item
+  分组字段校验。
+\item
+  排序字段校验。
+\item
+  分页上限校验。
+\item
+  JOIN 数量上限校验。
+\item
+  子查询深度上限校验。
+\item
+  查询 AST 体积上限校验。
+\item
+  查询超时控制。
+\end{itemize}
+
+GUI 查询提交的是结构化查询 AST，不直接提交原始 SQL 字符串。后端只生成
+\texttt{SELECT} 语句，禁止在查询构造器中生成
+\texttt{INSERT}、\texttt{UPDATE}、\texttt{DELETE}、\texttt{DROP}、\texttt{ALTER}
+等写操作。
+
+\hypertarget{sec-sql-006-ux5199ux64cdux4f5cux9650ux5236}{%
+\subsubsection{SEC-SQL-006
+写操作限制}\label{sec-sql-006-ux5199ux64cdux4f5cux9650ux5236}}
+
+修改和删除必须携带 GUI 条件对象。后端禁止执行无条件 \texttt{UPDATE}
+和无条件 \texttt{DELETE}。
+
+批量写操作必须执行影响行数预估。超过阈值时返回
+\texttt{CONFIRMATION\_REQUIRED}。
+
+\hypertarget{ux9ad8ux98ceux9669ux64cdux4f5cux786eux8ba4}{%
+\subsection{5.
+高风险操作确认}\label{ux9ad8ux98ceux9669ux64cdux4f5cux786eux8ba4}}
+
+\hypertarget{sec-confirm-001-ux5f3aux5236ux786eux8ba4}{%
+\subsubsection{SEC-CONFIRM-001
+强制确认}\label{sec-confirm-001-ux5f3aux5236ux786eux8ba4}}
+
+以下操作必须二次确认，用户偏好不能关闭：
+
+\begin{itemize}
+\tightlist
+\item
+  删除数据库。
+\item
+  删除表。
+\item
+  删除字段。
+\item
+  删除视图。
+\item
+  触发外键级联删除。
+\item
+  事务回滚。
+\end{itemize}
+
+确认方式：
+
+\begin{itemize}
+\tightlist
+\item
+  删除数据库输入数据库显示名。
+\item
+  删除表输入表名。
+\item
+  删除字段输入字段名。
+\item
+  删除视图输入视图名。
+\item
+  级联删除展示影响表和影响行数后确认。
+\item
+  事务回滚展示事务 ID 后确认。
+\end{itemize}
+
+\hypertarget{sec-confirm-002-ux504fux597dux786eux8ba4}{%
+\subsubsection{SEC-CONFIRM-002
+偏好确认}\label{sec-confirm-002-ux504fux597dux786eux8ba4}}
+
+以下操作达到阈值时二次确认，用户偏好控制同类提示：
+
+\begin{itemize}
+\tightlist
+\item
+  批量插入。
+\item
+  批量修改。
+\item
+  批量删除。
+\item
+  批量结构变更。
+\end{itemize}
+
+用户在确认弹窗勾选``本类操作不再提示''后，系统更新
+\texttt{user\_preferences} 中对应字段。
+
+\hypertarget{sec-confirm-003-ux786eux8ba4ux5931ux8d25}{%
+\subsubsection{SEC-CONFIRM-003
+确认失败}\label{sec-confirm-003-ux786eux8ba4ux5931ux8d25}}
+
+确认文本不匹配时返回：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{HTTP 412}
+\NormalTok{error.type = CONFIRMATION\_REQUIRED}
+\NormalTok{error.code = CONFIRMATION\_TEXT\_MISMATCH}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux4e8bux52a1ux5b89ux5168}{%
+\subsection{6. 事务安全}\label{ux4e8bux52a1ux5b89ux5168}}
+
+\hypertarget{sec-tx-001-ux4e8bux52a1ux8fdeux63a5}{%
+\subsubsection{SEC-TX-001
+事务连接}\label{sec-tx-001-ux4e8bux52a1ux8fdeux63a5}}
+
+事务会话绑定后端 MySQL 连接。连接只服务创建该事务的用户。
+
+\hypertarget{sec-tx-002-ux4e8bux52a1ux8d85ux65f6}{%
+\subsubsection{SEC-TX-002
+事务超时}\label{sec-tx-002-ux4e8bux52a1ux8d85ux65f6}}
+
+事务有效期固定为 120 秒。超时后系统自动回滚并释放连接。
+
+\hypertarget{sec-tx-003-ux9694ux79bbux7ea7ux522b}{%
+\subsubsection{SEC-TX-003
+隔离级别}\label{sec-tx-003-ux9694ux79bbux7ea7ux522b}}
+
+支持的隔离级别：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{READ COMMITTED}
+\NormalTok{REPEATABLE READ}
+\NormalTok{SERIALIZABLE}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{sec-tx-004-ux5ba1ux8ba1}{%
+\subsubsection{SEC-TX-004 审计}\label{sec-tx-004-ux5ba1ux8ba1}}
+
+事务开始、提交、回滚、超时回滚和事务内写操作都写入审计日志。
+
+\hypertarget{ux7cbeux786eux9519ux8befux5b89ux5168}{%
+\subsection{7.
+精确错误安全}\label{ux7cbeux786eux9519ux8befux5b89ux5168}}
+
+\hypertarget{sec-error-001-ux9519ux8befux5f52ux7c7b}{%
+\subsubsection{SEC-ERROR-001
+错误归类}\label{sec-error-001-ux9519ux8befux5f52ux7c7b}}
+
+后端必须区分：
+
+\begin{itemize}
+\tightlist
+\item
+  参数校验错误。
+\item
+  鉴权错误。
+\item
+  授权错误。
+\item
+  确认缺失。
+\item
+  容量超限。
+\item
+  MySQL 连接错误。
+\item
+  MySQL 约束错误。
+\item
+  MySQL 执行错误。
+\item
+  服务端内部错误。
+\end{itemize}
+
+\hypertarget{sec-error-002-mysql-ux9519ux8befux8fd4ux56de}{%
+\subsubsection{SEC-ERROR-002 MySQL
+错误返回}\label{sec-error-002-mysql-ux9519ux8befux8fd4ux56de}}
+
+MySQL 错误响应包含：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{errno}
+\item
+  \texttt{sqlState}
+\item
+  \texttt{sqlMessage}
+\item
+  \texttt{databaseName}
+\item
+  \texttt{tableName}
+\item
+  \texttt{columnName}
+\item
+  \texttt{constraintName}
+\end{itemize}
+
+响应禁止包含：
+
+\begin{itemize}
+\tightlist
+\item
+  数据库连接密码。
+\item
+  Access Token。
+\item
+  Refresh Token。
+\item
+  完整 SQL 中的敏感参数值。
+\end{itemize}
+
+\hypertarget{sec-error-003-ux6279ux91cfux64cdux4f5cux9519ux8bef}{%
+\subsubsection{SEC-ERROR-003
+批量操作错误}\label{sec-error-003-ux6279ux91cfux64cdux4f5cux9519ux8bef}}
+
+批量操作失败时必须返回：
+
+\begin{itemize}
+\tightlist
+\item
+  失败行下标。
+\item
+  失败字段。
+\item
+  失败原因。
+\item
+  MySQL 错误号。
+\item
+  SQLSTATE。
+\item
+  traceId。
+\end{itemize}
+
+\hypertarget{ux6587ux4ef6ux8d44ux6e90ux5b89ux5168}{%
+\subsection{8.
+文件资源安全}\label{ux6587ux4ef6ux8d44ux6e90ux5b89ux5168}}
+
+\hypertarget{sec-file-001-ux8d44ux6e90ux5b58ux50a8}{%
+\subsubsection{SEC-FILE-001
+资源存储}\label{sec-file-001-ux8d44ux6e90ux5b58ux50a8}}
+
+资源实体保存到服务端文件目录。系统库保存资源元信息。
+
+\hypertarget{sec-file-002-ux6587ux4ef6ux6821ux9a8c}{%
+\subsubsection{SEC-FILE-002
+文件校验}\label{sec-file-002-ux6587ux4ef6ux6821ux9a8c}}
+
+上传资源必须校验：
+
+\begin{itemize}
+\tightlist
+\item
+  文件大小。
+\item
+  MIME 类型。
+\item
+  扩展名。
+\item
+  文件内容签名。
+\item
+  校验和。
+\end{itemize}
+
+允许的图片 MIME 类型：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{image/png}
+\NormalTok{image/jpeg}
+\NormalTok{image/webp}
+\end{Highlighting}
+\end{Shaded}
+
+SVG 文件固定拒绝。
+
+\hypertarget{sec-file-003-ux6587ux4ef6ux540d}{%
+\subsubsection{SEC-FILE-003
+文件名}\label{sec-file-003-ux6587ux4ef6ux540d}}
+
+服务端生成随机资源键。用户原始文件名只作为展示元信息保存。
+
+\hypertarget{sec-file-004-ux8d44ux6e90ux5f52ux5c5e}{%
+\subsubsection{SEC-FILE-004
+资源归属}\label{sec-file-004-ux8d44ux6e90ux5f52ux5c5e}}
+
+读取、替换、删除资源必须校验 \texttt{asset.user\_id\ =\ currentUserId}。
+
+\hypertarget{ux5bb9ux91cfux4e0eux9891ux7387ux9650ux5236}{%
+\subsection{9.
+容量与频率限制}\label{ux5bb9ux91cfux4e0eux9891ux7387ux9650ux5236}}
+
+\hypertarget{sec-limit-001-ux5bb9ux91cfux9650ux5236}{%
+\subsubsection{SEC-LIMIT-001
+容量限制}\label{sec-limit-001-ux5bb9ux91cfux9650ux5236}}
+
+服务端配置固定限制。默认值如下：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+限制项 & 默认值 & 安全目的 \\
+\midrule
+\endhead
+单用户数据库数量 & 10 & 防止大量创建 schema \\
+单数据库表数量 & 100 & 防止元数据膨胀 \\
+单数据库视图数量 & 50 & 防止复杂视图滥用 \\
+单表字段数量 & 80 & 防止超宽表 \\
+单表索引数量 & 16 & 防止索引滥用拖慢写入 \\
+单用户物理数据总量 & 1GB & 控制本地 MySQL 容量 \\
+单数据库物理数据量 & 512MB & 控制单库容量 \\
+单表物理数据量 & 256MB & 控制单表容量 \\
+单次分页返回行数 & 100 & 防止接口返回过大 \\
+单次查询最大返回行数 & 1000 & 防止大结果集压垮前端 \\
+单次批量插入行数 & 500 & 控制批量写入压力 \\
+单次批量修改影响行数 & 200 & 防止误更新大量数据 \\
+单次批量删除影响行数 & 200 & 防止误删大量数据 \\
+查询最大 JOIN 数 & 8 & 控制查询复杂度 \\
+查询最大子查询深度 & 3 & 防止嵌套查询过深 \\
+查询最大执行时间 & 10 秒 & 防止长查询占用连接 \\
+查询 AST 最大体积 & 64KB & 防止请求体过大 \\
+头像文件大小 & 2MB & 控制头像上传 \\
+背景图文件大小 & 8MB & 控制背景上传 \\
+单用户资源总量 & 100MB & 控制用户文件容量 \\
+\bottomrule
+\end{longtable}
+
+超过限制时返回：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{HTTP 413}
+\NormalTok{error.type = LIMIT\_EXCEEDED}
+\NormalTok{error.code = LIMIT\_EXCEEDED}
+\end{Highlighting}
+\end{Shaded}
+
+错误详情必须包含超限项、当前值和最大值，不返回任何敏感路径或 SQL 文本。
+
+\hypertarget{sec-limit-002-ux9891ux7387ux9650ux5236}{%
+\subsubsection{SEC-LIMIT-002
+频率限制}\label{sec-limit-002-ux9891ux7387ux9650ux5236}}
+
+服务端限制：
+
+\begin{itemize}
+\tightlist
+\item
+  登录尝试频率。
+\item
+  Token 刷新频率。
+\item
+  创建数据库频率。
+\item
+  删除数据库频率。
+\item
+  批量写操作频率。
+\item
+  GUI 查询频率。
+\end{itemize}
+
+\hypertarget{sec-limit-003-ux767bux5f55ux5931ux8d25ux51b7ux5374}{%
+\subsubsection{SEC-LIMIT-003
+登录失败冷却}\label{sec-limit-003-ux767bux5f55ux5931ux8d25ux51b7ux5374}}
+
+同一账号和同一 IP 多次登录失败后，系统启用冷却。冷却期间登录接口返回
+\texttt{RATE\_LIMITED}。
+
+\hypertarget{ux5ba1ux8ba1ux4e0eux8ffdux8e2a}{%
+\subsection{10. 审计与追踪}\label{ux5ba1ux8ba1ux4e0eux8ffdux8e2a}}
+
+\hypertarget{sec-audit-001-traceid}{%
+\subsubsection{SEC-AUDIT-001 traceId}\label{sec-audit-001-traceid}}
+
+每个请求必须生成 traceId。traceId 同时出现在：
+
+\begin{itemize}
+\tightlist
+\item
+  接口响应。
+\item
+  服务端日志。
+\item
+  审计日志。
+\end{itemize}
+
+\hypertarget{sec-audit-002-ux5ba1ux8ba1ux8303ux56f4}{%
+\subsubsection{SEC-AUDIT-002
+审计范围}\label{sec-audit-002-ux5ba1ux8ba1ux8303ux56f4}}
+
+审计日志记录：
+
+\begin{itemize}
+\tightlist
+\item
+  注册。
+\item
+  登录。
+\item
+  Token 刷新。
+\item
+  退出登录。
+\item
+  偏好修改。
+\item
+  数据库创建、修改、删除。
+\item
+  表创建、修改、删除。
+\item
+  字段创建、修改、删除。
+\item
+  约束创建、删除。
+\item
+  索引创建、删除。
+\item
+  视图创建、修改、删除。
+\item
+  数据查询、新增、修改、删除。
+\item
+  GUI 查询。
+\item
+  事务开始、提交、回滚、超时回滚。
+\item
+  统计查看。
+\item
+  资源读取。
+\end{itemize}
+
+\hypertarget{sec-audit-003-ux5ba1ux8ba1ux5185ux5bb9}{%
+\subsubsection{SEC-AUDIT-003
+审计内容}\label{sec-audit-003-ux5ba1ux8ba1ux5185ux5bb9}}
+
+审计日志包含：
+
+\begin{itemize}
+\tightlist
+\item
+  traceId。
+\item
+  userId。
+\item
+  databaseId。
+\item
+  transactionId。
+\item
+  objectType。
+\item
+  objectName。
+\item
+  actionType。
+\item
+  summary。
+\item
+  detailJson。
+\item
+  success。
+\item
+  errorCode。
+\item
+  errorMessage。
+\item
+  durationMs。
+\item
+  ipAddress。
+\item
+  userAgent。
+\item
+  createdAt。
+\end{itemize}
+
+审计日志禁止保存密码明文、Token 明文和完整敏感参数值。
+
+\hypertarget{ux73afux5883ux53d8ux91cf}{%
+\subsection{11. 环境变量}\label{ux73afux5883ux53d8ux91cf}}
+
+服务启动必须校验以下环境变量：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{JWT\_ACCESS\_SECRET}
+\NormalTok{JWT\_REFRESH\_SECRET}
+\NormalTok{DB\_HOST}
+\NormalTok{DB\_USER}
+\NormalTok{DB\_PASSWORD}
+\NormalTok{DB\_NAME}
+\NormalTok{PORT}
+\end{Highlighting}
+\end{Shaded}
+
+缺少任一变量时服务启动失败。
+
+代码中禁止提供生产可用默认密钥。
+
+\hypertarget{ux524dux7aefux5b89ux5168}{%
+\subsection{12. 前端安全}\label{ux524dux7aefux5b89ux5168}}
+
+前端安全要求：
+
+\begin{itemize}
+\tightlist
+\item
+  不在前端保存 Refresh Token。
+\item
+  Access Token 只用于请求头，刷新失败立即清理登录态。
+\item
+  所有危险操作必须使用统一确认组件。
+\item
+  不在 URL 中携带 Token、密码、Refresh Token 或敏感查询参数。
+\item
+  表格行内编辑只进入草稿态，点击更新按钮才提交。
+\item
+  前端错误提示优先展示后端 \texttt{message}，但不能展示敏感字段。
+\end{itemize}
+
+\hypertarget{ux9632ux5fa1ux6027ux8bbeux8ba1ux6c47ux603b}{%
+\subsection{13.
+防御性设计汇总}\label{ux9632ux5fa1ux6027ux8bbeux8ba1ux6c47ux603b}}
+
+防御性设计用于处理``用户误操作、恶意输入、服务异常、数据库异常、状态不一致''等情况。
+
+\hypertarget{sec-def-001-ux9ed8ux8ba4ux62d2ux7edd}{%
+\subsubsection{SEC-DEF-001
+默认拒绝}\label{sec-def-001-ux9ed8ux8ba4ux62d2ux7edd}}
+
+\begin{itemize}
+\tightlist
+\item
+  未登录请求默认拒绝。
+\item
+  无数据库归属默认拒绝。
+\item
+  不符合标识符规则的名称默认拒绝。
+\item
+  超过容量限制默认拒绝。
+\item
+  查询 AST 超过复杂度限制默认拒绝。
+\end{itemize}
+
+\hypertarget{sec-def-002-ux5931ux8d25ux5b89ux5168}{%
+\subsubsection{SEC-DEF-002
+失败安全}\label{sec-def-002-ux5931ux8d25ux5b89ux5168}}
+
+\begin{itemize}
+\tightlist
+\item
+  创建数据库后系统表写入失败时，必须尝试删除已创建物理库。
+\item
+  事务超时必须自动回滚。
+\item
+  Refresh Token 复用疑似被盗时，撤销同一 token family。
+\item
+  批量修改和删除影响行数超过阈值时，不得直接执行。
+\end{itemize}
+
+\hypertarget{sec-def-003-ux6700ux5c0fux66b4ux9732}{%
+\subsubsection{SEC-DEF-003
+最小暴露}\label{sec-def-003-ux6700ux5c0fux66b4ux9732}}
+
+\begin{itemize}
+\tightlist
+\item
+  不返回真实物理数据库名。
+\item
+  不返回服务端文件绝对路径。
+\item
+  不返回密码、密码哈希、Token、Token 哈希。
+\item
+  MySQL 错误返回经过安全包装，只暴露可用于用户修正输入的信息。
+\end{itemize}
+
+\hypertarget{sec-def-004-ux53efux8ffdux8e2a}{%
+\subsubsection{SEC-DEF-004
+可追踪}\label{sec-def-004-ux53efux8ffdux8e2a}}
+
+\begin{itemize}
+\tightlist
+\item
+  所有关键失败都必须带 \texttt{traceId}。
+\item
+  所有写操作成功或失败都写入审计日志。
+\item
+  审计日志不记录敏感明文。
+\end{itemize}
+
+前端必须遵守：
+
+\begin{itemize}
+\tightlist
+\item
+  用户输入内容按文本渲染。
+\item
+  不渲染不可信 HTML。
+\item
+  Access Token 优先保存在内存。
+\item
+  页面刷新后通过 Refresh Token 恢复会话。
+\item
+  API 错误根据 \texttt{error.type} 和 \texttt{error.code} 精确展示。
+\end{itemize}
+
+\end{document}

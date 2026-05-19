@@ -1,0 +1,1288 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames*,x11names*}{xcolor}
+%
+\documentclass[
+  a4paper,
+  UTF8]{ctexart}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={需求规格说明书},
+  pdfauthor={DBMS 控制台项目},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={blue},
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{需求规格说明书}
+\author{DBMS 控制台项目}
+\date{}
+
+\begin{document}
+\maketitle
+
+\renewcommand*\contentsname{目录}
+{
+\hypersetup{linkcolor=}
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\hypertarget{ux9700ux6c42ux89c4ux683cux8bf4ux660eux4e66}{%
+\section{需求规格说明书}\label{ux9700ux6c42ux89c4ux683cux8bf4ux660eux4e66}}
+
+\hypertarget{ux9879ux76eeux76eeux6807}{%
+\subsection{1. 项目目标}\label{ux9879ux76eeux76eeux6807}}
+
+本项目是一个面向个人用户的本地 MySQL 可视化 DBMS
+工作台。用户登录系统后进入个人工作台，通过统一风格的 GUI
+完成数据库对象管理、表结构设计、数据增删改查、GUI
+查询、事务操作、视图管理、索引管理、约束管理和统计分析。
+
+系统不把 MySQL
+账号密码暴露给前端。前端提交结构化操作请求，后端完成鉴权、权限校验、参数校验、SQL
+构造、数据库执行、精确错误归类和审计记录。
+
+\hypertarget{ux7528ux6237ux89d2ux8272}{%
+\subsection{2. 用户角色}\label{ux7528ux6237ux89d2ux8272}}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+角色 & 权限 \\
+\midrule
+\endhead
+未登录访客 & 访问登录页、注册页 \\
+普通用户 & 访问个人工作台，管理自己的数据库对象和个人偏好 \\
+系统维护者 & 通过部署配置、系统库和日志维护系统，不提供前端管理入口 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux529fux80fdux8303ux56f4}{%
+\subsection{3. 功能范围}\label{ux529fux80fdux8303ux56f4}}
+
+系统包含以下功能：
+
+\begin{itemize}
+\tightlist
+\item
+  注册、登录、双 Token 会话、退出登录。
+\item
+  个人工作台首页。
+\item
+  用户资料与偏好设置。
+\item
+  主色调快速切换。
+\item
+  用户数据库完整管理。
+\item
+  表、字段、主键、外键、唯一约束、检查约束、默认值、非空约束管理。
+\item
+  索引管理。
+\item
+  视图管理。
+\item
+  表数据增删改查。
+\item
+  GUI 化 \texttt{SELECT} 查询。
+\item
+  事务会话管理。
+\item
+  用户级、数据库级、表级统计。
+\item
+  操作日志和审计追踪。
+\item
+  用户资源元信息管理。
+\item
+  高风险操作二次确认。
+\item
+  容量与频率限制。
+\item
+  精确错误提示。
+\end{itemize}
+
+系统不提供前端 MySQL 账号密码输入入口。系统不直接把任意 SQL
+执行能力作为普通入口暴露给用户。
+
+\hypertarget{ux8ba4ux8bc1ux4e0eux4f1aux8bddux9700ux6c42}{%
+\subsection{4.
+认证与会话需求}\label{ux8ba4ux8bc1ux4e0eux4f1aux8bddux9700ux6c42}}
+
+\hypertarget{req-auth-001-ux7528ux6237ux6ce8ux518c}{%
+\subsubsection{REQ-AUTH-001
+用户注册}\label{req-auth-001-ux7528ux6237ux6ce8ux518c}}
+
+系统必须允许用户通过昵称和密码注册。注册成功后，系统生成 10 位登录账号。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  昵称去除首尾空格后长度为 2 到 20。
+\item
+  密码长度为 8 到 16。
+\item
+  密码同时包含英文字母和数字。
+\item
+  密码只保存 bcrypt 哈希。
+\item
+  注册成功返回登录账号和展示昵称。
+\item
+  注册响应不返回密码明文和密码哈希。
+\end{itemize}
+
+\hypertarget{req-auth-002-ux7528ux6237ux767bux5f55}{%
+\subsubsection{REQ-AUTH-002
+用户登录}\label{req-auth-002-ux7528ux6237ux767bux5f55}}
+
+系统必须允许用户使用 10 位账号和密码登录。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  账号必须为 10 位数字。
+\item
+  登录失败统一返回``账号与密码不匹配''。
+\item
+  登录成功签发 Access Token 和 Refresh Token。
+\item
+  Access Token 返回给前端。
+\item
+  Refresh Token 写入 HttpOnly Cookie。
+\item
+  登录成功写入审计日志。
+\end{itemize}
+
+\hypertarget{req-auth-003-ux4f1aux8bddux5237ux65b0}{%
+\subsubsection{REQ-AUTH-003
+会话刷新}\label{req-auth-003-ux4f1aux8bddux5237ux65b0}}
+
+系统必须支持通过 Refresh Token 刷新 Access Token。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  Refresh Token 只用于刷新会话。
+\item
+  Refresh Token 服务端只保存哈希。
+\item
+  刷新成功执行 Refresh Token Rotation。
+\item
+  被替换的 Refresh Token 再次使用时，系统撤销同一 token family。
+\end{itemize}
+
+\hypertarget{req-auth-004-ux9000ux51faux767bux5f55}{%
+\subsubsection{REQ-AUTH-004
+退出登录}\label{req-auth-004-ux9000ux51faux767bux5f55}}
+
+系统必须支持用户主动退出登录。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  当前 Refresh Token 被撤销。
+\item
+  Refresh Token Cookie 被清除。
+\item
+  前端丢弃 Access Token。
+\item
+  退出操作写入审计日志。
+\end{itemize}
+
+\hypertarget{ux4e2aux4ebaux5de5ux4f5cux53f0ux9700ux6c42}{%
+\subsection{5.
+个人工作台需求}\label{ux4e2aux4ebaux5de5ux4f5cux53f0ux9700ux6c42}}
+
+\hypertarget{req-workbench-001-ux9996ux9875ux5e03ux5c40}{%
+\subsubsection{REQ-WORKBENCH-001
+首页布局}\label{req-workbench-001-ux9996ux9875ux5e03ux5c40}}
+
+用户登录后必须进入个人工作台。首页采用固定经典布局。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  顶部显示系统名称、主色调控制条、当前用户信息、退出入口。
+\item
+  左侧显示当前用户数据库导航树。
+\item
+  主区域显示用户概览卡片、统计图表、最近操作和快捷操作。
+\item
+  界面延续登录、注册页的粒子背景、毛玻璃、暗色科技感风格。
+\item
+  主色调控制条修改 \texttt{theme\_hue}，页面颜色实时联动。
+\item
+  首页不提供拖拽布局、卡片增删、布局方案切换。
+\end{itemize}
+
+\hypertarget{req-pref-001-ux7528ux6237ux504fux597d}{%
+\subsubsection{REQ-PREF-001
+用户偏好}\label{req-pref-001-ux7528ux6237ux504fux597d}}
+
+系统必须保存用户偏好。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  保存主色调 \texttt{theme\_hue}。
+\item
+  保存主题模式 \texttt{theme\_mode}。
+\item
+  保存默认表格分页大小。
+\item
+  保存确认弹窗偏好。
+\item
+  偏好设置与用户一对一关联。
+\end{itemize}
+
+\hypertarget{req-asset-001-ux7528ux6237ux8d44ux6e90ux5143ux4fe1ux606f}{%
+\subsubsection{REQ-ASSET-001
+用户资源元信息}\label{req-asset-001-ux7528ux6237ux8d44ux6e90ux5143ux4fe1ux606f}}
+
+系统必须保存用户资源元信息。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  资源实体保存到文件存储。
+\item
+  系统库保存资源类型、存储类型、存储键、MIME
+  类型、文件大小、校验和、归属用户。
+\item
+  用户资源读取必须校验归属。
+\item
+  用户主表不保存图片二进制。
+\end{itemize}
+
+\hypertarget{ux6570ux636eux5e93ux5bf9ux8c61ux9700ux6c42}{%
+\subsection{6.
+数据库对象需求}\label{ux6570ux636eux5e93ux5bf9ux8c61ux9700ux6c42}}
+
+\hypertarget{req-db-001-ux6570ux636eux5e93ux5217ux8868}{%
+\subsubsection{REQ-DB-001
+数据库列表}\label{req-db-001-ux6570ux636eux5e93ux5217ux8868}}
+
+系统必须展示当前用户拥有的数据库列表。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  用户只看到自己的数据库。
+\item
+  响应不返回真实物理数据库名。
+\item
+  列表包含数据库 ID、显示名、表数量、创建时间、状态。
+\end{itemize}
+
+\hypertarget{req-db-002-ux521bux5efaux6570ux636eux5e93}{%
+\subsubsection{REQ-DB-002
+创建数据库}\label{req-db-002-ux521bux5efaux6570ux636eux5e93}}
+
+系统必须支持用户创建自己的数据库。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  数据库显示名符合标识符规则。
+\item
+  同一用户下显示名唯一。
+\item
+  真实物理数据库名由后端生成。
+\item
+  创建成功写入 \texttt{user\_databases}。
+\item
+  创建操作写入审计日志。
+\end{itemize}
+
+\hypertarget{req-db-003-ux4feeux6539ux6570ux636eux5e93ux5c5eux6027}{%
+\subsubsection{REQ-DB-003
+修改数据库属性}\label{req-db-003-ux4feeux6539ux6570ux636eux5e93ux5c5eux6027}}
+
+系统必须支持用户修改自己的数据库显示名、字符集和排序规则。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  修改前校验数据库归属。
+\item
+  新显示名符合标识符规则。
+\item
+  同一用户下新显示名唯一。
+\item
+  字符集和排序规则来自系统白名单。
+\item
+  修改操作写入审计日志。
+\end{itemize}
+
+\hypertarget{req-db-004-ux5220ux9664ux6570ux636eux5e93}{%
+\subsubsection{REQ-DB-004
+删除数据库}\label{req-db-004-ux5220ux9664ux6570ux636eux5e93}}
+
+系统必须支持用户删除自己的数据库。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  删除前校验数据库归属。
+\item
+  删除前要求用户输入数据库显示名确认。
+\item
+  删除成功后真实物理数据库被删除。
+\item
+  系统库记录标记为 deleted。
+\item
+  删除操作写入审计日志。
+\end{itemize}
+
+\hypertarget{ux8868ux7ed3ux6784ux9700ux6c42}{%
+\subsection{7. 表结构需求}\label{ux8868ux7ed3ux6784ux9700ux6c42}}
+
+\hypertarget{req-table-001-ux8868ux5217ux8868}{%
+\subsubsection{REQ-TABLE-001
+表列表}\label{req-table-001-ux8868ux5217ux8868}}
+
+系统必须展示指定数据库中的表、视图和基础统计信息。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  访问前校验数据库归属。
+\item
+  表信息来自 \texttt{information\_schema}。
+\item
+  返回对象类型、名称、行数估算、数据大小、索引大小、创建时间。
+\end{itemize}
+
+\hypertarget{req-table-002-ux521bux5efaux8868}{%
+\subsubsection{REQ-TABLE-002
+创建表}\label{req-table-002-ux521bux5efaux8868}}
+
+系统必须支持通过 GUI 创建表。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  表名符合标识符规则。
+\item
+  字段列表至少包含一个字段。
+\item
+  字段名符合标识符规则。
+\item
+  字段类型来自系统支持类型清单。
+\item
+  字段约束由 GUI 明确配置。
+\item
+  创建操作支持主键、外键、唯一约束、检查约束、默认值、非空约束。
+\item
+  创建操作写入审计日志。
+\end{itemize}
+
+\hypertarget{req-table-003-ux4feeux6539ux8868ux7ed3ux6784}{%
+\subsubsection{REQ-TABLE-003
+修改表结构}\label{req-table-003-ux4feeux6539ux8868ux7ed3ux6784}}
+
+系统必须支持修改表结构。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  支持新增字段。
+\item
+  支持修改字段类型。
+\item
+  支持修改字段长度、精度、小数位。
+\item
+  支持修改默认值。
+\item
+  支持修改非空约束。
+\item
+  支持重命名字段。
+\item
+  支持删除字段。
+\item
+  支持添加和删除主键。
+\item
+  支持添加和删除外键。
+\item
+  支持添加和删除唯一约束。
+\item
+  支持添加和删除检查约束。
+\item
+  支持添加和删除索引。
+\item
+  结构修改前执行影响分析。
+\item
+  高风险结构修改要求二次确认。
+\item
+  修改操作写入审计日志。
+\end{itemize}
+
+\hypertarget{req-table-004-ux5220ux9664ux8868}{%
+\subsubsection{REQ-TABLE-004
+删除表}\label{req-table-004-ux5220ux9664ux8868}}
+
+系统必须支持删除表。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  删除前校验数据库归属。
+\item
+  删除前要求用户输入表名确认。
+\item
+  删除操作写入审计日志。
+\end{itemize}
+
+\hypertarget{ux7d22ux5f15ux7ea6ux675fux89c6ux56feux9700ux6c42}{%
+\subsection{8.
+索引、约束、视图需求}\label{ux7d22ux5f15ux7ea6ux675fux89c6ux56feux9700ux6c42}}
+
+\hypertarget{req-index-001-ux7d22ux5f15ux7ba1ux7406}{%
+\subsubsection{REQ-INDEX-001
+索引管理}\label{req-index-001-ux7d22ux5f15ux7ba1ux7406}}
+
+系统必须支持索引管理。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  支持普通索引。
+\item
+  支持唯一索引。
+\item
+  支持复合索引。
+\item
+  支持索引字段顺序设置。
+\item
+  支持索引排序方向设置。
+\item
+  支持删除索引。
+\item
+  索引操作写入审计日志。
+\end{itemize}
+
+\hypertarget{req-constraint-001-ux7ea6ux675fux7ba1ux7406}{%
+\subsubsection{REQ-CONSTRAINT-001
+约束管理}\label{req-constraint-001-ux7ea6ux675fux7ba1ux7406}}
+
+系统必须支持约束管理。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  支持主键。
+\item
+  支持外键。
+\item
+  支持唯一约束。
+\item
+  支持检查约束。
+\item
+  支持默认值。
+\item
+  支持非空约束。
+\item
+  支持外键级联策略配置。
+\item
+  具备级联影响的数据操作必须进行影响分析。
+\end{itemize}
+
+\hypertarget{req-view-001-ux89c6ux56feux7ba1ux7406}{%
+\subsubsection{REQ-VIEW-001
+视图管理}\label{req-view-001-ux89c6ux56feux7ba1ux7406}}
+
+系统必须支持通过 GUI 创建、查看、修改和删除视图。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  视图定义来自 GUI 查询构造器。
+\item
+  视图创建前校验引用表和字段。
+\item
+  视图修改前校验依赖关系。
+\item
+  删除视图写入审计日志。
+\end{itemize}
+
+\hypertarget{ux8868ux6570ux636eux9700ux6c42}{%
+\subsection{9. 表数据需求}\label{ux8868ux6570ux636eux9700ux6c42}}
+
+\hypertarget{req-row-001-ux6570ux636eux5206ux9875ux6d4fux89c8}{%
+\subsubsection{REQ-ROW-001
+数据分页浏览}\label{req-row-001-ux6570ux636eux5206ux9875ux6d4fux89c8}}
+
+系统必须支持分页浏览表数据。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  支持分页。
+\item
+  支持排序。
+\item
+  支持字段筛选。
+\item
+  支持列显示控制。
+\item
+  单次返回行数受服务端限制。
+\end{itemize}
+
+\hypertarget{req-row-002-ux65b0ux589eux6570ux636e}{%
+\subsubsection{REQ-ROW-002
+新增数据}\label{req-row-002-ux65b0ux589eux6570ux636e}}
+
+系统必须支持新增单行和批量新增。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  字段值根据表结构校验。
+\item
+  批量插入失败时返回精确失败位置、失败字段、数据库错误码和数据库错误消息。
+\item
+  新增操作写入审计日志。
+\end{itemize}
+
+\hypertarget{req-row-003-ux4feeux6539ux6570ux636e}{%
+\subsubsection{REQ-ROW-003
+修改数据}\label{req-row-003-ux4feeux6539ux6570ux636e}}
+
+系统必须支持修改单行和批量修改。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  用户在网页表格中直接修改单元格时，修改内容先进入前端草稿态，不得立即写入数据库。
+\item
+  被修改的行必须展示``待更新''状态，并在行旁提供``更新/提交''按钮。
+\item
+  用户点击对应行的``更新/提交''按钮后，前端才调用后端修改接口。
+\item
+  用户可以取消单行草稿修改，取消后恢复为服务端最新数据。
+\item
+  单行更新优先使用主键定位目标行；无主键表必须使用服务端生成的稳定行定位策略或禁止行内编辑。
+\item
+  修改条件必须来自 GUI 条件构造器。
+\item
+  不允许无条件修改。
+\item
+  修改前进行影响行数预估。
+\item
+  达到确认阈值时要求二次确认。
+\item
+  修改操作写入审计日志。
+\end{itemize}
+
+\hypertarget{req-row-004-ux5220ux9664ux6570ux636e}{%
+\subsubsection{REQ-ROW-004
+删除数据}\label{req-row-004-ux5220ux9664ux6570ux636e}}
+
+系统必须支持删除单行和批量删除。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  删除条件必须来自 GUI 条件构造器。
+\item
+  不允许无条件删除。
+\item
+  删除前进行影响行数预估。
+\item
+  删除触发外键级联时展示级联影响。
+\item
+  达到确认阈值时要求二次确认。
+\item
+  删除操作写入审计日志。
+\end{itemize}
+
+\hypertarget{gui-ux67e5ux8be2ux9700ux6c42}{%
+\subsection{10. GUI 查询需求}\label{gui-ux67e5ux8be2ux9700ux6c42}}
+
+\hypertarget{req-query-001-select-ux67e5ux8be2ux6784ux9020ux5668}{%
+\subsubsection{REQ-QUERY-001 SELECT
+查询构造器}\label{req-query-001-select-ux67e5ux8be2ux6784ux9020ux5668}}
+
+系统必须通过 GUI 支持完整常用 \texttt{SELECT} 查询。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  支持选择字段。
+\item
+  支持字段别名。
+\item
+  支持筛选条件。
+\item
+  支持条件组。
+\item
+  支持 \texttt{AND}、\texttt{OR} 逻辑组合。
+\item
+  支持排序。
+\item
+  支持分页。
+\item
+  支持聚合函数。
+\item
+  支持分组。
+\item
+  支持 HAVING 条件。
+\item
+  支持多表 JOIN。
+\item
+  支持子查询，包括派生表查询、\texttt{IN} 子查询、\texttt{EXISTS}
+  子查询和标量子查询。
+\item
+  支持子查询嵌套深度限制。
+\item
+  支持查询复杂度限制，包括 JOIN
+  数量、子查询数量、返回字段数量和聚合数量。
+\item
+  查询请求以结构化 JSON 传递。
+\item
+  后端生成 SQL 并执行。
+\item
+  查询操作写入审计日志。
+\end{itemize}
+
+\hypertarget{ux4e8bux52a1ux9700ux6c42}{%
+\subsection{11. 事务需求}\label{ux4e8bux52a1ux9700ux6c42}}
+
+\hypertarget{req-tx-001-ux4e8bux52a1ux4f1aux8bdd}{%
+\subsubsection{REQ-TX-001
+事务会话}\label{req-tx-001-ux4e8bux52a1ux4f1aux8bdd}}
+
+系统必须支持 GUI 事务会话。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  用户在指定数据库中开启事务会话。
+\item
+  事务会话绑定后端数据库连接。
+\item
+  支持隔离级别设置。
+\item
+  支持提交事务。
+\item
+  支持回滚事务。
+\item
+  事务会话具备服务端超时时间。
+\item
+  事务内操作写入审计日志并标记事务 ID。
+\end{itemize}
+
+\hypertarget{ux7edfux8ba1ux9700ux6c42}{%
+\subsection{12. 统计需求}\label{ux7edfux8ba1ux9700ux6c42}}
+
+\hypertarget{req-stats-001-ux7528ux6237ux7ea7ux7edfux8ba1}{%
+\subsubsection{REQ-STATS-001
+用户级统计}\label{req-stats-001-ux7528ux6237ux7ea7ux7edfux8ba1}}
+
+系统必须提供用户级统计。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  数据库数量。
+\item
+  表数量。
+\item
+  视图数量。
+\item
+  索引数量。
+\item
+  估算数据行数。
+\item
+  操作次数趋势。
+\item
+  最近操作。
+\end{itemize}
+
+\hypertarget{req-stats-002-ux6570ux636eux5e93ux7ea7ux7edfux8ba1}{%
+\subsubsection{REQ-STATS-002
+数据库级统计}\label{req-stats-002-ux6570ux636eux5e93ux7ea7ux7edfux8ba1}}
+
+系统必须提供数据库级统计。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  表数量。
+\item
+  视图数量。
+\item
+  索引数量。
+\item
+  数据大小。
+\item
+  索引大小。
+\item
+  表行数分布。
+\item
+  字段类型分布。
+\end{itemize}
+
+\hypertarget{req-stats-003-ux8868ux7ea7ux7edfux8ba1}{%
+\subsubsection{REQ-STATS-003
+表级统计}\label{req-stats-003-ux8868ux7ea7ux7edfux8ba1}}
+
+系统必须提供表级统计。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  字段数量。
+\item
+  主键信息。
+\item
+  外键信息。
+\item
+  索引信息。
+\item
+  估算行数。
+\item
+  数值字段聚合统计。
+\item
+  字符字段 Top N 统计。
+\item
+  空值统计。
+\end{itemize}
+
+\hypertarget{ux9519ux8befux63d0ux793aux9700ux6c42}{%
+\subsection{13.
+错误提示需求}\label{ux9519ux8befux63d0ux793aux9700ux6c42}}
+
+\hypertarget{req-error-001-ux7cbeux786eux9519ux8befux6a21ux578b}{%
+\subsubsection{REQ-ERROR-001
+精确错误模型}\label{req-error-001-ux7cbeux786eux9519ux8befux6a21ux578b}}
+
+系统必须为所有失败操作返回精确错误信息。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  前端无法连接后端时显示网络连接错误。
+\item
+  后端无响应时显示请求超时。
+\item
+  后端业务校验失败时显示字段级错误。
+\item
+  数据库连接失败时显示数据库连接错误。
+\item
+  数据库执行失败时返回 MySQL
+  错误号、SQLSTATE、数据库错误消息、对象名、字段名、约束名。
+\item
+  批量操作失败时返回失败行号、失败字段、失败原因。
+\item
+  错误响应必须包含 \texttt{traceId}。
+\end{itemize}
+
+\hypertarget{ux4e8cux6b21ux786eux8ba4ux9700ux6c42}{%
+\subsection{14.
+二次确认需求}\label{ux4e8cux6b21ux786eux8ba4ux9700ux6c42}}
+
+\hypertarget{req-confirm-001-ux786eux8ba4ux7b56ux7565}{%
+\subsubsection{REQ-CONFIRM-001
+确认策略}\label{req-confirm-001-ux786eux8ba4ux7b56ux7565}}
+
+系统必须对高风险操作进行二次确认。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  删除数据库必须输入数据库显示名确认，不能关闭。
+\item
+  删除表必须输入表名确认，不能关闭。
+\item
+  删除字段必须输入字段名确认，不能关闭。
+\item
+  批量修改达到阈值时必须确认。
+\item
+  批量删除达到阈值时必须确认。
+\item
+  触发外键级联影响时必须展示影响分析。
+\item
+  用户偏好中保存中风险操作确认开关。
+\item
+  弹窗支持``本类中风险操作不再提示''，该选择写入用户偏好。
+\end{itemize}
+
+\hypertarget{ux5ba1ux8ba1ux4e0eux8ffdux8e2aux9700ux6c42}{%
+\subsection{15.
+审计与追踪需求}\label{ux5ba1ux8ba1ux4e0eux8ffdux8e2aux9700ux6c42}}
+
+\hypertarget{req-audit-001-ux5ba1ux8ba1ux65e5ux5fd7}{%
+\subsubsection{REQ-AUDIT-001
+审计日志}\label{req-audit-001-ux5ba1ux8ba1ux65e5ux5fd7}}
+
+系统必须记录关键操作。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  记录认证操作。
+\item
+  记录数据库对象操作。
+\item
+  记录表结构操作。
+\item
+  记录索引、约束、视图操作。
+\item
+  记录事务操作。
+\item
+  记录数据增删改查。
+\item
+  记录 GUI 查询。
+\item
+  记录统计访问。
+\item
+  记录成功状态和失败状态。
+\item
+  每条日志包含 \texttt{traceId}。
+\end{itemize}
+
+\hypertarget{req-trace-001-ux9700ux6c42ux8ffdux8e2a}{%
+\subsubsection{REQ-TRACE-001
+需求追踪}\label{req-trace-001-ux9700ux6c42ux8ffdux8e2a}}
+
+系统文档必须使用稳定编号维护需求、设计、接口和安全规则之间的追踪关系。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  需求使用 \texttt{REQ-*} 编号。
+\item
+  数据约束使用 \texttt{DATA-*} 编号。
+\item
+  接口使用 \texttt{API-*} 编号。
+\item
+  安全要求使用 \texttt{SEC-*} 编号。
+\item
+  Git 历史记录文档变更。
+\end{itemize}
+
+\hypertarget{ux975eux529fux80fdux4e0eux5bb9ux91cfux9650ux5236ux9700ux6c42}{%
+\subsection{16.
+非功能与容量限制需求}\label{ux975eux529fux80fdux4e0eux5bb9ux91cfux9650ux5236ux9700ux6c42}}
+
+\hypertarget{req-limit-001-ux5bb9ux91cfux9650ux5236}{%
+\subsubsection{REQ-LIMIT-001
+容量限制}\label{req-limit-001-ux5bb9ux91cfux9650ux5236}}
+
+系统必须对用户资源、数据库对象、查询复杂度和批量操作设置明确上限。
+
+验收标准：
+
+\begin{itemize}
+\tightlist
+\item
+  容量限制由服务端配置集中管理，前端只负责展示提示。
+\item
+  创建数据库、创建表、上传资源、执行查询和批量写操作前均执行限制校验。
+\item
+  超过容量限制时返回
+  \texttt{LIMIT\_EXCEEDED}，并展示具体超限项和当前上限。
+\item
+  查询类操作必须限制最大返回行数、最大查询耗时、最大 JOIN
+  数、最大子查询深度。
+\item
+  写操作必须限制批量行数和最大影响行数。
+\item
+  文件资源必须限制单文件大小、单用户资源总量和允许 MIME 类型。
+\end{itemize}
+
+\hypertarget{ux9700ux6c42ux8ffdux8e2aux77e9ux9635}{%
+\subsection{17.
+需求追踪矩阵}\label{ux9700ux6c42ux8ffdux8e2aux77e9ux9635}}
+
+为避免 PDF 宽表挤压，本矩阵按需求编号列出追踪关系：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{REQ-AUTH}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：认证模块。
+  \item
+    详细设计：认证与会话详细设计。
+  \item
+    数据库设计：\texttt{users}、\texttt{refresh\_tokens}。
+  \item
+    接口规范：\texttt{API-AUTH}。
+  \item
+    安全设计：\texttt{SEC-AUTH}。
+  \end{itemize}
+\item
+  \texttt{REQ-WORKBENCH}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：工作台模块。
+  \item
+    详细设计：用户工作台详细设计。
+  \item
+    数据库设计：\texttt{user\_preferences}。
+  \item
+    接口规范：\texttt{API-WORKBENCH}。
+  \item
+    安全设计：\texttt{SEC-AUTHZ}。
+  \end{itemize}
+\item
+  \texttt{REQ-PREF}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：偏好模块。
+  \item
+    详细设计：用户工作台详细设计。
+  \item
+    数据库设计：\texttt{user\_preferences}。
+  \item
+    接口规范：\texttt{API-PREF}。
+  \item
+    安全设计：\texttt{SEC-AUTHZ}。
+  \end{itemize}
+\item
+  \texttt{REQ-ASSET}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：资源模块。
+  \item
+    详细设计：用户工作台详细设计。
+  \item
+    数据库设计：\texttt{user\_assets}。
+  \item
+    接口规范：\texttt{API-ASSET}。
+  \item
+    安全设计：\texttt{SEC-FILE}。
+  \end{itemize}
+\item
+  \texttt{REQ-DB}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：数据库模块。
+  \item
+    详细设计：数据库管理详细设计。
+  \item
+    数据库设计：\texttt{user\_databases}。
+  \item
+    接口规范：\texttt{API-DB}。
+  \item
+    安全设计：\texttt{SEC-AUTHZ}、\texttt{SEC-SQL}。
+  \end{itemize}
+\item
+  \texttt{REQ-TABLE}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：表结构模块。
+  \item
+    详细设计：元数据与表结构详细设计。
+  \item
+    数据库设计：\texttt{information\_schema}。
+  \item
+    接口规范：\texttt{API-TABLE}。
+  \item
+    安全设计：\texttt{SEC-SQL}、\texttt{SEC-CONFIRM}。
+  \end{itemize}
+\item
+  \texttt{REQ-INDEX}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：索引模块。
+  \item
+    详细设计：元数据与表结构详细设计。
+  \item
+    数据库设计：\texttt{information\_schema}。
+  \item
+    接口规范：\texttt{API-INDEX}。
+  \item
+    安全设计：\texttt{SEC-SQL}。
+  \end{itemize}
+\item
+  \texttt{REQ-CONSTRAINT}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：约束模块。
+  \item
+    详细设计：元数据与表结构详细设计。
+  \item
+    数据库设计：\texttt{information\_schema}。
+  \item
+    接口规范：\texttt{API-CONSTRAINT}。
+  \item
+    安全设计：\texttt{SEC-SQL}、\texttt{SEC-CONFIRM}。
+  \end{itemize}
+\item
+  \texttt{REQ-VIEW}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：视图模块。
+  \item
+    详细设计：元数据与表结构详细设计、结构化查询详细设计。
+  \item
+    数据库设计：\texttt{information\_schema}。
+  \item
+    接口规范：\texttt{API-VIEW}。
+  \item
+    安全设计：\texttt{SEC-SQL}。
+  \end{itemize}
+\item
+  \texttt{REQ-ROW}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：数据模块。
+  \item
+    详细设计：表数据详细设计。
+  \item
+    数据库设计：用户物理库。
+  \item
+    接口规范：\texttt{API-ROW}。
+  \item
+    安全设计：\texttt{SEC-SQL}、\texttt{SEC-CONFIRM}。
+  \end{itemize}
+\item
+  \texttt{REQ-QUERY}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：GUI 查询模块。
+  \item
+    详细设计：结构化查询详细设计。
+  \item
+    数据库设计：用户物理库。
+  \item
+    接口规范：\texttt{API-QUERY}。
+  \item
+    安全设计：\texttt{SEC-SQL}。
+  \end{itemize}
+\item
+  \texttt{REQ-TX}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：事务模块。
+  \item
+    详细设计：事务详细设计。
+  \item
+    数据库设计：\texttt{transaction\_sessions}。
+  \item
+    接口规范：\texttt{API-TX}。
+  \item
+    安全设计：\texttt{SEC-TX}。
+  \end{itemize}
+\item
+  \texttt{REQ-STATS}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：统计模块。
+  \item
+    详细设计：统计详细设计。
+  \item
+    数据库设计：\texttt{information\_schema}、\texttt{audit\_logs}。
+  \item
+    接口规范：\texttt{API-STATS}。
+  \item
+    安全设计：\texttt{SEC-AUTHZ}。
+  \end{itemize}
+\item
+  \texttt{REQ-ERROR}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：错误模型。
+  \item
+    详细设计：请求处理链路、\texttt{errorMiddleware}。
+  \item
+    数据库设计：\texttt{audit\_logs}。
+  \item
+    接口规范：\texttt{API-ERROR}。
+  \item
+    安全设计：\texttt{SEC-AUDIT}。
+  \end{itemize}
+\item
+  \texttt{REQ-CONFIRM}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：确认策略。
+  \item
+    详细设计：表数据详细设计、实现检查清单。
+  \item
+    数据库设计：\texttt{user\_preferences}。
+  \item
+    接口规范：\texttt{API-CONFIRM}。
+  \item
+    安全设计：\texttt{SEC-CONFIRM}。
+  \end{itemize}
+\item
+  \texttt{REQ-AUDIT}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：审计模块。
+  \item
+    详细设计：审计详细设计。
+  \item
+    数据库设计：\texttt{audit\_logs}。
+  \item
+    接口规范：\texttt{API-AUDIT}。
+  \item
+    安全设计：\texttt{SEC-AUDIT}。
+  \end{itemize}
+\item
+  \texttt{REQ-LIMIT}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    概要设计：容量限制概要。
+  \item
+    详细设计：配置与限制详细设计。
+  \item
+    数据库设计：\texttt{DATA-LIMIT}。
+  \item
+    接口规范：\texttt{2.4}。
+  \item
+    安全设计：\texttt{SEC-LIMIT}。
+  \end{itemize}
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,702 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames*,x11names*}{xcolor}
+%
+\documentclass[
+  a4paper,
+  UTF8]{ctexart}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={概要设计说明书},
+  pdfauthor={DBMS 控制台项目},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={blue},
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{概要设计说明书}
+\author{DBMS 控制台项目}
+\date{}
+
+\begin{document}
+\maketitle
+
+\renewcommand*\contentsname{目录}
+{
+\hypersetup{linkcolor=}
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\hypertarget{ux6982ux8981ux8bbeux8ba1}{%
+\section{概要设计}\label{ux6982ux8981ux8bbeux8ba1}}
+
+\hypertarget{ux7cfbux7edfux5b9aux4f4d}{%
+\subsection{1. 系统定位}\label{ux7cfbux7edfux5b9aux4f4d}}
+
+系统定位为本地 MySQL 可视化 DBMS
+工作台。用户通过个人账号登录后，在统一风格的工作台中完成数据库、表、字段、索引、约束、视图、数据、事务和统计的
+GUI 操作。
+
+前端负责交互体验和结构化请求生成。后端负责鉴权、授权、校验、SQL
+构造、执行、错误归类、确认策略和审计追踪。MySQL 负责真实数据存储和执行。
+
+\hypertarget{ux67b6ux6784ux603bux89c8}{%
+\subsection{2. 架构总览}\label{ux67b6ux6784ux603bux89c8}}
+
+\begin{verbatim}
+flowchart LR
+  Browser[Vue 工作台] --> API[Express API]
+  API --> Auth[双 Token 鉴权]
+  API --> Confirm[确认策略]
+  API --> Validator[参数与标识符校验]
+  API --> Builder[SQL 构造器]
+  API --> Error[错误归类器]
+  API --> Audit[审计追踪]
+  Builder --> SystemDB[(系统库 DB_App)]
+  Builder --> UserDB[(用户物理库)]
+  Builder --> Meta[(information_schema)]
+  API --> FileStore[(本地资源文件)]
+\end{verbatim}
+
+\hypertarget{ux6a21ux5757ux5212ux5206}{%
+\subsection{3. 模块划分}\label{ux6a21ux5757ux5212ux5206}}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+模块 & 职责 \\
+\midrule
+\endhead
+认证模块 & 注册、登录、刷新会话、退出登录、双 Token 管理 \\
+工作台模块 & 首页概览、数据库树、主色调控制、快捷入口 \\
+用户模块 & 用户资料、偏好设置、确认偏好 \\
+资源模块 & 用户资源元信息、本地文件路径管理 \\
+数据库模块 & 数据库创建、重命名、字符集修改、删除、统计 \\
+表结构模块 & 表创建、表结构查看、字段增删改、表删除 \\
+约束模块 & 主键、外键、唯一约束、检查约束、默认值、非空约束 \\
+索引模块 & 普通索引、唯一索引、复合索引、索引删除 \\
+视图模块 & GUI 查询定义视图、视图查看、视图修改、视图删除 \\
+数据模块 & 表数据浏览、新增、修改、删除、批量操作 \\
+GUI 查询模块 & 字段选择、条件组、排序、分页、聚合、分组、连接查询 \\
+事务模块 & 开启事务、事务内操作、提交、回滚、超时释放 \\
+统计模块 & 用户级、数据库级、表级统计 \\
+错误模块 & 网络错误、服务错误、业务错误、数据库错误统一归类 \\
+审计模块 & 操作记录、失败记录、traceId 追踪 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{ux524dux7aefux6982ux8981ux8bbeux8ba1}{%
+\subsection{4.
+前端概要设计}\label{ux524dux7aefux6982ux8981ux8bbeux8ba1}}
+
+\hypertarget{ux9875ux9762ux7ed3ux6784}{%
+\subsubsection{4.1 页面结构}\label{ux9875ux9762ux7ed3ux6784}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{frontend/src/}
+\NormalTok{  views/}
+\NormalTok{    Login.vue}
+\NormalTok{    Register.vue}
+\NormalTok{    Home.vue}
+\NormalTok{    DatabaseDashboard.vue}
+\NormalTok{    TableDesigner.vue}
+\NormalTok{    ConstraintDesigner.vue}
+\NormalTok{    IndexDesigner.vue}
+\NormalTok{    ViewDesigner.vue}
+\NormalTok{    DataBrowser.vue}
+\NormalTok{    QueryBuilder.vue}
+\NormalTok{    TransactionPanel.vue}
+
+\NormalTok{  components/}
+\NormalTok{    ParticleBackground.vue}
+\NormalTok{    AppHeader.vue}
+\NormalTok{    ThemeHueSlider.vue}
+\NormalTok{    DbTree.vue}
+\NormalTok{    GlassPanel.vue}
+\NormalTok{    ConfirmDialog.vue}
+\NormalTok{    DataGrid.vue}
+\NormalTok{    ColumnEditor.vue}
+\NormalTok{    ConstraintEditor.vue}
+\NormalTok{    IndexEditor.vue}
+\NormalTok{    QueryConditionBuilder.vue}
+\NormalTok{    ChartCard.vue}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux5de5ux4f5cux53f0ux5e03ux5c40}{%
+\subsubsection{4.2 工作台布局}\label{ux5de5ux4f5cux53f0ux5e03ux5c40}}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+区域 & 内容 \\
+\midrule
+\endhead
+顶部栏 & 系统名称、主色调控制、用户信息、退出 \\
+左侧数据库导航树 & database、tables、views、indexes \\
+右侧工作区 &
+用户概览、数据库看板、表设计器、数据浏览、查询构造、事务面板 \\
+\bottomrule
+\end{longtable}
+
+工作台采用固定经典布局。主色调控制条直接更新用户偏好和页面 CSS
+变量。视觉风格使用粒子背景、毛玻璃面板和动态主题色。
+
+\hypertarget{ux6570ux636eux5e93ux5bfcux822aux6811}{%
+\subsubsection{4.3
+数据库导航树}\label{ux6570ux636eux5e93ux5bfcux822aux6811}}
+
+数据库导航树展示：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{database}
+\NormalTok{  tables}
+\NormalTok{    table\_a}
+\NormalTok{  views}
+\NormalTok{    view\_a}
+\end{Highlighting}
+\end{Shaded}
+
+点击数据库进入数据库看板。点击表进入数据浏览页。点击视图进入视图数据页和视图定义页。
+
+\hypertarget{ux8868ux8bbeux8ba1ux5668}{%
+\subsubsection{4.4 表设计器}\label{ux8868ux8bbeux8ba1ux5668}}
+
+表设计器包含：
+
+\begin{itemize}
+\tightlist
+\item
+  字段列表。
+\item
+  字段类型编辑。
+\item
+  长度、精度、小数位编辑。
+\item
+  默认值编辑。
+\item
+  非空约束编辑。
+\item
+  主键编辑。
+\item
+  外键编辑。
+\item
+  唯一约束编辑。
+\item
+  检查约束编辑。
+\item
+  索引编辑入口。
+\item
+  结构变更影响分析。
+\end{itemize}
+
+\hypertarget{ux6570ux636eux6d4fux89c8ux5668}{%
+\subsubsection{4.5 数据浏览器}\label{ux6570ux636eux6d4fux89c8ux5668}}
+
+数据浏览器包含：
+
+\begin{itemize}
+\tightlist
+\item
+  分页表格。
+\item
+  单行新增。
+\item
+  批量新增。
+\item
+  单行修改。
+\item
+  批量修改。
+\item
+  单行删除。
+\item
+  批量删除。
+\item
+  行内编辑草稿态。
+\item
+  行级更新按钮。
+\item
+  行级取消修改按钮。
+\item
+  字段筛选。
+\item
+  排序。
+\item
+  级联影响提示。
+\item
+  精确错误展示。
+\end{itemize}
+
+数据浏览器采用``先编辑、后提交''的交互模型。用户直接在表格单元格中修改内容时，前端只记录本地草稿并标记该行为待更新。只有用户点击该行旁边的``更新/提交''按钮后，前端才向后端提交变更；点击``取消''则丢弃草稿并恢复为服务端数据。
+
+行内编辑优先依赖主键定位目标行。无主键表可以浏览和筛选，但默认禁止行内编辑；如后续支持无主键行编辑，必须由后端提供稳定行定位策略并明确风险提示。
+
+\hypertarget{gui-ux67e5ux8be2ux6784ux9020ux5668}{%
+\subsubsection{4.6 GUI
+查询构造器}\label{gui-ux67e5ux8be2ux6784ux9020ux5668}}
+
+GUI 查询构造器提交结构化 JSON。它覆盖：
+
+\begin{itemize}
+\tightlist
+\item
+  选择字段。
+\item
+  字段别名。
+\item
+  条件组。
+\item
+  逻辑组合。
+\item
+  排序。
+\item
+  分页。
+\item
+  聚合函数。
+\item
+  分组。
+\item
+  HAVING。
+\item
+  多表 JOIN。
+\item
+  派生表子查询。
+\item
+  \texttt{IN} / \texttt{NOT\ IN} 子查询。
+\item
+  \texttt{EXISTS} / \texttt{NOT\ EXISTS} 子查询。
+\item
+  标量子查询。
+\end{itemize}
+
+后端将结构化 JSON 转为安全 \texttt{SELECT} SQL。查询构造器不直接提交原始
+SQL 字符串，而是提交受控查询 AST。AST 中的主表、JOIN
+表、派生表、子查询、字段、排序字段和条件字段均由后端校验后生成 SQL。
+
+复杂查询必须受容量限制约束，包括最大 JOIN
+数、最大子查询深度、最大返回字段数、最大返回行数和最大执行时间。
+
+\hypertarget{ux4e8bux52a1ux9762ux677f}{%
+\subsubsection{4.7 事务面板}\label{ux4e8bux52a1ux9762ux677f}}
+
+事务面板展示：
+
+\begin{itemize}
+\tightlist
+\item
+  当前事务 ID。
+\item
+  当前隔离级别。
+\item
+  事务开始时间。
+\item
+  事务超时时间。
+\item
+  已执行操作列表。
+\item
+  提交按钮。
+\item
+  回滚按钮。
+\end{itemize}
+
+事务内的数据修改请求必须携带 \texttt{transactionId}。
+
+\hypertarget{ux540eux7aefux6982ux8981ux8bbeux8ba1}{%
+\subsection{5.
+后端概要设计}\label{ux540eux7aefux6982ux8981ux8bbeux8ba1}}
+
+\hypertarget{ux76eeux5f55ux7ed3ux6784}{%
+\subsubsection{5.1 目录结构}\label{ux76eeux5f55ux7ed3ux6784}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{backend/src/}
+\NormalTok{  config/}
+\NormalTok{    env.ts}
+\NormalTok{    db.ts}
+
+\NormalTok{  middlewares/}
+\NormalTok{    authMiddleware.ts}
+\NormalTok{    requestIdMiddleware.ts}
+\NormalTok{    errorMiddleware.ts}
+\NormalTok{    rateLimitMiddleware.ts}
+
+\NormalTok{  routes/}
+\NormalTok{    authRoutes.ts}
+\NormalTok{    userRoutes.ts}
+\NormalTok{    preferenceRoutes.ts}
+\NormalTok{    databaseRoutes.ts}
+\NormalTok{    tableRoutes.ts}
+\NormalTok{    constraintRoutes.ts}
+\NormalTok{    indexRoutes.ts}
+\NormalTok{    viewRoutes.ts}
+\NormalTok{    rowRoutes.ts}
+\NormalTok{    queryRoutes.ts}
+\NormalTok{    transactionRoutes.ts}
+\NormalTok{    statsRoutes.ts}
+\NormalTok{    auditRoutes.ts}
+
+\NormalTok{  controllers/}
+\NormalTok{    authController.ts}
+\NormalTok{    userController.ts}
+\NormalTok{    preferenceController.ts}
+\NormalTok{    databaseController.ts}
+\NormalTok{    tableController.ts}
+\NormalTok{    constraintController.ts}
+\NormalTok{    indexController.ts}
+\NormalTok{    viewController.ts}
+\NormalTok{    rowController.ts}
+\NormalTok{    queryController.ts}
+\NormalTok{    transactionController.ts}
+\NormalTok{    statsController.ts}
+\NormalTok{    auditController.ts}
+
+\NormalTok{  services/}
+\NormalTok{    authService.ts}
+\NormalTok{    tokenService.ts}
+\NormalTok{    userService.ts}
+\NormalTok{    preferenceService.ts}
+\NormalTok{    databaseService.ts}
+\NormalTok{    tableService.ts}
+\NormalTok{    constraintService.ts}
+\NormalTok{    indexService.ts}
+\NormalTok{    viewService.ts}
+\NormalTok{    rowService.ts}
+\NormalTok{    queryService.ts}
+\NormalTok{    transactionService.ts}
+\NormalTok{    statsService.ts}
+\NormalTok{    auditService.ts}
+\NormalTok{    assetService.ts}
+
+\NormalTok{  utils/}
+\NormalTok{    response.ts}
+\NormalTok{    errors.ts}
+\NormalTok{    sqlIdentifier.ts}
+\NormalTok{    sqlBuilder.ts}
+\NormalTok{    mysqlErrorMapper.ts}
+\NormalTok{    validators.ts}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux8bf7ux6c42ux5904ux7406ux94feux8def}{%
+\subsubsection{5.2
+请求处理链路}\label{ux8bf7ux6c42ux5904ux7406ux94feux8def}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{request}
+\NormalTok{  {-}\textgreater{} requestIdMiddleware}
+\NormalTok{  {-}\textgreater{} authMiddleware}
+\NormalTok{  {-}\textgreater{} controller}
+\NormalTok{  {-}\textgreater{} validator}
+\NormalTok{  {-}\textgreater{} permission check}
+\NormalTok{  {-}\textgreater{} confirmation policy}
+\NormalTok{  {-}\textgreater{} service}
+\NormalTok{  {-}\textgreater{} SQL builder}
+\NormalTok{  {-}\textgreater{} MySQL}
+\NormalTok{  {-}\textgreater{} error mapper}
+\NormalTok{  {-}\textgreater{} audit log}
+\NormalTok{  {-}\textgreater{} response}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{ux6743ux9650ux6a21ux578b}{%
+\subsubsection{5.3 权限模型}\label{ux6743ux9650ux6a21ux578b}}
+
+系统采用用户所有权模型：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{currentUserId + databaseId {-}\textgreater{} user\_databases.active}
+\end{Highlighting}
+\end{Shaded}
+
+所有数据库对象操作都必须先完成数据库归属校验。表、索引、约束、视图、数据、事务均继承数据库归属权限。
+
+\hypertarget{sql-ux6784ux9020}{%
+\subsubsection{5.4 SQL 构造}\label{sql-ux6784ux9020}}
+
+SQL 构造器统一负责：
+
+\begin{itemize}
+\tightlist
+\item
+  数据库名反引号封装。
+\item
+  表名反引号封装。
+\item
+  字段名反引号封装。
+\item
+  字段类型白名单。
+\item
+  操作符白名单。
+\item
+  值参数化。
+\item
+  分页限制。
+\item
+  批量操作限制。
+\end{itemize}
+
+\hypertarget{ux9519ux8befux5904ux7406ux6982ux8981}{%
+\subsection{6.
+错误处理概要}\label{ux9519ux8befux5904ux7406ux6982ux8981}}
+
+系统采用统一错误模型：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{NETWORK\_ERROR}
+\NormalTok{HTTP\_TIMEOUT}
+\NormalTok{AUTH\_ERROR}
+\NormalTok{AUTHZ\_ERROR}
+\NormalTok{VALIDATION\_ERROR}
+\NormalTok{CONFIRMATION\_REQUIRED}
+\NormalTok{LIMIT\_EXCEEDED}
+\NormalTok{MYSQL\_CONNECTION\_ERROR}
+\NormalTok{MYSQL\_EXECUTION\_ERROR}
+\NormalTok{MYSQL\_CONSTRAINT\_ERROR}
+\NormalTok{INTERNAL\_ERROR}
+\end{Highlighting}
+\end{Shaded}
+
+后端错误响应必须包含：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{traceId}
+\item
+  \texttt{errorType}
+\item
+  \texttt{errorCode}
+\item
+  \texttt{message}
+\item
+  \texttt{details}
+\item
+  \texttt{fieldErrors}
+\item
+  \texttt{mysql}
+\end{itemize}
+
+前端根据 \texttt{errorType} 和 \texttt{errorCode} 展示精准提示。
+
+\hypertarget{ux4e8cux6b21ux786eux8ba4ux6982ux8981}{%
+\subsection{7.
+二次确认概要}\label{ux4e8cux6b21ux786eux8ba4ux6982ux8981}}
+
+确认策略由后端判断，前端负责展示。确认策略分为：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+风险级别 & 操作 & 确认规则 \\
+\midrule
+\endhead
+强制确认 & 删除数据库、删除表、删除字段 & 必须输入对象名 \\
+强制确认 & 触发外键级联删除 & 必须展示影响分析并确认 \\
+偏好确认 & 批量修改、批量删除、批量插入 & 达到阈值时弹窗确认 \\
+普通操作 & 单行新增、普通查询、查看统计 & 不弹窗 \\
+\bottomrule
+\end{longtable}
+
+偏好确认类别支持用户关闭。强制确认类别不支持关闭。
+
+\hypertarget{ux4e8bux52a1ux6982ux8981}{%
+\subsection{8. 事务概要}\label{ux4e8bux52a1ux6982ux8981}}
+
+事务由后端维护事务会话：
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /transactions}
+\NormalTok{  {-}\textgreater{} 创建连接}
+\NormalTok{  {-}\textgreater{} 设置隔离级别}
+\NormalTok{  {-}\textgreater{} BEGIN}
+\NormalTok{  {-}\textgreater{} 返回 transactionId}
+\end{Highlighting}
+\end{Shaded}
+
+事务会话具备固定超时时间。超时后系统自动回滚并释放连接。
+
+事务内写操作必须携带
+\texttt{transactionId}。提交和回滚必须由创建事务的用户发起。
+
+\hypertarget{ux6570ux636eux7edfux8ba1ux6982ux8981}{%
+\subsection{9.
+数据统计概要}\label{ux6570ux636eux7edfux8ba1ux6982ux8981}}
+
+统计来源：
+
+\begin{itemize}
+\tightlist
+\item
+  系统库 \texttt{audit\_logs}。
+\item
+  MySQL \texttt{information\_schema.tables}。
+\item
+  MySQL \texttt{information\_schema.columns}。
+\item
+  用户物理库中的表数据聚合查询。
+\end{itemize}
+
+统计接口同样执行数据库归属校验。表级统计涉及字段聚合时，字段名必须来自上方列出的
+MySQL 元数据来源。
+
+\hypertarget{ux8d44ux6e90ux5b58ux50a8ux6982ux8981}{%
+\subsection{10.
+资源存储概要}\label{ux8d44ux6e90ux5b58ux50a8ux6982ux8981}}
+
+用户资源实体保存到本地文件存储。系统库保存资源元信息：
+
+\begin{itemize}
+\tightlist
+\item
+  资源 ID。
+\item
+  用户 ID。
+\item
+  资源类型。
+\item
+  存储类型。
+\item
+  存储键。
+\item
+  MIME 类型。
+\item
+  文件大小。
+\item
+  校验和。
+\end{itemize}
+
+资源读取、替换、删除均执行归属校验。
+
+\hypertarget{ux5bb9ux91cfux9650ux5236ux6982ux8981}{%
+\subsection{11.
+容量限制概要}\label{ux5bb9ux91cfux9650ux5236ux6982ux8981}}
+
+系统容量限制由服务端统一配置，不由前端决定。前端只展示限制提示和当前使用量。
+
+默认限制建议：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+限制项 & 默认值 & 说明 \\
+\midrule
+\endhead
+单用户数据库数量 & 10 & 超过后禁止继续创建 \\
+单数据库表数量 & 100 & 不含视图 \\
+单数据库视图数量 & 50 & 视图定义来自受控查询构造器 \\
+单表字段数量 & 80 & 超过后禁止新增字段 \\
+单表索引数量 & 16 & 不含 MySQL 自动创建索引 \\
+单用户物理数据总量 & 1GB & 基于 information\_schema 估算 \\
+单数据库物理数据量 & 512MB & 数据大小 + 索引大小 \\
+单表物理数据量 & 256MB & 数据大小 + 索引大小 \\
+单次分页返回行数 & 100 & pageSize 最大值 \\
+单次查询最大扫描结果 & 1000 行 & 查询接口服务端硬限制 \\
+单次批量插入行数 & 500 & 超过拒绝 \\
+单次批量修改影响行数 & 200 & 超过要求确认或拒绝 \\
+单次批量删除影响行数 & 200 & 超过要求确认或拒绝 \\
+查询最大 JOIN 数 & 8 & 包含普通表和视图 \\
+查询最大子查询深度 & 3 & 防止过复杂查询 \\
+查询最大执行时间 & 10 秒 & 超时中断 \\
+查询 AST 最大体积 & 64KB & 请求体限制 \\
+头像文件大小 & 2MB & 只允许 png、jpeg、webp \\
+背景图文件大小 & 8MB & 只允许 png、jpeg、webp \\
+单用户资源总量 & 100MB & 头像、背景等资源合计 \\
+\bottomrule
+\end{longtable}
+
+以上默认值用于本地课程项目落地，后续可以通过环境变量或服务端配置文件调整。所有限制必须在后端二次校验，不能只依赖前端校验。
+
+\end{document}
