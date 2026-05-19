@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import pool from '../config/db.js';                 // 引入数据库连接池
 import { generateAccountNo, isValidPassword } from '../utils/helper.js'; // 引入纯工具函数
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env.js'
 
 // 导出 register 处理函数
 export const register = async (req: Request, res: Response) => {
@@ -91,17 +92,35 @@ export const login = async (req: Request, res: Response) => {
     try{
         const { accountNo, password } = req.body;
 
-        if (!accountNo || !password){
+        if (typeof accountNo !== 'string' || typeof password !== 'string') {
             return res.status(400).json({
                 code: 400,
-                message: "登录失败：请填写账号和密码",
+                message: '登录失败：请填写账号和密码',
+                data: null
+            });
+        }
+
+        const cleanAccountNo = accountNo.trim();
+
+        if (!cleanAccountNo || !password) {
+            return res.status(400).json({
+                code: 400,
+                message: '登录失败：请填写账号和密码',
+                data: null
+            });
+        }
+
+        if (!/^\d{10}$/.test(cleanAccountNo)) {
+            return res.status(400).json({
+                code: 400,
+                message: '登录失败：账号格式不正确',
                 data: null
             });
         }
 
         const [rows]: any = await pool.query(
             'SELECT id, user_name, password_hash FROM users WHERE account_no = ?', 
-            [accountNo]
+            [cleanAccountNo]
         )
 
         const user = rows[0]
@@ -124,14 +143,12 @@ export const login = async (req: Request, res: Response) => {
             });
         }
 
-        const jwtSecret = process.env.JWT_SECRET || 'default_secret'
-
         const token = jwt.sign(
             {
                 userID: user.id,
-                accountNo: accountNo
+                accountNo: cleanAccountNo
             },
-            jwtSecret,
+            env.jwtSecret,
             { expiresIn: '7d'}  // 设置过期时间
         )
 

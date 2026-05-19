@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
-
+import Home from '../views/Home.vue';
+import { ElMessage } from 'element-plus';
 // 1. 定义路由表 (把 URL 映射到对应的组件页面)
 const routes: Array<RouteRecordRaw> = [
   {
@@ -16,6 +17,14 @@ const routes: Array<RouteRecordRaw> = [
     path: '/register',
     name: 'Register',
     component: () => import('../views/Register.vue')
+  },
+  {
+    path: '/home',
+    name: 'Home',
+    component: Home,
+    meta: {
+      requiresAuth: true
+    }
   }
 ];
 
@@ -23,6 +32,20 @@ const routes: Array<RouteRecordRaw> = [
 const router = createRouter({
   history: createWebHistory(), // 使用 HTML5 模式，URL 里没有丑陋的 # 号
   routes
+});
+
+router.beforeEach((to) => {
+  const token = localStorage.getItem('token');
+
+  if (to.meta.requiresAuth && !token) {
+    ElMessage.warning('您还未登录，请先登录！');
+    return '/login';
+  }
+
+  if (token && (to.path === '/login' || to.path === '/register')) {
+    ElMessage.info('您已登录，无需重复操作');
+    return '/home';
+  }
 });
 
 export default router;

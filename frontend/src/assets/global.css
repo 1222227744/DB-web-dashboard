@@ -1,0 +1,50 @@
+/* ==================================================
+   全局覆盖 Element Plus 的提示组件，打造统一毛玻璃风格
+   ================================================== */
+
+/* 1. 改造 ElMessage (顶部滑下来的小提示) */
+.el-message {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+  border-radius: 12px !important;
+}
+/* 小提示里的文字颜色改白 */
+.el-message .el-message__content {
+  color: #ffffff !important;
+  font-weight: bold;
+}
+
+/* 2. 改造 ElMessageBox (居中的大弹窗) 
+   我们直接覆盖它的默认类名，这样以后都不用每次传 customClass 了！
+*/
+.el-message-box {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 大弹窗的标题、内容、关闭叉号统统改白 */
+.el-message-box__title,
+.el-message-box__content,
+.el-message-box__headerbtn .el-message-box__close {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* 大弹窗底部的确认按钮毛玻璃化 */
+.el-message-box__btns .el-button--primary {
+  background-color: rgba(64, 158, 255, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(5px) !important;
+  color: #fff !important;
+  transition: all 0.3s ease;
+}
+.el-message-box__btns .el-button--primary:hover {
+  background-color: rgba(64, 158, 255, 0.7) !important;
+  box-shadow: 0 0 15px rgba(64, 158, 255, 0.5) !important;
+}

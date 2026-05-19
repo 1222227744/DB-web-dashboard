@@ -2,7 +2,24 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
-let animationId: number;
+let animationId: number | null = null;
+let handleResize: (() => void) | null = null;
+
+let mouseX = 0;
+let mouseY = 0;
+let prevMouseX = 0;
+let prevMouseY = 0;
+let smoothedMouseSpeed = 0;
+let anchorHue = 210;
+let currentHue = anchorHue;
+let hueDirection = 1;
+const hueSpeed = 0.25;
+let currentHueRange = 90;
+
+const handleMouseMove = (event: MouseEvent) => {
+  mouseX = event.clientX;
+  mouseY = event.clientY;
+};
 
 onMounted(() => {
   const canvas = canvasRef.value;
@@ -10,12 +27,13 @@ onMounted(() => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  const resizeCanvas = () => {
+  handleResize = () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   };
-  resizeCanvas();
-  window.addEventListener('resize', resizeCanvas);
+  handleResize();
+  window.addEventListener('resize', handleResize);
+  window.addEventListener('mousemove', handleMouseMove);
 
   // --- 粒子系统初始化 ---
   const particles: any[] = [];
@@ -30,24 +48,6 @@ onMounted(() => {
     });
   }
 
-  // --- 鼠标交互状态管理 ---
-  let mouseX = 0;
-  let mouseY = 0;
-  let prevMouseX = 0;
-  let prevMouseY = 0;
-  let smoothedMouseSpeed = 0; // 平滑处理后的鼠标速度
-
-  window.addEventListener('mousemove', (e) => {
-    mouseX = e.clientX;
-    mouseY = e.clientY;
-  });
-
-  // --- 颜色控制变量 ---
-  let anchorHue = 210;         // 核心改变 1：不再是固定 baseHue，而是可以移动的 anchorHue (锚点)
-  let currentHue = anchorHue;  // 当前实时色相
-  let hueDirection = 1;        // 色相变化方向 (1 为增加，-1 为减少)
-  const hueSpeed = 0.25;        // 颜色变化的绝对速度
-  let currentHueRange = 90;    // 当前允许波动的色相范围
   // --- 动画循环 ---
   const draw = () => {
     // 1. 计算鼠标移动速度
@@ -140,10 +140,17 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  cancelAnimationFrame(animationId);
-  window.removeEventListener('resize', () => {});
-  // 清理鼠标事件，防止内存泄漏
-  window.removeEventListener('mousemove', () => {});
+  if (animationId !== null) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+
+  if (handleResize) {
+    window.removeEventListener('resize', handleResize);
+    handleResize = null;
+  }
+
+  window.removeEventListener('mousemove', handleMouseMove);
 });
 </script>
 

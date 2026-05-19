@@ -1,16 +1,34 @@
 <script setup lang="ts">
-  
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
+import ParticleBackground from './components/ParticleBackground.vue';
+
+const route = useRoute();
+
+const showParticleBackground = computed(() => {
+  return route.path === '/login' || route.path === '/register';
+});
 </script>
 
 <template>
-  <!-- 这是一个占位符。Vue Router 会根据当前的 URL，自动把对应的页面塞到这里面 -->
-  <router-view></router-view>
+  <ParticleBackground
+    v-if="showParticleBackground"
+    class="particle-background"
+  />
+
+  <div class="app-content">
+    <router-view />
+  </div>
 </template>
 
-<style>
-  body, html {
-    margin: 0;
-    padding: 0;
-    overflow: hidden; 
+<style scoped>
+  .particle-background {
+    position: fixed;
+    z-index: 0;
   }
+
+  .app-content {
+    position: relative;
+    z-index: 1;
+}
 </style>

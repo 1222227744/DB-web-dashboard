@@ -1,0 +1,28 @@
+:root {
+  --theme-hue: 210;
+
+  --glass-text: rgba(255, 255, 255, 0.8);
+  --glass-text-strong: #ffffff;
+  --glass-text-muted: rgba(255, 255, 255, 0.7);
+  --glass-placeholder: rgba(255, 255, 255, 0.4);
+
+  --glass-panel-bg: rgba(255, 255, 255, 0.015);
+  --glass-control-bg: rgba(255, 255, 255, 0.06);
+  --glass-button-bg: rgba(255, 255, 255, 0.08);
+  --glass-checkbox-bg: rgba(255, 255, 255, 0.05);
+
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border-soft: rgba(255, 255, 255, 0.12);
+  --glass-border-hover: rgba(255, 255, 255, 0.3);
+  --glass-shadow-soft: 0 15px 35px rgba(0, 0, 0, 0.2);
+  --glass-shadow-control: 0 5px 15px rgba(0, 0, 0, 0.1);
+
+  --glass-radius-md: 12px;
+  --glass-radius-lg: 20px;
+  --glass-transition: all 0.3s ease;
+
+  --theme-primary: hsl(var(--theme-hue), 80%, 60%);
+  --theme-primary-light: hsl(var(--theme-hue), 80%, 70%);
+  --theme-primary-soft: hsla(var(--theme-hue), 80%, 60%, 0.5);
+  --theme-primary-glow: hsla(var(--theme-hue), 80%, 60%, 0.8);
+}
