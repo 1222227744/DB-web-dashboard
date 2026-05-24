@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import Home from '../views/Home.vue';
 import { ElMessage } from 'element-plus';
+import { isLoggedIn } from '../utils/auth';
 // 1. 定义路由表 (把 URL 映射到对应的组件页面)
 const routes: Array<RouteRecordRaw> = [
   {
@@ -35,14 +36,14 @@ const router = createRouter({
 });
 
 router.beforeEach((to) => {
-  const token = localStorage.getItem('token');
+  const hasLoginState = isLoggedIn();
 
-  if (to.meta.requiresAuth && !token) {
+  if (to.meta.requiresAuth && !hasLoginState) {
     ElMessage.warning('您还未登录，请先登录！');
     return '/login';
   }
 
-  if (token && (to.path === '/login' || to.path === '/register')) {
+  if (hasLoginState && (to.path === '/login' || to.path === '/register')) {
     ElMessage.info('您已登录，无需重复操作');
     return '/home';
   }

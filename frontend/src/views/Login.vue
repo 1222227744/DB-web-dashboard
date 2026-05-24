@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../utils/request';
 import { ElMessage } from 'element-plus';
+import { setAuthState, type AuthUser } from '../utils/auth';
 
 const router = useRouter();
 
@@ -56,10 +57,11 @@ const handleLogin = async () => {
     });
 
     ElMessage.success(res.message);
-    const { token, userName } = res.data;
-
-    localStorage.setItem('token', token);
-    localStorage.setItem('userName', userName);
+    const { accessToken, user } = res.data as {
+      accessToken: string;
+      user: AuthUser;
+    };
+    setAuthState(accessToken, user);
 
     if (rememberMe.value) {
       localStorage.setItem('saved_account', accountStr);
