@@ -63,8 +63,8 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     sizeRatio: 0.48,
     xRatio: 0.08,
     yRatio: 0.1,
-    velocityX: 0.42,
-    velocityY: 0.32,
+    velocityX: 1.9,
+    velocityY: 1.45,
     x: 0,
     y: 0,
     size: 0,
@@ -78,8 +78,8 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     sizeRatio: 0.46,
     xRatio: 0.72,
     yRatio: 0.04,
-    velocityX: -0.4,
-    velocityY: 0.36,
+    velocityX: -1.78,
+    velocityY: 1.62,
     x: 0,
     y: 0,
     size: 0,
@@ -93,8 +93,8 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     sizeRatio: 0.44,
     xRatio: 0.58,
     yRatio: 0.7,
-    velocityX: -0.34,
-    velocityY: -0.3,
+    velocityX: -1.54,
+    velocityY: -1.33,
     x: 0,
     y: 0,
     size: 0,
@@ -108,8 +108,8 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     sizeRatio: 0.34,
     xRatio: 0.18,
     yRatio: 0.58,
-    velocityX: 0.31,
-    velocityY: -0.38,
+    velocityX: 1.38,
+    velocityY: -1.7,
     x: 0,
     y: 0,
     size: 0,
@@ -850,6 +850,7 @@ onUnmounted(() => {
 
 .workbench-action-button {
   width: 100%;
+  margin: 0 !important;
 }
 
 .ghost-button {
