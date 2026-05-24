@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import request from '../utils/request';
 import { clearAuthState, getAuthUser } from '../utils/auth';
@@ -37,6 +37,183 @@ const quickActions = [
 ];
 
 const capabilityTags = ['双 Token 会话', '个人偏好同步', '动态主题', '数据库工作台'];
+
+type AuroraBlob = {
+  id: string;
+  className: string;
+  hueOffset: number;
+  opacity: number;
+  sizeRatio: number;
+  xRatio: number;
+  yRatio: number;
+  velocityX: number;
+  velocityY: number;
+  x: number;
+  y: number;
+  size: number;
+  style: Record<string, string>;
+};
+
+const auroraBlobs = reactive<AuroraBlob[]>([
+  {
+    id: 'aurora-one',
+    className: 'blob-one',
+    hueOffset: -18,
+    opacity: 0.5,
+    sizeRatio: 0.48,
+    xRatio: 0.08,
+    yRatio: 0.1,
+    velocityX: 1.08,
+    velocityY: 0.82,
+    x: 0,
+    y: 0,
+    size: 0,
+    style: {}
+  },
+  {
+    id: 'aurora-two',
+    className: 'blob-two',
+    hueOffset: 18,
+    opacity: 0.48,
+    sizeRatio: 0.46,
+    xRatio: 0.72,
+    yRatio: 0.04,
+    velocityX: -1,
+    velocityY: 0.92,
+    x: 0,
+    y: 0,
+    size: 0,
+    style: {}
+  },
+  {
+    id: 'aurora-three',
+    className: 'blob-three',
+    hueOffset: 38,
+    opacity: 0.38,
+    sizeRatio: 0.44,
+    xRatio: 0.58,
+    yRatio: 0.7,
+    velocityX: -0.86,
+    velocityY: -0.74,
+    x: 0,
+    y: 0,
+    size: 0,
+    style: {}
+  },
+  {
+    id: 'aurora-four',
+    className: 'blob-four',
+    hueOffset: -38,
+    opacity: 0.34,
+    sizeRatio: 0.34,
+    xRatio: 0.18,
+    yRatio: 0.58,
+    velocityX: 0.78,
+    velocityY: -0.96,
+    x: 0,
+    y: 0,
+    size: 0,
+    style: {}
+  }
+]);
+
+let auroraAnimationId: number | null = null;
+let lastAuroraTime = 0;
+let auroraWidth = 0;
+let auroraHeight = 0;
+
+const getAuroraBounds = () => ({
+  width: window.innerWidth,
+  height: window.innerHeight,
+  base: Math.min(window.innerWidth, window.innerHeight)
+});
+
+const updateAuroraBlobStyle = (blob: AuroraBlob) => {
+  const hueExpression = blob.hueOffset >= 0
+    ? `calc(var(--theme-hue) + ${blob.hueOffset})`
+    : `calc(var(--theme-hue) - ${Math.abs(blob.hueOffset)})`;
+
+  blob.style = {
+    width: `${blob.size}px`,
+    height: `${blob.size}px`,
+    opacity: String(blob.opacity),
+    background: `hsla(${hueExpression}, 88%, 60%, ${blob.opacity})`,
+    transform: `translate3d(${blob.x}px, ${blob.y}px, 0)`
+  };
+};
+
+const resetAuroraBlobs = () => {
+  const bounds = getAuroraBounds();
+  auroraWidth = bounds.width;
+  auroraHeight = bounds.height;
+
+  auroraBlobs.forEach((blob) => {
+    blob.size = bounds.base * blob.sizeRatio;
+    blob.x = (bounds.width - blob.size) * blob.xRatio;
+    blob.y = (bounds.height - blob.size) * blob.yRatio;
+    updateAuroraBlobStyle(blob);
+  });
+};
+
+const resizeAuroraBlobs = () => {
+  const bounds = getAuroraBounds();
+  const scaleX = auroraWidth ? bounds.width / auroraWidth : 1;
+  const scaleY = auroraHeight ? bounds.height / auroraHeight : 1;
+  auroraWidth = bounds.width;
+  auroraHeight = bounds.height;
+
+  auroraBlobs.forEach((blob) => {
+    blob.size = bounds.base * blob.sizeRatio;
+    blob.x *= scaleX;
+    blob.y *= scaleY;
+    const minX = -blob.size * 0.36;
+    const minY = -blob.size * 0.36;
+    const maxX = bounds.width - blob.size * 0.64;
+    const maxY = bounds.height - blob.size * 0.64;
+    blob.x = Math.min(Math.max(blob.x, minX), maxX);
+    blob.y = Math.min(Math.max(blob.y, minY), maxY);
+    updateAuroraBlobStyle(blob);
+  });
+};
+
+const moveAuroraBlobs = (timestamp: number) => {
+  if (!lastAuroraTime) {
+    lastAuroraTime = timestamp;
+  }
+
+  const delta = Math.min((timestamp - lastAuroraTime) / 16.67, 2);
+  lastAuroraTime = timestamp;
+
+  const bounds = getAuroraBounds();
+
+  if (bounds.width !== auroraWidth || bounds.height !== auroraHeight) {
+    resizeAuroraBlobs();
+  }
+
+  auroraBlobs.forEach((blob) => {
+    blob.x += blob.velocityX * delta;
+    blob.y += blob.velocityY * delta;
+
+    const minX = -blob.size * 0.36;
+    const minY = -blob.size * 0.36;
+    const maxX = bounds.width - blob.size * 0.64;
+    const maxY = bounds.height - blob.size * 0.64;
+
+    if (blob.x <= minX || blob.x >= maxX) {
+      blob.velocityX *= -1;
+      blob.x = Math.min(Math.max(blob.x, minX), maxX);
+    }
+
+    if (blob.y <= minY || blob.y >= maxY) {
+      blob.velocityY *= -1;
+      blob.y = Math.min(Math.max(blob.y, minY), maxY);
+    }
+
+    updateAuroraBlobStyle(blob);
+  });
+
+  auroraAnimationId = requestAnimationFrame(moveAuroraBlobs);
+};
 
 const handleLogout = async () => {
   try {
@@ -82,16 +259,31 @@ const saveThemeHueOnChange = () => {
 
 onMounted(() => {
   void loadPreferences();
+  resetAuroraBlobs();
+  window.addEventListener('resize', resizeAuroraBlobs);
+  auroraAnimationId = requestAnimationFrame(moveAuroraBlobs);
+});
+
+onUnmounted(() => {
+  if (auroraAnimationId !== null) {
+    cancelAnimationFrame(auroraAnimationId);
+    auroraAnimationId = null;
+  }
+
+  window.removeEventListener('resize', resizeAuroraBlobs);
 });
 </script>
 
 <template>
   <main class="home-page">
     <div class="aurora-layer" aria-hidden="true">
-      <span class="aurora-blob blob-one"></span>
-      <span class="aurora-blob blob-two"></span>
-      <span class="aurora-blob blob-three"></span>
-      <span class="aurora-blob blob-four"></span>
+      <span
+        v-for="blob in auroraBlobs"
+        :key="blob.id"
+        class="aurora-blob"
+        :class="blob.className"
+        :style="blob.style"
+      ></span>
     </div>
 
     <div class="home-frame">
@@ -239,48 +431,26 @@ onMounted(() => {
 
 .aurora-blob {
   position: absolute;
-  width: 46vmax;
-  height: 46vmax;
-  min-width: 420px;
-  min-height: 420px;
   border-radius: 999px;
-  opacity: 0.46;
   filter: blur(70px);
   mix-blend-mode: screen;
-  will-change: transform, opacity;
+  will-change: transform;
 }
 
 .blob-one {
-  top: -16%;
-  left: -14%;
-  background: hsla(calc(var(--theme-hue) - 18), 92%, 62%, 0.5);
-  animation: aurora-float-one 16s ease-in-out infinite alternate;
+  filter: blur(70px);
 }
 
 .blob-two {
-  top: -8%;
-  right: -16%;
-  background: hsla(calc(var(--theme-hue) + 18), 88%, 60%, 0.48);
-  animation: aurora-float-two 19s ease-in-out infinite alternate;
-  animation-delay: -6s;
+  filter: blur(74px);
 }
 
 .blob-three {
-  right: 10%;
-  bottom: -24%;
-  background: hsla(calc(var(--theme-hue) + 38), 84%, 58%, 0.38);
-  animation: aurora-float-three 22s ease-in-out infinite alternate;
-  animation-delay: -10s;
+  filter: blur(78px);
 }
 
 .blob-four {
-  bottom: 0;
-  left: 10%;
-  width: 34vmax;
-  height: 34vmax;
-  background: hsla(calc(var(--theme-hue) - 38), 84%, 56%, 0.34);
-  animation: aurora-float-four 24s ease-in-out infinite alternate;
-  animation-delay: -13s;
+  filter: blur(64px);
 }
 
 .workbench-topbar {
@@ -829,94 +999,6 @@ onMounted(() => {
 
   .tree-empty {
     min-height: 280px;
-  }
-}
-
-@keyframes aurora-float-one {
-  0% {
-    opacity: 0.38;
-    transform: translate3d(-8%, -4%, 0) scale(0.92) rotate(0deg);
-  }
-
-  32% {
-    opacity: 0.54;
-    transform: translate3d(18%, 14%, 0) scale(1.12) rotate(16deg);
-  }
-
-  68% {
-    opacity: 0.44;
-    transform: translate3d(5%, 28%, 0) scale(1.02) rotate(-12deg);
-  }
-
-  100% {
-    opacity: 0.5;
-    transform: translate3d(26%, 8%, 0) scale(1.18) rotate(8deg);
-  }
-}
-
-@keyframes aurora-float-two {
-  0% {
-    opacity: 0.4;
-    transform: translate3d(8%, -2%, 0) scale(1.04) rotate(0deg);
-  }
-
-  26% {
-    opacity: 0.52;
-    transform: translate3d(-16%, 16%, 0) scale(0.96) rotate(-14deg);
-  }
-
-  62% {
-    opacity: 0.42;
-    transform: translate3d(-26%, 5%, 0) scale(1.14) rotate(18deg);
-  }
-
-  100% {
-    opacity: 0.48;
-    transform: translate3d(-8%, -12%, 0) scale(1.03) rotate(-5deg);
-  }
-}
-
-@keyframes aurora-float-three {
-  0% {
-    opacity: 0.3;
-    transform: translate3d(0, 10%, 0) scale(1.04) rotate(0deg);
-  }
-
-  31% {
-    opacity: 0.42;
-    transform: translate3d(-18%, -8%, 0) scale(0.96) rotate(12deg);
-  }
-
-  67% {
-    opacity: 0.36;
-    transform: translate3d(10%, -20%, 0) scale(1.16) rotate(-16deg);
-  }
-
-  100% {
-    opacity: 0.4;
-    transform: translate3d(20%, 4%, 0) scale(1.04) rotate(8deg);
-  }
-}
-
-@keyframes aurora-float-four {
-  0% {
-    opacity: 0.26;
-    transform: translate3d(-6%, 8%, 0) scale(0.98) rotate(0deg);
-  }
-
-  24% {
-    opacity: 0.38;
-    transform: translate3d(18%, -10%, 0) scale(1.14) rotate(-10deg);
-  }
-
-  53% {
-    opacity: 0.31;
-    transform: translate3d(30%, 10%, 0) scale(1.02) rotate(15deg);
-  }
-
-  100% {
-    opacity: 0.36;
-    transform: translate3d(6%, -8%, 0) scale(1.1) rotate(-6deg);
   }
 }
 
