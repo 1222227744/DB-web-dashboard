@@ -22,6 +22,13 @@ let hueDirection = 1;
 const hueSpeed = 0.25;
 let currentHueRange = 90;
 
+const getThemeHue = () => {
+  const rawHue = getComputedStyle(document.documentElement).getPropertyValue('--theme-hue');
+  const parsedHue = Number.parseInt(rawHue, 10);
+
+  return Number.isFinite(parsedHue) ? parsedHue : anchorHue;
+};
+
 const handleMouseMove = (event: MouseEvent) => {
   mouseX = event.clientX;
   mouseY = event.clientY;
@@ -72,15 +79,20 @@ onMounted(() => {
     currentHueRange += (targetHueRange - currentHueRange) * 0.05;
 
     // 3. 计算当前帧的统一颜色
-    currentHue += hueSpeed * hueDirection;
-    
-    // 如果当前颜色超出了正在缩小的墙壁，就强行把锚点中心拖拉过来
-    if (currentHue > anchorHue + currentHueRange) {
-      anchorHue = currentHue - currentHueRange; // 把锚点拉过来
-      hueDirection = -1; // 碰到墙壁，掉头往回走
-    } else if (currentHue < anchorHue - currentHueRange) {
-      anchorHue = currentHue + currentHueRange; // 把锚点拉过来
-      hueDirection = 1;  // 碰到墙壁，掉头往回走
+    if (props.syncTheme) {
+      currentHue += hueSpeed * hueDirection;
+
+      // 如果当前颜色超出了正在缩小的墙壁，就强行把锚点中心拖拉过来
+      if (currentHue > anchorHue + currentHueRange) {
+        anchorHue = currentHue - currentHueRange; // 把锚点拉过来
+        hueDirection = -1; // 碰到墙壁，掉头往回走
+      } else if (currentHue < anchorHue - currentHueRange) {
+        anchorHue = currentHue + currentHueRange; // 把锚点拉过来
+        hueDirection = 1;  // 碰到墙壁，掉头往回走
+      }
+    } else {
+      anchorHue = getThemeHue();
+      currentHue += (anchorHue - currentHue) * 0.035;
     }
 
     // 4. 绘制渐变背景
