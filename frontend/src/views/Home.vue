@@ -15,17 +15,17 @@ const dashboardCards = [
   {
     title: '我的数据库',
     value: '0',
-    description: 'V2 开始接入数据库创建与管理'
+    description: '暂未创建数据库'
   },
   {
     title: '最近操作',
     value: '0',
-    description: '后续接入审计日志和 traceId'
+    description: '暂无最近操作'
   },
   {
-    title: '资源空间',
+    title: '个人资源',
     value: '0 MB',
-    description: '头像、背景和个人资源统计'
+    description: '暂无上传资源'
   }
 ];
 
@@ -36,7 +36,7 @@ const quickActions = [
   '打开查询构造器'
 ];
 
-const capabilityTags = ['双 Token 会话', '个人偏好同步', '动态主题', '数据库工作台'];
+const capabilityTags = ['安全登录', '主题外观', '个人空间', '数据库管理'];
 
 type AuroraBlob = {
   id: string;
@@ -63,8 +63,8 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     sizeRatio: 0.48,
     xRatio: 0.08,
     yRatio: 0.1,
-    velocityX: 1.08,
-    velocityY: 0.82,
+    velocityX: 0.42,
+    velocityY: 0.32,
     x: 0,
     y: 0,
     size: 0,
@@ -78,8 +78,8 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     sizeRatio: 0.46,
     xRatio: 0.72,
     yRatio: 0.04,
-    velocityX: -1,
-    velocityY: 0.92,
+    velocityX: -0.4,
+    velocityY: 0.36,
     x: 0,
     y: 0,
     size: 0,
@@ -93,8 +93,8 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     sizeRatio: 0.44,
     xRatio: 0.58,
     yRatio: 0.7,
-    velocityX: -0.86,
-    velocityY: -0.74,
+    velocityX: -0.34,
+    velocityY: -0.3,
     x: 0,
     y: 0,
     size: 0,
@@ -108,8 +108,8 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     sizeRatio: 0.34,
     xRatio: 0.18,
     yRatio: 0.58,
-    velocityX: 0.78,
-    velocityY: -0.96,
+    velocityX: 0.31,
+    velocityY: -0.38,
     x: 0,
     y: 0,
     size: 0,
@@ -317,18 +317,18 @@ onUnmounted(() => {
           <div class="section-title">数据库导航</div>
           <div class="tree-empty">
             <p>暂无数据库</p>
-            <span>V2 将支持创建和管理你的 MySQL 数据库。</span>
+            <span>你创建的数据库会显示在这里。</span>
           </div>
         </aside>
 
         <section class="workbench-content">
           <section class="hero-panel glass-card">
             <div class="hero-copy">
-              <p class="home-label">V1 工作台地基</p>
+              <p class="home-label">开始使用</p>
               <h2>你的本地 MySQL 控制台已经准备好</h2>
               <p>
-                当前版本已完成安全登录、会话刷新、个人偏好与工作台骨架。
-                下一阶段将从这里接入数据库、表结构和数据浏览。
+                这里会集中展示你的数据库、常用操作和个人资源。
+                后续你可以从这里创建数据库、设计数据表，并浏览表中的数据。
               </p>
               <div class="capability-tags">
                 <span
@@ -362,8 +362,8 @@ onUnmounted(() => {
           <section class="glass-card action-panel feature-panel">
             <div>
               <p class="home-label">快捷入口</p>
-              <h2>下一阶段能力预留</h2>
-              <p>这些入口先保持禁用，等 V2/V3 的数据库和表管理能力接入后逐步点亮。</p>
+              <h2>常用操作</h2>
+              <p>数据库功能完成后，可以从这里快速进入创建、设计、浏览和查询。</p>
             </div>
 
             <div class="quick-actions">
