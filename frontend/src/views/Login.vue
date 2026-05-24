@@ -56,7 +56,6 @@ const handleLogin = async () => {
       password: pwdStr
     });
 
-    ElMessage.success(res.message);
     const { accessToken, user } = res.data as {
       accessToken: string;
       user: AuthUser;

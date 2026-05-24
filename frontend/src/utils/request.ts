@@ -3,6 +3,13 @@ import router from '../router/index'
 import { ElMessage } from "element-plus";
 import { clearAuthState, getAccessToken, setAccessToken } from "./auth";
 
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    silentError?: boolean;
+    _retry?: boolean;
+  }
+}
+
 // 1、创建Axios实例
 const service = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -33,6 +40,7 @@ service.interceptors.response.use(
   (response) => response.data,
   async (error) => {
     const originalRequest = error.config;
+    const isSilentError = Boolean(originalRequest?.silentError);
     const status = error.response?.status;
     const backendMessage = error.response?.data?.message;
 
@@ -46,7 +54,9 @@ service.interceptors.response.use(
       } catch (refreshError) {
         clearAuthState();
         router.push('/login');
-        ElMessage.error('登录状态已失效，请重新登录');
+        if (!isSilentError) {
+          ElMessage.error('登录状态已失效，请重新登录');
+        }
         return Promise.reject(refreshError);
       }
     }
@@ -58,7 +68,10 @@ service.interceptors.response.use(
       router.push('/login');
     }
 
-    ElMessage.error(errorMsg);
+    if (!isSilentError) {
+      ElMessage.error(errorMsg);
+    }
+
     return Promise.reject(error);
   }
 );
