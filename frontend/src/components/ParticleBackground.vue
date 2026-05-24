@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 
+const props = withDefaults(defineProps<{
+  syncTheme?: boolean;
+}>(), {
+  syncTheme: true
+});
+
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 let animationId: number | null = null;
 let handleResize: (() => void) | null = null;
@@ -130,8 +136,9 @@ onMounted(() => {
     // 在 ParticleBackground.vue 的 draw 函数内
     const safeHue = Math.floor((currentHue % 360 + 360) % 360);
 
-    // 🌟 新增：把当前的色相动态写到 CSS 全局变量里
-    document.documentElement.style.setProperty('--theme-hue', safeHue.toString());
+    if (props.syncTheme) {
+      document.documentElement.style.setProperty('--theme-hue', safeHue.toString());
+    }
 
     animationId = requestAnimationFrame(draw);
   };

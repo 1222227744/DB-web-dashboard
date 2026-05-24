@@ -14,6 +14,7 @@ const showParticleBackground = computed(() => {
   <ParticleBackground
     v-if="showParticleBackground"
     class="particle-background"
+    :sync-theme="route.path !== '/home'"
   />
 
   <div class="app-content">
