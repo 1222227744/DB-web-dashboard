@@ -134,12 +134,14 @@
 }
 
 .glass-panel .el-checkbox__input:hover .el-checkbox__inner {
-  border-color: var(--theme-primary) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.16) !important;
 }
 
 .glass-panel .el-checkbox__input.is-checked .el-checkbox__inner {
-  background-color: var(--theme-primary-soft) !important;
-  border-color: var(--theme-primary) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.68) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 
 .glass-panel .el-checkbox__input.is-checked .el-checkbox__inner::after {
