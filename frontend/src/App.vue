@@ -13,6 +13,7 @@ const showParticleBackground = computed(() => {
 <template>
   <ParticleBackground
     v-if="showParticleBackground"
+    :key="route.path"
     class="particle-background"
     :sync-theme="route.path !== '/home'"
   />
