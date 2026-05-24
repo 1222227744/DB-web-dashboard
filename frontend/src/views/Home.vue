@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import request from '../utils/request';
 import { clearAuthState, getAuthUser } from '../utils/auth';
+import { applyPreferences, fetchPreferences, updatePreferences } from '../utils/preferences';
 
 const router = useRouter();
 
 const user = computed(() => getAuthUser());
+const themeHue = ref(210);
+const isPreferenceSaving = ref(false);
 
 const dashboardCards = [
   {
@@ -45,6 +48,38 @@ const handleLogout = async () => {
     router.push('/login');
   }
 };
+
+const loadPreferences = async () => {
+  try {
+    const preferences = await fetchPreferences();
+    themeHue.value = preferences.themeHue;
+    applyPreferences(preferences);
+  } catch {
+    ElMessage.warning('偏好加载失败，已使用默认主题');
+  }
+};
+
+const saveThemeHue = async () => {
+  isPreferenceSaving.value = true;
+
+  try {
+    const preferences = await updatePreferences({
+      themeHue: themeHue.value
+    });
+    applyPreferences(preferences);
+    ElMessage.success('主题偏好已保存');
+  } finally {
+    isPreferenceSaving.value = false;
+  }
+};
+
+const previewThemeHue = () => {
+  document.documentElement.style.setProperty('--theme-hue', String(themeHue.value));
+};
+
+onMounted(() => {
+  void loadPreferences();
+});
 </script>
 
 <template>
@@ -97,6 +132,31 @@ const handleLogout = async () => {
               disabled
             >
               {{ action }}
+            </el-button>
+          </div>
+        </section>
+
+        <section class="glass-card preference-panel">
+          <div>
+            <p class="home-label">个人偏好</p>
+            <h2>主题色</h2>
+            <p>拖动滑块后点击保存，系统会把偏好写入后端。</p>
+          </div>
+
+          <div class="theme-control">
+            <el-slider
+              v-model="themeHue"
+              :min="0"
+              :max="359"
+              :show-tooltip="false"
+              @input="previewThemeHue"
+            />
+            <el-button
+              type="primary"
+              :loading="isPreferenceSaving"
+              @click="saveThemeHue"
+            >
+              保存主题
             </el-button>
           </div>
         </section>
@@ -210,12 +270,18 @@ const handleLogout = async () => {
   font-size: 40px;
 }
 
-.action-panel {
+.action-panel,
+.preference-panel {
   display: flex;
   justify-content: space-between;
   gap: 24px;
   align-items: center;
   padding: 28px;
+}
+
+.preference-panel p {
+  margin-bottom: 0;
+  color: var(--glass-text-muted);
 }
 
 .quick-actions {
@@ -225,15 +291,24 @@ const handleLogout = async () => {
   justify-content: flex-end;
 }
 
+.theme-control {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) auto;
+  gap: 16px;
+  align-items: center;
+}
+
 @media (max-width: 900px) {
   .workbench-topbar,
-  .action-panel {
+  .action-panel,
+  .preference-panel {
     align-items: flex-start;
     flex-direction: column;
   }
 
   .workbench-shell,
-  .dashboard-grid {
+  .dashboard-grid,
+  .theme-control {
     grid-template-columns: 1fr;
   }
 }

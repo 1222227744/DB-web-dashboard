@@ -69,6 +69,36 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       'INSERT INTO users (user_name, account_no, password_hash) VALUES (?, ?, ?)',
       [cleanUserName, accountNo, passwordHash]
     );
+    const [rows] = await pool.query(
+      'SELECT id FROM users WHERE account_no = ? LIMIT 1',
+      [accountNo]
+    );
+    const createdUserID = (rows as Array<{ id: number }>)[0]?.id;
+    if (createdUserID) {
+      await pool.query(
+        'INSERT IGNORE INTO user_profiles (user_id, nickname) VALUES (?, ?)',
+        [createdUserID, cleanUserName]
+      );
+      await pool.query(
+        `INSERT IGNORE INTO user_preferences (
+           user_id,
+           theme_color,
+           background_mode,
+           layout_json,
+           confirm_preferences_json
+         ) VALUES (?, '#409EFF', 'particle', ?, ?)`,
+        [
+          createdUserID,
+          JSON.stringify({ themeMode: 'dark', tablePageSize: 20 }),
+          JSON.stringify({
+            confirmBatchInsert: true,
+            confirmBatchUpdate: true,
+            confirmBatchDelete: true,
+            confirmCascadeDelete: true
+          })
+        ]
+      );
+    }
 
     sendSuccess(res, '注册成功', {
       accountNo,

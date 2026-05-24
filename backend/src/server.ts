@@ -1,5 +1,6 @@
 import express from 'express';
 import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 import cors from 'cors';
 import { env } from './config/env.js';
 import { verifyDatabaseConnection } from './config/db.js';
@@ -25,6 +26,7 @@ app.get('/api/v1/health', (_req, res) => {
 });
 
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
