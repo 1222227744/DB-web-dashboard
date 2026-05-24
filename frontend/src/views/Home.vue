@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../utils/request';
 import { clearAuthState, getAuthUser } from '../utils/auth';
+import {
+  createDatabase,
+  deleteDatabase,
+  fetchDatabases,
+  renameDatabase,
+  type UserDatabase
+} from '../utils/databases';
 import { applyPreferences, fetchPreferences, updatePreferences } from '../utils/preferences';
 
 const router = useRouter();
@@ -10,12 +18,21 @@ const router = useRouter();
 const user = computed(() => getAuthUser());
 const themeHue = ref(210);
 const isPreferenceSaving = ref(false);
+const databases = ref<UserDatabase[]>([]);
+const databaseLimit = ref(10);
+const isDatabaseLoading = ref(false);
+const isCreateDialogVisible = ref(false);
+const isCreatingDatabase = ref(false);
+const newDatabaseName = ref('');
+const editingDatabase = ref<UserDatabase | null>(null);
 
-const dashboardCards = [
+const dashboardCards = computed(() => [
   {
     title: '我的数据库',
-    value: '0',
-    description: '暂未创建数据库'
+    value: String(databases.value.length),
+    description: databases.value.length > 0
+      ? `最多可创建 ${databaseLimit.value} 个`
+      : '暂未创建数据库'
   },
   {
     title: '最近操作',
@@ -27,7 +44,7 @@ const dashboardCards = [
     value: '0 MB',
     description: '暂无上传资源'
   }
-];
+]);
 
 const quickActions = [
   '创建数据库',
@@ -265,8 +282,94 @@ const saveThemeHueOnChange = () => {
   void saveThemeHue();
 };
 
+const formatBytes = (bytes: number) => {
+  if (bytes <= 0) {
+    return '0 MB';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+};
+
+const loadDatabases = async () => {
+  isDatabaseLoading.value = true;
+
+  try {
+    const data = await fetchDatabases();
+    databases.value = data.databases;
+    databaseLimit.value = data.limit;
+  } finally {
+    isDatabaseLoading.value = false;
+  }
+};
+
+const openCreateDatabaseDialog = () => {
+  editingDatabase.value = null;
+  newDatabaseName.value = '';
+  isCreateDialogVisible.value = true;
+};
+
+const openRenameDatabaseDialog = (database: UserDatabase) => {
+  editingDatabase.value = database;
+  newDatabaseName.value = database.name;
+  isCreateDialogVisible.value = true;
+};
+
+const submitCreateDatabase = async () => {
+  const name = newDatabaseName.value.trim();
+
+  if (!name) {
+    ElMessage.warning('请填写数据库名称');
+    return;
+  }
+
+  isCreatingDatabase.value = true;
+
+  try {
+    if (editingDatabase.value) {
+      const database = await renameDatabase(editingDatabase.value.id, name);
+      databases.value = databases.value.map((item) => item.id === database.id ? database : item);
+      ElMessage.success('数据库已重命名');
+    } else {
+      const database = await createDatabase(name);
+      databases.value = [database, ...databases.value];
+      ElMessage.success('数据库已创建');
+    }
+
+    isCreateDialogVisible.value = false;
+  } finally {
+    isCreatingDatabase.value = false;
+  }
+};
+
+const confirmDeleteDatabase = async (database: UserDatabase) => {
+  await ElMessageBox.confirm(
+    `确定删除数据库「${database.name}」吗？删除后当前版本无法恢复。`,
+    '删除数据库',
+    {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      confirmButtonClass: 'danger-confirm-button'
+    }
+  );
+
+  await deleteDatabase(database.id);
+  databases.value = databases.value.filter((item) => item.id !== database.id);
+  ElMessage.success('数据库已删除');
+};
+
 onMounted(() => {
   void loadPreferences();
+  void loadDatabases();
   resetAuroraBlobs();
   window.addEventListener('resize', resizeAuroraBlobs);
   auroraAnimationId = requestAnimationFrame(moveAuroraBlobs);
@@ -321,11 +424,73 @@ onUnmounted(() => {
       </header>
 
       <section class="workbench-shell">
-        <aside class="database-tree glass-card">
-          <div class="section-title">数据库导航</div>
-          <div class="tree-empty">
+        <aside
+          v-loading="isDatabaseLoading"
+          class="database-tree glass-card"
+        >
+          <div class="database-tree-header">
+            <div>
+              <div class="section-title">数据库导航</div>
+              <p>{{ databases.length }} / {{ databaseLimit }}</p>
+            </div>
+            <div class="database-tree-actions">
+              <button
+                class="icon-button"
+                type="button"
+                aria-label="刷新数据库列表"
+                @click="loadDatabases"
+              >
+                ↻
+              </button>
+              <button
+                class="icon-button"
+                type="button"
+                aria-label="创建数据库"
+                @click="openCreateDatabaseDialog"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-if="databases.length === 0"
+            class="tree-empty"
+          >
             <p>暂无数据库</p>
             <span>你创建的数据库会显示在这里。</span>
+          </div>
+
+          <div
+            v-else
+            class="database-list"
+          >
+            <article
+              v-for="database in databases"
+              :key="database.id"
+              class="database-item"
+            >
+              <div>
+                <strong>{{ database.name }}</strong>
+                <span>{{ database.tableCount }} 张表 · {{ formatBytes(database.sizeBytes) }}</span>
+              </div>
+              <div class="database-item-actions">
+                <button
+                  class="database-text-button"
+                  type="button"
+                  @click="openRenameDatabaseDialog(database)"
+                >
+                  重命名
+                </button>
+                <button
+                  class="database-text-button danger"
+                  type="button"
+                  @click="confirmDeleteDatabase(database)"
+                >
+                  删除
+                </button>
+              </div>
+            </article>
           </div>
         </aside>
 
@@ -376,7 +541,14 @@ onUnmounted(() => {
 
             <div class="quick-actions">
               <el-button
-                v-for="action in quickActions"
+                :disabled="false"
+                class="workbench-action-button"
+                @click="openCreateDatabaseDialog"
+              >
+                创建数据库
+              </el-button>
+              <el-button
+                v-for="action in quickActions.slice(1)"
                 :key="action"
                 disabled
                 class="workbench-action-button"
@@ -388,6 +560,35 @@ onUnmounted(() => {
         </section>
       </section>
     </div>
+
+    <el-dialog
+      v-model="isCreateDialogVisible"
+      :title="editingDatabase ? '重命名数据库' : '创建数据库'"
+      width="420px"
+      class="glass-dialog"
+      append-to-body
+    >
+      <div class="create-database-form">
+        <p>数据库名称需以英文字母开头，可包含英文字母、数字和下划线。</p>
+        <el-input
+          v-model="newDatabaseName"
+          maxlength="32"
+          placeholder="例如：course_data"
+          @keyup.enter="submitCreateDatabase"
+        />
+      </div>
+
+      <template #footer>
+        <el-button @click="isCreateDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="isCreatingDatabase"
+          @click="submitCreateDatabase"
+        >
+          {{ editingDatabase ? '保存' : '创建' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </main>
 </template>
 
@@ -664,10 +865,50 @@ onUnmounted(() => {
   padding: clamp(22px, 2vw, 28px);
 }
 
-.section-title {
+.database-tree-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
   margin-bottom: 24px;
+}
+
+.database-tree-header p {
+  margin: 6px 0 0;
+  color: var(--glass-text-muted);
+  font-size: 13px;
+}
+
+.database-tree-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.section-title {
+  margin-bottom: 0;
   font-size: 18px;
   font-weight: 700;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: var(--glass-text-strong);
+  font-size: 22px;
+  line-height: 1;
+  border: 1px solid var(--glass-border-soft);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+  transition: var(--glass-transition);
+}
+
+.icon-button:hover {
+  border-color: hsla(var(--theme-hue), 90%, 72%, 0.42);
+  box-shadow: 0 0 18px hsla(var(--theme-hue), 80%, 62%, 0.2);
+  transform: translateY(-1px);
 }
 
 .tree-empty {
@@ -682,6 +923,66 @@ onUnmounted(() => {
   margin: 0;
   color: var(--glass-text-strong);
   font-size: 20px;
+}
+
+.database-list {
+  display: grid;
+  gap: 12px;
+}
+
+.database-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.database-item strong {
+  display: block;
+  max-width: 150px;
+  overflow: hidden;
+  color: var(--glass-text-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.database-item span {
+  display: block;
+  margin-top: 6px;
+  color: var(--glass-text-muted);
+  font-size: 12px;
+}
+
+.database-item-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.database-text-button {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  color: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: var(--glass-transition);
+}
+
+.database-text-button:hover {
+  color: var(--glass-text-strong);
+  border-color: hsla(var(--theme-hue), 90%, 72%, 0.36);
+}
+
+.database-text-button.danger:hover {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.46);
+  background: rgba(248, 113, 113, 0.1);
 }
 
 .workbench-content {
@@ -881,6 +1182,39 @@ onUnmounted(() => {
   border-color: hsla(var(--theme-hue), 80%, 70%, 0.12) !important;
   background:
     linear-gradient(135deg, hsla(var(--theme-hue), 60%, 55%, 0.08), rgba(255, 255, 255, 0.045)) !important;
+}
+
+.create-database-form p {
+  margin: 0 0 16px;
+  color: var(--glass-text-muted);
+  line-height: 1.7;
+}
+
+:deep(.glass-dialog) {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius-lg);
+  background:
+    linear-gradient(145deg, hsla(var(--theme-hue), 80%, 60%, 0.08), rgba(255, 255, 255, 0.04)),
+    rgba(8, 13, 28, 0.82);
+  box-shadow: var(--glass-shadow-soft);
+  backdrop-filter: blur(16px);
+}
+
+:deep(.glass-dialog .el-dialog__title),
+:deep(.glass-dialog .el-dialog__body) {
+  color: var(--glass-text-strong);
+}
+
+:deep(.glass-dialog .el-input__wrapper) {
+  border: 1px solid var(--glass-border-soft);
+  border-radius: var(--glass-radius-md);
+  background: var(--glass-control-bg);
+  box-shadow: none;
+}
+
+:deep(.danger-confirm-button) {
+  border-color: rgba(248, 113, 113, 0.55) !important;
+  background: rgba(248, 113, 113, 0.24) !important;
 }
 
 @media (max-width: 1280px) {
