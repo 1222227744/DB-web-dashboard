@@ -6,7 +6,7 @@ import ParticleBackground from './components/ParticleBackground.vue';
 const route = useRoute();
 
 const showParticleBackground = computed(() => {
-  return route.path === '/login' || route.path === '/register';
+  return route.path === '/login' || route.path === '/register' || route.path === '/home';
 });
 </script>
 
