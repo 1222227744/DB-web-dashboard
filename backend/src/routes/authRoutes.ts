@@ -1,11 +1,13 @@
 import { Router } from 'express';
-// 稍后我们会去 controller 里写这个具体的函数
-import { register, login } from '../controllers/authController.js'; 
+import { login, logout, me, refresh, register } from '../controllers/authController.js';
+import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 
-// 当收到针对 /register 的 POST 请求时，执行 authController 里的 register 函数
 router.post('/register', register);
-router.post('/login', login)
+router.post('/login', login);
+router.post('/refresh', refresh);
+router.post('/logout', logout);
+router.get('/me', authMiddleware, me);
 
 export default router;
