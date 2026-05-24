@@ -1,19 +1,45 @@
 import express from 'express';
-import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes.js';
-import cors from 'cors'
+import cors from 'cors';
+import { env } from './config/env.js';
+import { verifyDatabaseConnection } from './config/db.js';
+import { errorMiddleware, notFoundMiddleware } from './middlewares/errorMiddleware.js';
 
-// 导入.env中的变量
-dotenv.config();
-// 初始化
 const app = express();
-// 使用中间件来处理json数据
-app.use(cors())
+
+app.use(cors({
+  origin: env.corsOrigin,
+  credentials: true
+}));
 app.use(express.json());
-// 路由挂载：把所有以 /api/v1/auth 开头的请求，都扔给 authRoutes 去分发处理
-app.use('/api/v1/auth', authRoutes);
-// 设定该后端服务跑在哪个端口
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+
+app.get('/api/v1/health', (_req, res) => {
+  res.status(200).json({
+    code: 200,
+    message: 'ok',
+    data: {
+      service: 'DB Application API',
+      env: env.nodeEnv
+    }
+  });
 });
+
+app.use('/api/v1/auth', authRoutes);
+app.use(notFoundMiddleware);
+app.use(errorMiddleware);
+
+const startServer = async (): Promise<void> => {
+  try {
+    await verifyDatabaseConnection();
+    console.log(`✅ 数据库 ${env.dbName} 连接池就绪`);
+
+    app.listen(env.port, () => {
+      console.log(`🚀 Server running on port ${env.port}`);
+    });
+  } catch (error) {
+    console.error('❌ 服务启动失败:', error);
+    process.exit(1);
+  }
+};
+
+void startServer();

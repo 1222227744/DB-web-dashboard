@@ -1,0 +1,21 @@
+export const limits = {
+  maxDatabasesPerUser: 10,
+  maxTablesPerDatabase: 100,
+  maxViewsPerDatabase: 50,
+  maxColumnsPerTable: 80,
+  maxIndexesPerTable: 16,
+  maxUserStorageBytes: 1024 * 1024 * 1024,
+  maxDatabaseStorageBytes: 512 * 1024 * 1024,
+  maxTableStorageBytes: 256 * 1024 * 1024,
+  maxPageSize: 100,
+  maxQueryRows: 1000,
+  maxBatchInsertRows: 500,
+  maxBatchWriteAffectedRows: 200,
+  maxJoinCount: 8,
+  maxSubqueryDepth: 3,
+  maxQueryDurationMs: 10000,
+  maxQueryAstBytes: 64 * 1024,
+  maxAvatarBytes: 2 * 1024 * 1024,
+  maxBackgroundBytes: 8 * 1024 * 1024,
+  maxUserAssetBytes: 100 * 1024 * 1024
+} as const;

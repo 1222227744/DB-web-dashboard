@@ -148,7 +148,7 @@ export const login = async (req: Request, res: Response) => {
                 userID: user.id,
                 accountNo: cleanAccountNo
             },
-            env.jwtSecret,
+            env.jwtAccessSecret,
             { expiresIn: '7d'}  // 设置过期时间
         )
 
