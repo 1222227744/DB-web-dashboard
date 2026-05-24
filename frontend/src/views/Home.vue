@@ -44,12 +44,11 @@ type AuroraBlob = {
   hueOffset: number;
   opacity: number;
   sizeRatio: number;
-  xRatio: number;
-  yRatio: number;
-  velocityX: number;
-  velocityY: number;
+  speed: number;
   x: number;
   y: number;
+  velocityX: number;
+  velocityY: number;
   size: number;
   style: Record<string, string>;
 };
@@ -61,12 +60,11 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     hueOffset: -18,
     opacity: 0.5,
     sizeRatio: 0.48,
-    xRatio: 0.08,
-    yRatio: 0.1,
-    velocityX: 1.9,
-    velocityY: 1.45,
+    speed: 2.4,
     x: 0,
     y: 0,
+    velocityX: 0,
+    velocityY: 0,
     size: 0,
     style: {}
   },
@@ -76,12 +74,11 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     hueOffset: 18,
     opacity: 0.48,
     sizeRatio: 0.46,
-    xRatio: 0.72,
-    yRatio: 0.04,
-    velocityX: -1.78,
-    velocityY: 1.62,
+    speed: 2.42,
     x: 0,
     y: 0,
+    velocityX: 0,
+    velocityY: 0,
     size: 0,
     style: {}
   },
@@ -91,12 +88,11 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     hueOffset: 38,
     opacity: 0.38,
     sizeRatio: 0.44,
-    xRatio: 0.58,
-    yRatio: 0.7,
-    velocityX: -1.54,
-    velocityY: -1.33,
+    speed: 2.04,
     x: 0,
     y: 0,
+    velocityX: 0,
+    velocityY: 0,
     size: 0,
     style: {}
   },
@@ -106,12 +102,11 @@ const auroraBlobs = reactive<AuroraBlob[]>([
     hueOffset: -38,
     opacity: 0.34,
     sizeRatio: 0.34,
-    xRatio: 0.18,
-    yRatio: 0.58,
-    velocityX: 1.38,
-    velocityY: -1.7,
+    speed: 2.2,
     x: 0,
     y: 0,
+    velocityX: 0,
+    velocityY: 0,
     size: 0,
     style: {}
   }
@@ -127,6 +122,18 @@ const getAuroraBounds = () => ({
   height: window.innerHeight,
   base: Math.min(window.innerWidth, window.innerHeight)
 });
+
+const randomInRange = (min: number, max: number) => {
+  return min + Math.random() * (max - min);
+};
+
+const randomizeAuroraVelocity = (blob: AuroraBlob) => {
+  const angle = Math.random() * Math.PI * 2;
+  const speed = blob.speed * randomInRange(0.92, 1.08);
+
+  blob.velocityX = Math.cos(angle) * speed;
+  blob.velocityY = Math.sin(angle) * speed;
+};
 
 const updateAuroraBlobStyle = (blob: AuroraBlob) => {
   const hueExpression = blob.hueOffset >= 0
@@ -149,8 +156,9 @@ const resetAuroraBlobs = () => {
 
   auroraBlobs.forEach((blob) => {
     blob.size = bounds.base * blob.sizeRatio;
-    blob.x = (bounds.width - blob.size) * blob.xRatio;
-    blob.y = (bounds.height - blob.size) * blob.yRatio;
+    blob.x = randomInRange(-blob.size * 0.36, bounds.width - blob.size * 0.64);
+    blob.y = randomInRange(-blob.size * 0.36, bounds.height - blob.size * 0.64);
+    randomizeAuroraVelocity(blob);
     updateAuroraBlobStyle(blob);
   });
 };
