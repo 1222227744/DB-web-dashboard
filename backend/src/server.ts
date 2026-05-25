@@ -5,6 +5,7 @@ import userRoutes from './routes/userRoutes.js';
 import cors from 'cors';
 import { env } from './config/env.js';
 import { verifyDatabaseConnection } from './config/db.js';
+import { ensureSystemSchema } from './config/systemSchema.js';
 import { errorMiddleware, notFoundMiddleware } from './middlewares/errorMiddleware.js';
 
 const app = express();
@@ -36,6 +37,8 @@ const startServer = async (): Promise<void> => {
   try {
     await verifyDatabaseConnection();
     console.log(`✅ 数据库 ${env.dbName} 连接池就绪`);
+    await ensureSystemSchema();
+    console.log('✅ 系统数据表检查完成');
 
     app.listen(env.port, () => {
       console.log(`🚀 Server running on port ${env.port}`);

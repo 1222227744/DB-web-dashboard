@@ -8,7 +8,7 @@ router.use(authMiddleware);
 
 router.get('/', listDatabases);
 router.post('/', createDatabase);
-router.patch('/:databaseID', renameDatabase);
-router.delete('/:databaseID', deleteDatabase);
+router.patch('/:databaseId', renameDatabase);
+router.delete('/:databaseId', deleteDatabase);
 
 export default router;

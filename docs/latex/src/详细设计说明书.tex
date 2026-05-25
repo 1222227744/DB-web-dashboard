@@ -746,7 +746,7 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \NormalTok{1. 校验 displayName 标识符。}
 \NormalTok{2. 检查当前用户数据库数量。}
 \NormalTok{3. 检查当前用户 displayName 是否重复。}
-\NormalTok{4. 生成 physicalName。}
+\NormalTok{4. 生成 schemaName。}
 \NormalTok{5. 执行 CREATE DATABASE。}
 \NormalTok{6. 写入 user\_databases。}
 \NormalTok{7. 写入 audit\_logs。}
@@ -754,25 +754,57 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \end{Highlighting}
 \end{Shaded}
 
+当前落地版本补充：
+
+\begin{itemize}
+\tightlist
+\item
+  创建时真实物理库名格式为
+  \texttt{u\{userId\}\_\{safeDisplayName\}\_\{randomSuffix\}}。
+\item
+  如果随机后缀发生极低概率碰撞，最多重试 5 次。
+\item
+  服务启动会自动检查 \texttt{user\_databases}
+  表，避免开发环境漏执行新版初始化脚本。
+\end{itemize}
+
 补偿策略：
 
 \begin{Shaded}
 \begin{Highlighting}[]
 \NormalTok{如果 CREATE DATABASE 成功但 user\_databases 写入失败：}
-\NormalTok{  {-}\textgreater{} 尝试 DROP DATABASE physicalName}
+\NormalTok{  {-}\textgreater{} 尝试 DROP DATABASE schemaName}
 \NormalTok{  {-}\textgreater{} 记录失败审计}
 \NormalTok{  {-}\textgreater{} 返回系统错误}
 \end{Highlighting}
 \end{Shaded}
 
-\hypertarget{physicalname-ux751fux6210}{%
-\subsubsection{7.2 physicalName 生成}\label{physicalname-ux751fux6210}}
+删除数据库采用二次确认：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  前端要求用户输入完整数据库显示名。
+\item
+  请求体传入 \texttt{confirmation.confirmed=true} 和
+  \texttt{confirmation.confirmText}。
+\item
+  后端先把状态改为 \texttt{deleting}。
+\item
+  删除物理 schema 成功后把状态改为 \texttt{deleted}。
+\item
+  如果物理 schema 删除失败，状态回滚为 \texttt{active}。
+\end{enumerate}
+
+\hypertarget{schemaname-ux751fux6210}{%
+\subsubsection{7.2 schemaName 生成}\label{schemaname-ux751fux6210}}
 
 规则：
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{dbapp\_u\{userID\}\_\{displayName\}\_\{suffix\}}
+\NormalTok{u\{userID\}\_\{displayName\}\_\{suffix\}}
 \end{Highlighting}
 \end{Shaded}
 
@@ -785,7 +817,7 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \item
   \texttt{suffix} 使用短随机字符串，防止重名冲突。
 \item
-  \texttt{physicalName} 不返回前端。
+  \texttt{schemaName} 不返回前端。
 \end{itemize}
 
 \hypertarget{databaseresolver}{%
@@ -1229,7 +1261,7 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \NormalTok{  id}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
 \NormalTok{  userID}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
 \NormalTok{  databaseId}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
-\NormalTok{  physicalName}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  schemaName}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
 \NormalTok{  connectionId}\OperatorTok{:} \DataTypeTok{number}\OperatorTok{;}
 \NormalTok{  status}\OperatorTok{:} \StringTok{\textquotesingle{}active\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}committed\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}rolled\_back\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}expired\textquotesingle{}}\OperatorTok{;}
 \NormalTok{  isolationLevel}\OperatorTok{:} \DataTypeTok{string}\OperatorTok{;}
@@ -1245,7 +1277,7 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \begin{Highlighting}[]
 \NormalTok{1. resolveUserDatabase。}
 \NormalTok{2. 从连接池获取连接。}
-\NormalTok{3. USE \textasciigrave{}physicalName\textasciigrave{}。}
+\NormalTok{3. USE \textasciigrave{}schemaName\textasciigrave{}。}
 \NormalTok{4. SET TRANSACTION ISOLATION LEVEL ...}
 \NormalTok{5. BEGIN。}
 \NormalTok{6. 写入 transaction\_sessions。}
@@ -2461,20 +2493,21 @@ stat\_snapshots & 统计快照表 \\
   \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}所属用户 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  display\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户看到的数据库名称\textquotesingle{}}\NormalTok{,}
-\NormalTok{  physical\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{128}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}MySQL 中真实数据库名称\textquotesingle{}}\NormalTok{,}
-\NormalTok{  charset\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{32}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}utf8mb4\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}字符集\textquotesingle{}}\NormalTok{,}
-\NormalTok{  collation\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}utf8mb4\_unicode\_ci\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}排序规则\textquotesingle{}}\NormalTok{,}
-\NormalTok{  status ENUM(}\StringTok{\textquotesingle{}active\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}deleted\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}active\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}状态\textquotesingle{}}\NormalTok{,}
+\NormalTok{  schema\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{128}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}MySQL 中真实数据库名称\textquotesingle{}}\NormalTok{,}
+\NormalTok{  status ENUM(}\StringTok{\textquotesingle{}active\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}deleting\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}deleted\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}active\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}状态\textquotesingle{}}\NormalTok{,}
+\NormalTok{  table\_count }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \DecValTok{0} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}表数量快照\textquotesingle{}}\NormalTok{,}
+\NormalTok{  size\_bytes BIGINT }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \DecValTok{0} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}容量快照\textquotesingle{}}\NormalTok{,}
 \NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
 \NormalTok{  updated\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{ON} \KeywordTok{UPDATE} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}更新时间\textquotesingle{}}\NormalTok{,}
-\NormalTok{  deleted\_at DATETIME }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}删除时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  deleted\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}删除时间\textquotesingle{}}\NormalTok{,}
 
-  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_user\_database\_display (user\_id, display\_name),}
-  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_user\_database\_physical (physical\_name),}
-  \KeywordTok{INDEX}\NormalTok{ idx\_user\_databases\_user\_status (user\_id, status),}
+  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_user\_databases\_schema\_name (schema\_name),}
+  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_user\_databases\_user\_display\_status (user\_id, display\_name, status),}
+  \KeywordTok{INDEX}\NormalTok{ idx\_user\_databases\_user\_status\_time (user\_id, status, created\_at),}
 
   \KeywordTok{CONSTRAINT}\NormalTok{ fk\_user\_databases\_user}
     \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{)}
+    \KeywordTok{ON} \KeywordTok{DELETE} \KeywordTok{CASCADE}
 \NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户数据库归属表\textquotesingle{}}\NormalTok{;}
 \end{Highlighting}
 \end{Shaded}
@@ -2483,9 +2516,28 @@ stat\_snapshots & 统计快照表 \\
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{dbapp\_u\{userId\}\_\{safeDisplayName\}}
+\NormalTok{u\{userId\}\_\{safeDisplayName\}\_\{randomSuffix\}}
 \end{Highlighting}
 \end{Shaded}
+
+说明：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{schema\_name}
+  只允许后端内部使用，前端和接口响应不返回真实物理库名。
+\item
+  \texttt{status=\textquotesingle{}deleting\textquotesingle{}}
+  表示正在执行物理库删除，用于防止删除失败时状态与 MySQL schema 不一致。
+\item
+  \texttt{table\_count} 和 \texttt{size\_bytes}
+  是快照字段；列表接口优先从 \texttt{information\_schema.tables}
+  读取实时值。
+\item
+  服务启动时会检查并创建
+  \texttt{user\_databases}，避免已有开发库漏执行新版 \texttt{init.sql}。
+\end{itemize}
 
 \hypertarget{transaction_sessions-ux4e8bux52a1ux4f1aux8bddux8868}{%
 \subsection{10. transaction\_sessions
@@ -2898,11 +2950,11 @@ GUI 字段类型清单：
   \begin{itemize}
   \tightlist
   \item
-    \texttt{uk\_user\_display\_name(user\_id,\ display\_name)}：唯一索引；同一用户下数据库显示名唯一。
+    \texttt{uk\_user\_databases\_schema\_name(schema\_name)}：唯一索引；真实物理库名唯一。
   \item
-    \texttt{uk\_physical\_name(physical\_name)}：唯一索引；真实物理库名唯一。
+    \texttt{uk\_user\_databases\_user\_display\_status(user\_id,\ display\_name,\ status)}：唯一索引；同一用户同一状态下数据库显示名唯一。
   \item
-    \texttt{idx\_user\_db\_status(user\_id,\ status)}：普通索引；查询当前用户有效数据库。
+    \texttt{idx\_user\_databases\_user\_status\_time(user\_id,\ status,\ created\_at)}：普通索引；查询当前用户有效数据库并按创建时间排序。
   \end{itemize}
 \item
   \texttt{transaction\_sessions}
@@ -3247,7 +3299,7 @@ Rotation}\label{sec-auth-003-refresh-token-rotation}}
 \end{Highlighting}
 \end{Shaded}
 
-查询 \texttt{user\_databases} 成功后才能获得 \texttt{physical\_name}。
+查询 \texttt{user\_databases} 成功后才能获得 \texttt{schema\_name}。
 
 \hypertarget{sec-authz-003-ux5bf9ux8c61ux5f52ux5c5eux7ee7ux627f}{%
 \subsubsection{SEC-AUTHZ-003
@@ -3304,7 +3356,7 @@ MySQL 用户物理库。
 \begin{itemize}
 \tightlist
 \item
-  数据库真实名来自 \texttt{user\_databases.physical\_name}。
+  数据库真实名来自 \texttt{user\_databases.schema\_name}。
 \item
   表名来自 \texttt{information\_schema.tables}。
 \item

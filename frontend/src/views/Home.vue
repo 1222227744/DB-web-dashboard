@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../utils/request';
 import { clearAuthState, getAuthUser } from '../utils/auth';
 import {
@@ -25,6 +24,13 @@ const isCreateDialogVisible = ref(false);
 const isCreatingDatabase = ref(false);
 const newDatabaseName = ref('');
 const editingDatabase = ref<UserDatabase | null>(null);
+const activeDatabaseID = ref<number | null>(null);
+const databaseError = ref('');
+const databaseNotice = ref('');
+const isDeleteDialogVisible = ref(false);
+const deletingDatabase = ref<UserDatabase | null>(null);
+const deleteConfirmName = ref('');
+const isDeletingDatabase = ref(false);
 
 const dashboardCards = computed(() => [
   {
@@ -40,11 +46,23 @@ const dashboardCards = computed(() => [
     description: '暂无最近操作'
   },
   {
-    title: '个人资源',
-    value: '0 MB',
-    description: '暂无上传资源'
+    title: '数据库容量',
+    value: formatBytes(totalStorageBytes.value),
+    description: '按当前数据库统计'
   }
 ]);
+
+const selectedDatabase = computed(() => {
+  return databases.value.find((database) => database.id === activeDatabaseID.value) ?? databases.value[0] ?? null;
+});
+
+const totalStorageBytes = computed(() => {
+  return databases.value.reduce((total, database) => total + database.sizeBytes, 0);
+});
+
+const isDatabaseLimitReached = computed(() => {
+  return databases.value.length >= databaseLimit.value;
+});
 
 const quickActions = [
   '创建数据库',
@@ -282,6 +300,17 @@ const saveThemeHueOnChange = () => {
   void saveThemeHue();
 };
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const response = (error as { response?: { data?: { message?: unknown } } }).response;
+    if (typeof response?.data?.message === 'string') {
+      return response.data.message;
+    }
+  }
+
+  return fallback;
+};
+
 const formatBytes = (bytes: number) => {
   if (bytes <= 0) {
     return '0 MB';
@@ -301,17 +330,31 @@ const formatBytes = (bytes: number) => {
 
 const loadDatabases = async () => {
   isDatabaseLoading.value = true;
+  databaseError.value = '';
 
   try {
     const data = await fetchDatabases();
-    databases.value = data.databases;
+    databases.value = data.items;
     databaseLimit.value = data.limit;
+
+    if (databases.value.length === 0) {
+      activeDatabaseID.value = null;
+    } else if (!databases.value.some((database) => database.id === activeDatabaseID.value)) {
+      activeDatabaseID.value = databases.value[0].id;
+    }
+  } catch (error) {
+    databaseError.value = getErrorMessage(error, '数据库列表加载失败，请稍后重试。');
   } finally {
     isDatabaseLoading.value = false;
   }
 };
 
 const openCreateDatabaseDialog = () => {
+  if (isDatabaseLimitReached.value) {
+    showDatabaseNotice(`最多只能创建 ${databaseLimit.value} 个数据库`);
+    return;
+  }
+
   editingDatabase.value = null;
   newDatabaseName.value = '';
   isCreateDialogVisible.value = true;
@@ -319,7 +362,7 @@ const openCreateDatabaseDialog = () => {
 
 const openRenameDatabaseDialog = (database: UserDatabase) => {
   editingDatabase.value = database;
-  newDatabaseName.value = database.name;
+  newDatabaseName.value = database.displayName;
   isCreateDialogVisible.value = true;
 };
 
@@ -327,7 +370,7 @@ const submitCreateDatabase = async () => {
   const name = newDatabaseName.value.trim();
 
   if (!name) {
-    ElMessage.warning('请填写数据库名称');
+    showDatabaseNotice('请填写数据库名称');
     return;
   }
 
@@ -337,34 +380,72 @@ const submitCreateDatabase = async () => {
     if (editingDatabase.value) {
       const database = await renameDatabase(editingDatabase.value.id, name);
       databases.value = databases.value.map((item) => item.id === database.id ? database : item);
-      ElMessage.success('数据库已重命名');
+      showDatabaseNotice('数据库已重命名');
     } else {
       const database = await createDatabase(name);
       databases.value = [database, ...databases.value];
-      ElMessage.success('数据库已创建');
+      activeDatabaseID.value = database.id;
+      showDatabaseNotice('数据库已创建');
     }
 
     isCreateDialogVisible.value = false;
+  } catch (error) {
+    showDatabaseNotice(getErrorMessage(error, editingDatabase.value ? '数据库重命名失败' : '数据库创建失败'));
   } finally {
     isCreatingDatabase.value = false;
   }
 };
 
-const confirmDeleteDatabase = async (database: UserDatabase) => {
-  await ElMessageBox.confirm(
-    `确定删除数据库「${database.name}」吗？删除后当前版本无法恢复。`,
-    '删除数据库',
-    {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      confirmButtonClass: 'danger-confirm-button'
-    }
-  );
+const openDeleteDatabaseDialog = (database: UserDatabase) => {
+  deletingDatabase.value = database;
+  deleteConfirmName.value = '';
+  isDeleteDialogVisible.value = true;
+};
 
-  await deleteDatabase(database.id);
-  databases.value = databases.value.filter((item) => item.id !== database.id);
-  ElMessage.success('数据库已删除');
+const confirmDeleteDatabase = async () => {
+  if (!deletingDatabase.value) {
+    return;
+  }
+
+  if (deleteConfirmName.value.trim() !== deletingDatabase.value.displayName) {
+    showDatabaseNotice('请输入完整数据库名称');
+    return;
+  }
+
+  isDeletingDatabase.value = true;
+  const database = deletingDatabase.value;
+
+  try {
+    await deleteDatabase(database.id, deleteConfirmName.value.trim());
+    databases.value = databases.value.filter((item) => item.id !== database.id);
+
+    if (activeDatabaseID.value === database.id) {
+      activeDatabaseID.value = databases.value[0]?.id ?? null;
+    }
+
+    showDatabaseNotice('数据库已删除');
+    isDeleteDialogVisible.value = false;
+    deletingDatabase.value = null;
+  } catch (error) {
+    showDatabaseNotice(getErrorMessage(error, '数据库删除失败'));
+  } finally {
+    isDeletingDatabase.value = false;
+  }
+};
+
+let noticeTimer: number | null = null;
+
+const showDatabaseNotice = (message: string) => {
+  databaseNotice.value = message;
+
+  if (noticeTimer !== null) {
+    window.clearTimeout(noticeTimer);
+  }
+
+  noticeTimer = window.setTimeout(() => {
+    databaseNotice.value = '';
+    noticeTimer = null;
+  }, 2200);
 };
 
 onMounted(() => {
@@ -382,6 +463,10 @@ onUnmounted(() => {
   }
 
   window.removeEventListener('resize', resizeAuroraBlobs);
+
+  if (noticeTimer !== null) {
+    window.clearTimeout(noticeTimer);
+  }
 });
 </script>
 
@@ -446,6 +531,7 @@ onUnmounted(() => {
                 class="icon-button"
                 type="button"
                 aria-label="创建数据库"
+                :disabled="isDatabaseLimitReached"
                 @click="openCreateDatabaseDialog"
               >
                 +
@@ -469,10 +555,15 @@ onUnmounted(() => {
               v-for="database in databases"
               :key="database.id"
               class="database-item"
+              :class="{ active: database.id === selectedDatabase?.id }"
+              role="button"
+              tabindex="0"
+              @click="activeDatabaseID = database.id"
+              @keydown.enter="activeDatabaseID = database.id"
             >
               <div>
-                <strong>{{ database.name }}</strong>
-                <span>{{ database.tableCount }} 张表 · {{ formatBytes(database.sizeBytes) }}</span>
+                <strong>{{ database.displayName }}</strong>
+                <span>{{ database.tableCount }} 张表 · {{ database.viewCount }} 个视图 · {{ formatBytes(database.sizeBytes) }}</span>
               </div>
               <div class="database-item-actions">
                 <button
@@ -485,13 +576,26 @@ onUnmounted(() => {
                 <button
                   class="database-text-button danger"
                   type="button"
-                  @click="confirmDeleteDatabase(database)"
+                  @click.stop="openDeleteDatabaseDialog(database)"
                 >
                   删除
                 </button>
               </div>
             </article>
           </div>
+
+          <p
+            v-if="databaseError"
+            class="database-feedback error"
+          >
+            {{ databaseError }}
+          </p>
+          <p
+            v-else-if="databaseNotice"
+            class="database-feedback"
+          >
+            {{ databaseNotice }}
+          </p>
         </aside>
 
         <section class="workbench-content">
@@ -500,8 +604,8 @@ onUnmounted(() => {
               <p class="home-label">开始使用</p>
               <h2>你的本地 MySQL 控制台已经准备好</h2>
               <p>
-                这里会集中展示你的数据库、常用操作和个人资源。
-                后续你可以从这里创建数据库、设计数据表，并浏览表中的数据。
+                这里会集中展示你的数据库、容量统计和常用操作。
+                当前选中：{{ selectedDatabase?.displayName || '还没有数据库' }}。
               </p>
               <div class="capability-tags">
                 <span
@@ -583,9 +687,43 @@ onUnmounted(() => {
         <el-button
           type="primary"
           :loading="isCreatingDatabase"
+          :disabled="!editingDatabase && isDatabaseLimitReached"
           @click="submitCreateDatabase"
         >
           {{ editingDatabase ? '保存' : '创建' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="isDeleteDialogVisible"
+      title="删除数据库"
+      width="440px"
+      class="glass-dialog"
+      append-to-body
+    >
+      <div class="delete-database-form">
+        <p>
+          删除后当前版本无法恢复。请输入
+          <strong>{{ deletingDatabase?.displayName }}</strong>
+          确认删除。
+        </p>
+        <el-input
+          v-model="deleteConfirmName"
+          placeholder="输入完整数据库名称"
+          @keyup.enter="confirmDeleteDatabase"
+        />
+      </div>
+
+      <template #footer>
+        <el-button @click="isDeleteDialogVisible = false">取消</el-button>
+        <el-button
+          type="danger"
+          :loading="isDeletingDatabase"
+          :disabled="deleteConfirmName.trim() !== deletingDatabase?.displayName"
+          @click="confirmDeleteDatabase"
+        >
+          删除
         </el-button>
       </template>
     </el-dialog>
@@ -911,6 +1049,16 @@ onUnmounted(() => {
   transform: translateY(-1px);
 }
 
+.icon-button:disabled,
+.icon-button:disabled:hover {
+  color: rgba(255, 255, 255, 0.34);
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.025);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .tree-empty {
   display: grid;
   place-items: center;
@@ -939,6 +1087,25 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.045);
+  cursor: pointer;
+  outline: none;
+  transition: var(--glass-transition);
+}
+
+.database-item:hover,
+.database-item:focus-visible {
+  border-color: hsla(var(--theme-hue), 90%, 72%, 0.32);
+  background: hsla(var(--theme-hue), 70%, 58%, 0.08);
+  box-shadow: 0 0 22px hsla(var(--theme-hue), 80%, 62%, 0.12);
+}
+
+.database-item.active {
+  border-color: hsla(var(--theme-hue), 90%, 72%, 0.48);
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 85%, 60%, 0.16), rgba(255, 255, 255, 0.055));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 28px hsla(var(--theme-hue), 85%, 62%, 0.16);
 }
 
 .database-item strong {
@@ -983,6 +1150,23 @@ onUnmounted(() => {
   color: #fecaca;
   border-color: rgba(248, 113, 113, 0.46);
   background: rgba(248, 113, 113, 0.1);
+}
+
+.database-feedback {
+  margin: 16px 0 0;
+  padding: 10px 12px;
+  color: var(--theme-primary-light);
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid hsla(var(--theme-hue), 90%, 72%, 0.2);
+  border-radius: 14px;
+  background: hsla(var(--theme-hue), 80%, 60%, 0.08);
+}
+
+.database-feedback.error {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.32);
+  background: rgba(248, 113, 113, 0.08);
 }
 
 .workbench-content {
@@ -1184,10 +1368,16 @@ onUnmounted(() => {
     linear-gradient(135deg, hsla(var(--theme-hue), 60%, 55%, 0.08), rgba(255, 255, 255, 0.045)) !important;
 }
 
-.create-database-form p {
+.create-database-form p,
+.delete-database-form p {
   margin: 0 0 16px;
   color: var(--glass-text-muted);
   line-height: 1.7;
+}
+
+.delete-database-form strong {
+  color: #fecaca;
+  font-weight: 700;
 }
 
 :deep(.glass-dialog) {
@@ -1212,9 +1402,14 @@ onUnmounted(() => {
   box-shadow: none;
 }
 
-:deep(.danger-confirm-button) {
-  border-color: rgba(248, 113, 113, 0.55) !important;
-  background: rgba(248, 113, 113, 0.24) !important;
+:deep(.glass-dialog .el-button--danger) {
+  border-color: rgba(248, 113, 113, 0.55);
+  background: rgba(248, 113, 113, 0.24);
+}
+
+:deep(.glass-dialog .el-button--danger:hover) {
+  border-color: rgba(248, 113, 113, 0.72);
+  background: rgba(248, 113, 113, 0.34);
 }
 
 @media (max-width: 1280px) {
