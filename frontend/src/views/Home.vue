@@ -572,9 +572,13 @@ onUnmounted(() => {
               @click="activeDatabaseID = database.id"
               @keydown.enter="activeDatabaseID = database.id"
             >
-              <div>
+              <div class="database-item-main">
                 <strong>{{ database.displayName }}</strong>
-                <span>{{ database.tableCount }} 张表 · {{ database.viewCount }} 个视图 · {{ formatBytes(database.sizeBytes) }}</span>
+                <div class="database-item-meta">
+                  <span>{{ database.tableCount }} 张表</span>
+                  <span>{{ database.viewCount }} 个视图</span>
+                  <span>{{ formatBytes(database.sizeBytes) }}</span>
+                </div>
               </div>
               <div class="database-item-actions">
                 <button
@@ -691,7 +695,6 @@ onUnmounted(() => {
           <el-input
             v-model="newDatabaseName"
             maxlength="32"
-            placeholder="例如：course_data"
             :class="{ 'is-error': databaseDialogError }"
             @keyup.enter="submitCreateDatabase"
           />
@@ -1116,8 +1119,8 @@ onUnmounted(() => {
 .database-item {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  align-items: center;
+  gap: 14px;
+  align-items: flex-start;
   padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
@@ -1143,25 +1146,43 @@ onUnmounted(() => {
     0 0 28px hsla(var(--theme-hue), 85%, 62%, 0.16);
 }
 
+.database-item-main {
+  min-width: 0;
+}
+
 .database-item strong {
   display: block;
-  max-width: 150px;
   overflow: hidden;
   color: var(--glass-text-strong);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.database-item span {
-  display: block;
-  margin-top: 6px;
+.database-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.database-item-meta span {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 3px 7px;
   color: var(--glass-text-muted);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.25;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  white-space: nowrap;
 }
 
 .database-item-actions {
   display: flex;
   flex: 0 0 auto;
+  flex-direction: column;
   gap: 8px;
 }
 
@@ -1542,6 +1563,14 @@ onUnmounted(() => {
     position: relative;
     top: auto;
     min-height: auto;
+  }
+
+  .database-item {
+    align-items: center;
+  }
+
+  .database-item-actions {
+    flex-direction: row;
   }
 
   .tree-empty {
