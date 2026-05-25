@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import GlassDialog from '../components/GlassDialog.vue';
 import request from '../utils/request';
 import { clearAuthState, getAuthUser } from '../utils/auth';
 import {
@@ -23,6 +24,7 @@ const isDatabaseLoading = ref(false);
 const isCreateDialogVisible = ref(false);
 const isCreatingDatabase = ref(false);
 const newDatabaseName = ref('');
+const databaseDialogError = ref('');
 const editingDatabase = ref<UserDatabase | null>(null);
 const activeDatabaseID = ref<number | null>(null);
 const databaseError = ref('');
@@ -72,6 +74,7 @@ const quickActions = [
 ];
 
 const capabilityTags = ['安全登录', '主题外观', '个人空间', '数据库管理'];
+const databaseNamePattern = /^[A-Za-z][A-Za-z0-9_]{1,31}$/;
 
 type AuroraBlob = {
   id: string;
@@ -357,20 +360,28 @@ const openCreateDatabaseDialog = () => {
 
   editingDatabase.value = null;
   newDatabaseName.value = '';
+  databaseDialogError.value = '';
   isCreateDialogVisible.value = true;
 };
 
 const openRenameDatabaseDialog = (database: UserDatabase) => {
   editingDatabase.value = database;
   newDatabaseName.value = database.displayName;
+  databaseDialogError.value = '';
   isCreateDialogVisible.value = true;
 };
 
 const submitCreateDatabase = async () => {
   const name = newDatabaseName.value.trim();
+  databaseDialogError.value = '';
 
   if (!name) {
-    showDatabaseNotice('请填写数据库名称');
+    databaseDialogError.value = '请填写数据库名称';
+    return;
+  }
+
+  if (!databaseNamePattern.test(name)) {
+    databaseDialogError.value = '数据库名称需以英文字母开头，只能包含英文字母、数字和下划线，长度为 2 到 32 位';
     return;
   }
 
@@ -390,7 +401,7 @@ const submitCreateDatabase = async () => {
 
     isCreateDialogVisible.value = false;
   } catch (error) {
-    showDatabaseNotice(getErrorMessage(error, editingDatabase.value ? '数据库重命名失败' : '数据库创建失败'));
+    databaseDialogError.value = getErrorMessage(error, editingDatabase.value ? '数据库重命名失败' : '数据库创建失败');
   } finally {
     isCreatingDatabase.value = false;
   }
@@ -665,39 +676,33 @@ onUnmounted(() => {
       </section>
     </div>
 
-    <el-dialog
+    <GlassDialog
       v-model="isCreateDialogVisible"
-      width="min(92vw, 520px)"
-      class="glass-dialog database-dialog"
-      append-to-body
-      :show-close="false"
+      label="DATABASE"
+      :title="editingDatabase ? '重命名数据库' : '创建数据库'"
+      :description="editingDatabase
+        ? '修改工作台中显示的数据库名称，真实 schema 仍由系统安全托管。'
+        : '为当前账号创建一个隔离的本地 MySQL schema，后续表结构和数据都归你自己管理。'"
+      hide-header
     >
       <div class="create-database-form">
-        <header class="dialog-hero">
-          <div class="dialog-orb" aria-hidden="true">
-            <span></span>
-            DB
-          </div>
-          <div>
-            <p class="home-label">DATABASE</p>
-            <h3>{{ editingDatabase ? '重命名数据库' : '创建数据库' }}</h3>
-            <p>
-              {{ editingDatabase
-                ? '修改工作台中显示的数据库名称，真实 schema 仍由系统安全托管。'
-                : '为当前账号创建一个隔离的本地 MySQL schema，后续表结构和数据都归你自己管理。' }}
-            </p>
-          </div>
-        </header>
-
         <label class="dialog-field">
           <span>数据库显示名</span>
           <el-input
             v-model="newDatabaseName"
             maxlength="32"
             placeholder="例如：course_data"
+            :class="{ 'is-error': databaseDialogError }"
             @keyup.enter="submitCreateDatabase"
           />
         </label>
+
+        <p
+          v-if="databaseDialogError"
+          class="dialog-error"
+        >
+          {{ databaseDialogError }}
+        </p>
 
         <div class="dialog-tips">
           <span>以英文字母开头</span>
@@ -725,14 +730,12 @@ onUnmounted(() => {
           </button>
         </div>
       </template>
-    </el-dialog>
+    </GlassDialog>
 
-    <el-dialog
+    <GlassDialog
       v-model="isDeleteDialogVisible"
       title="删除数据库"
       width="440px"
-      class="glass-dialog"
-      append-to-body
     >
       <div class="delete-database-form">
         <p>
@@ -758,7 +761,7 @@ onUnmounted(() => {
           删除
         </el-button>
       </template>
-    </el-dialog>
+    </GlassDialog>
   </main>
 </template>
 
@@ -1411,59 +1414,6 @@ onUnmounted(() => {
   padding: 2px 2px 0;
 }
 
-.dialog-hero {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 18px;
-  align-items: center;
-  margin-bottom: 26px;
-}
-
-.dialog-hero h3 {
-  margin: 0;
-  color: var(--glass-text-strong);
-  font-size: clamp(24px, 4vw, 34px);
-  line-height: 1.08;
-  letter-spacing: -0.04em;
-}
-
-.dialog-hero p:not(.home-label) {
-  max-width: 360px;
-  margin: 12px 0 0;
-  color: var(--glass-text-muted);
-  line-height: 1.8;
-}
-
-.dialog-orb {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 86px;
-  height: 86px;
-  color: var(--glass-text-strong);
-  font-weight: 800;
-  border: 1px solid hsla(var(--theme-hue), 90%, 72%, 0.34);
-  border-radius: 26px;
-  background:
-    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.3), transparent 30%),
-    linear-gradient(135deg, hsla(var(--theme-hue), 86%, 60%, 0.28), rgba(255, 255, 255, 0.055));
-  box-shadow:
-    0 0 34px hsla(var(--theme-hue), 82%, 62%, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  overflow: hidden;
-}
-
-.dialog-orb span {
-  position: absolute;
-  width: 122%;
-  height: 42%;
-  border: 1px solid hsla(var(--theme-hue), 90%, 76%, 0.38);
-  border-radius: 50%;
-  transform: rotate(-12deg);
-  box-shadow: 0 0 18px hsla(var(--theme-hue), 85%, 65%, 0.2);
-}
-
 .dialog-field {
   display: grid;
   gap: 10px;
@@ -1475,6 +1425,24 @@ onUnmounted(() => {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
+}
+
+.dialog-field :deep(.el-input.is-error .el-input__wrapper) {
+  border-color: rgba(248, 113, 113, 0.58) !important;
+  box-shadow:
+    0 0 22px rgba(248, 113, 113, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.dialog-error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  color: #fecaca;
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid rgba(248, 113, 113, 0.32);
+  border-radius: 14px;
+  background: rgba(248, 113, 113, 0.08);
 }
 
 .dialog-tips {
@@ -1544,94 +1512,6 @@ onUnmounted(() => {
 .delete-database-form strong {
   color: #fecaca;
   font-weight: 700;
-}
-
-:deep(.glass-dialog) {
-  overflow: hidden;
-  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.2);
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at 18% 0%, hsla(var(--theme-hue), 86%, 62%, 0.22), transparent 34%),
-    radial-gradient(circle at 86% 18%, hsla(calc(var(--theme-hue) + 34), 86%, 64%, 0.14), transparent 30%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025)),
-    rgba(7, 12, 28, 0.82);
-  box-shadow:
-    0 26px 78px rgba(0, 0, 0, 0.42),
-    0 0 48px hsla(var(--theme-hue), 82%, 62%, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-}
-
-:deep(.database-dialog) {
-  margin-top: 12vh;
-}
-
-:deep(.glass-dialog::before) {
-  position: absolute;
-  inset: 0;
-  content: '';
-  pointer-events: none;
-  background:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.09), transparent 34%),
-    linear-gradient(220deg, transparent 62%, hsla(var(--theme-hue), 80%, 60%, 0.08));
-}
-
-:deep(.database-dialog .el-dialog__header) {
-  display: none;
-}
-
-:deep(.glass-dialog .el-dialog__body) {
-  position: relative;
-  padding: 34px 34px 18px;
-}
-
-:deep(.glass-dialog .el-dialog__footer) {
-  position: relative;
-  padding: 18px 34px 30px;
-}
-
-:deep(.glass-dialog .el-dialog__title),
-:deep(.glass-dialog .el-dialog__body) {
-  color: var(--glass-text-strong);
-}
-
-:deep(.glass-dialog .el-input__wrapper) {
-  min-height: 46px;
-  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.18);
-  border-radius: 16px;
-  background:
-    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.075), rgba(255, 255, 255, 0.055));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
-    0 10px 22px rgba(0, 0, 0, 0.12);
-  transition: var(--glass-transition);
-}
-
-:deep(.glass-dialog .el-input__wrapper:hover),
-:deep(.glass-dialog .el-input__wrapper.is-focus) {
-  border-color: hsla(var(--theme-hue), 90%, 72%, 0.46);
-  box-shadow:
-    0 0 22px hsla(var(--theme-hue), 80%, 62%, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-:deep(.glass-dialog .el-input__inner) {
-  color: var(--glass-text-strong);
-}
-
-:deep(.glass-dialog .el-input__inner::placeholder) {
-  color: var(--glass-placeholder);
-}
-
-:deep(.glass-dialog .el-button--danger) {
-  border-color: rgba(248, 113, 113, 0.55);
-  background: rgba(248, 113, 113, 0.24);
-}
-
-:deep(.glass-dialog .el-button--danger:hover) {
-  border-color: rgba(248, 113, 113, 0.72);
-  background: rgba(248, 113, 113, 0.34);
 }
 
 @media (max-width: 1280px) {
@@ -1712,30 +1592,12 @@ onUnmounted(() => {
     padding: 14px;
   }
 
-  .dialog-hero {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-
-  .dialog-orb {
-    width: 72px;
-    height: 72px;
-  }
-
   .dialog-actions {
     flex-direction: column-reverse;
   }
 
   .dialog-button {
     width: 100%;
-  }
-
-  :deep(.glass-dialog .el-dialog__body) {
-    padding: 28px 22px 14px;
-  }
-
-  :deep(.glass-dialog .el-dialog__footer) {
-    padding: 14px 22px 24px;
   }
 
   .dashboard-grid {
