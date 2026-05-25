@@ -966,15 +966,15 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \begin{itemize}
 \tightlist
 \item
-  分页查询表数据。
+  分页预览表数据。
 \item
   查询字段结构。
 \item
-  校验排序字段。
+  校验筛选字段。
 \item
-  限制 pageSize。
+  限制 limit 和 offset。
 \item
-  返回 columns、items、pagination。
+  返回 columns、rows、total、hasMore 和有限值 facets。
 \end{itemize}
 
 流程：
@@ -985,11 +985,12 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \NormalTok{2. 校验 tableName。}
 \NormalTok{3. metadataService 确认表存在。}
 \NormalTok{4. metadataService 查询字段和主键。}
-\NormalTok{5. 校验 orderBy 是否真实字段。}
-\NormalTok{6. 构造 SELECT。}
+\NormalTok{5. 校验 filters 是否来自真实字段。}
+\NormalTok{6. 构造 SELECT 和 WHERE。}
 \NormalTok{7. 查询 total。}
 \NormalTok{8. 查询分页数据。}
-\NormalTok{9. 返回。}
+\NormalTok{9. 查询有限离散字段候选值。}
+\NormalTok{10. 返回。}
 \end{Highlighting}
 \end{Shaded}
 
@@ -1049,9 +1050,12 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \NormalTok{3. 读取表结构和主键。}
 \NormalTok{4. 校验 primaryKey 完整。}
 \NormalTok{5. 校验 set 字段存在且不是禁止修改字段。}
-\NormalTok{6. 构造 UPDATE ... WHERE pk = ?。}
-\NormalTok{7. 执行更新。}
-\NormalTok{8. 写入审计日志。}
+\NormalTok{6. 检查单表容量限制。}
+\NormalTok{7. 构造 UPDATE ... WHERE pk \textless{}=\textgreater{} ?。}
+\NormalTok{8. 执行更新。}
+\NormalTok{9. 影响行数必须等于 1。}
+\NormalTok{10. 回读最新行数据。}
+\NormalTok{11. 写入审计日志。}
 \end{Highlighting}
 \end{Shaded}
 
@@ -1084,7 +1088,7 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \item
   禁止单行删除。
 \item
-  批量修改/删除必须通过 GUI 条件构造器和二次确认。
+  后续批量修改/删除必须通过 GUI 条件构造器和二次确认。
 \end{itemize}
 
 原因：
@@ -1094,6 +1098,55 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \NormalTok{没有主键就无法稳定定位“用户正在编辑的那一行”}
 \end{Highlighting}
 \end{Shaded}
+
+\hypertarget{v5-ux5f53ux524dux5b9eux73b0ux8303ux56f4}{%
+\subsubsection{9.5 V5
+当前实现范围}\label{v5-ux5f53ux524dux5b9eux73b0ux8303ux56f4}}
+
+V5 已落地接口：
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{GET\ /api/v1/databases/:databaseId/tables/:tableName/preview}：分页预览、字段筛选、有限值
+  facets。
+\item
+  \texttt{POST\ /api/v1/databases/:databaseId/tables/:tableName/rows}：新增单行。
+\item
+  \texttt{PATCH\ /api/v1/databases/:databaseId/tables/:tableName/rows}：基于主键更新单行。
+\item
+  \texttt{DELETE\ /api/v1/databases/:databaseId/tables/:tableName/rows}：基于主键删除单行。
+\end{itemize}
+
+V5 已落地前端交互：
+
+\begin{itemize}
+\tightlist
+\item
+  工作台主区域展示表格预览。
+\item
+  表头筛选留空表示全选，按 Enter 或刷新按钮后请求。
+\item
+  新增行在表格顶部进入草稿态，保存后刷新预览。
+\item
+  行内编辑只修改本地草稿，点击``更新''后才提交。
+\item
+  无主键表只允许浏览和新增，编辑与删除按钮禁用。
+\end{itemize}
+
+后续增强：
+
+\begin{itemize}
+\tightlist
+\item
+  批量新增、批量修改和批量删除。
+\item
+  排序、列显示控制和更完整的分页器。
+\item
+  字符串有限取值约束、枚举式约束与结构管理联动。
+\item
+  数据写操作审计日志的完整落库。
+\end{itemize}
 
 \hypertarget{ux7ed3ux6784ux5316ux67e5ux8be2ux8be6ux7ec6ux8bbeux8ba1}{%
 \subsection{10.
@@ -1691,7 +1744,9 @@ state；当页面状态变复杂时再引入 Pinia。正式设计推荐使用 Pi
 \item
   显示 \texttt{API-ROW-001} 返回的 columns 和 items。
 \item
-  支持分页、排序、列显示控制。
+  显示预览接口返回的 columns、rows、total 和 hasMore。
+\item
+  支持分页预览和字段筛选。
 \item
   支持行内编辑草稿态。
 \item
@@ -1699,7 +1754,9 @@ state；当页面状态变复杂时再引入 Pinia。正式设计推荐使用 Pi
 \item
   支持新增行。
 \item
-  支持批量删除。
+  支持基于主键删除单行。
+\item
+  排序、列显示控制和批量删除作为后续增强。
 \end{itemize}
 
 行状态：
@@ -1960,17 +2017,19 @@ CRUD}\label{phase-5ux8868ux6570ux636e-crud}}
 \begin{itemize}
 \tightlist
 \item
-  分页查询。
+  分页预览和字段筛选。
 \item
-  新增行。
+  单行新增。
 \item
   行内编辑草稿态。
 \item
-  行级更新。
+  基于主键的行级更新。
 \item
-  删除行。
+  基于主键的单行删除。
 \item
-  批量写入限制和二次确认。
+  无主键表浏览、新增和只读保护。
+\item
+  批量写入限制和二次确认作为后续增强。
 \end{itemize}
 
 \hypertarget{phase-6gui-ux67e5ux8be2ux6784ux9020ux5668}{%

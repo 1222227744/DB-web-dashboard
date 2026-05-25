@@ -1,6 +1,15 @@
 import { Router } from 'express';
 import { createDatabase, deleteDatabase, listDatabases, renameDatabase } from '../controllers/databaseController.js';
-import { createTable, deleteTable, getTableSchema, listDatabaseObjects, previewTableRows } from '../controllers/tableController.js';
+import {
+  createTable,
+  createTableRow,
+  deleteTable,
+  deleteTableRow,
+  getTableSchema,
+  listDatabaseObjects,
+  previewTableRows,
+  updateTableRow
+} from '../controllers/tableController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
@@ -13,6 +22,9 @@ router.get('/:databaseId/objects', listDatabaseObjects);
 router.post('/:databaseId/tables', createTable);
 router.get('/:databaseId/tables/:tableName/schema', getTableSchema);
 router.get('/:databaseId/tables/:tableName/preview', previewTableRows);
+router.post('/:databaseId/tables/:tableName/rows', createTableRow);
+router.patch('/:databaseId/tables/:tableName/rows', updateTableRow);
+router.delete('/:databaseId/tables/:tableName/rows', deleteTableRow);
 router.delete('/:databaseId/tables/:tableName', deleteTable);
 router.patch('/:databaseId', renameDatabase);
 router.delete('/:databaseId', deleteDatabase);

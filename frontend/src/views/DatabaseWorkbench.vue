@@ -6,15 +6,20 @@ import { fetchDatabases, type UserDatabase } from '../utils/databases';
 import { applyPreferences, fetchPreferences } from '../utils/preferences';
 import {
   createTable,
+  createTableRow,
   deleteTable,
+  deleteTableRow,
   fetchDatabaseObjects,
   fetchTablePreview,
   fetchTableSchema,
+  updateTableRow,
   type CreateTablePayload,
   type DatabaseObject,
   type TableColumnInput,
+  type TableColumnSchema,
   type TablePreviewData,
   type TablePreviewFilter,
+  type TablePrimaryKey,
   type TableSchema
 } from '../utils/tables';
 
@@ -35,6 +40,12 @@ type ColumnFilterDraft = {
   value: string;
 };
 
+type RowDraft = {
+  original: Record<string, unknown>;
+  values: Record<string, string>;
+  isEditing: boolean;
+};
+
 const route = useRoute();
 const router = useRouter();
 
@@ -47,9 +58,11 @@ const isDatabaseLoading = ref(false);
 const isObjectLoading = ref(false);
 const isSchemaLoading = ref(false);
 const isPreviewLoading = ref(false);
+const isRowSaving = ref(false);
 const tableError = ref('');
 const tableNotice = ref('');
 const previewError = ref('');
+const rowError = ref('');
 const isCreateTableDialogVisible = ref(false);
 const isCreatingTable = ref(false);
 const tableDialogError = ref('');
@@ -63,6 +76,11 @@ const isDeletingTable = ref(false);
 const isSchemaDialogVisible = ref(false);
 const tablePreview = ref<TablePreviewData | null>(null);
 const columnFilters = ref<Record<string, ColumnFilterDraft>>({});
+const rowDrafts = ref<Record<string, RowDraft>>({});
+const newRowValues = ref<Record<string, string>>({});
+const isNewRowVisible = ref(false);
+const isDeleteRowDialogVisible = ref(false);
+const deletingRow = ref<Record<string, unknown> | null>(null);
 
 const sqlIdentifierPattern = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 const supportedTableTypes = ['INT', 'BIGINT', 'VARCHAR', 'TEXT', 'DATETIME', 'DATE', 'BOOLEAN', 'DECIMAL', 'JSON'];
@@ -94,6 +112,23 @@ const previewColumns = computed(() => tablePreview.value?.columns ?? []);
 const previewRows = computed(() => tablePreview.value?.rows ?? []);
 const previewOffset = computed(() => tablePreview.value?.offset ?? 0);
 const previewLoadedCount = computed(() => previewOffset.value + previewRows.value.length);
+const primaryKeyColumns = computed(() => previewColumns.value.filter((column) => column.key === 'PRI'));
+const hasPrimaryKey = computed(() => primaryKeyColumns.value.length > 0);
+const insertableColumns = computed(() => previewColumns.value.filter((column) => !column.extra.includes('auto_increment')));
+const updatableColumns = computed(() => {
+  return previewColumns.value.filter((column) => !column.extra.includes('auto_increment') && column.key !== 'PRI');
+});
+const canInsertRows = computed(() => Boolean(selectedDatabase.value && selectedTableName.value && insertableColumns.value.length > 0));
+const canEditRows = computed(() => Boolean(selectedDatabase.value && selectedTableName.value && hasPrimaryKey.value && updatableColumns.value.length > 0));
+const deletingRowPrimaryKeyText = computed(() => {
+  if (!deletingRow.value || primaryKeyColumns.value.length === 0) {
+    return '';
+  }
+
+  return primaryKeyColumns.value
+    .map((column) => `${column.name}=${formatCellValue(deletingRow.value?.[column.name])}`)
+    .join('，');
+});
 
 const loadPreferences = async () => {
   try {
@@ -237,7 +272,7 @@ const loadSelectedTablePreview = async (options: { append?: boolean } = {}) => {
       filters: buildPreviewFilters()
     });
 
-    tablePreview.value = options.append && tablePreview.value
+    const nextPreview = options.append && tablePreview.value
       ? {
           ...preview,
           rows: [...tablePreview.value.rows, ...preview.rows],
@@ -245,7 +280,8 @@ const loadSelectedTablePreview = async (options: { append?: boolean } = {}) => {
         }
       : preview;
 
-    syncColumnFilters(preview);
+    tablePreview.value = nextPreview;
+    syncColumnFilters(nextPreview);
   } catch (error) {
     if (!options.append) {
       tablePreview.value = null;
@@ -278,10 +314,40 @@ const syncColumnFilters = (preview: TablePreviewData) => {
   });
 
   columnFilters.value = nextFilters;
+  syncRowDrafts(preview.rows);
+  syncNewRowValues(preview.columns);
 };
 
 const resetPreviewFilters = () => {
   columnFilters.value = {};
+};
+
+const syncRowDrafts = (rows: Array<Record<string, unknown>>) => {
+  const nextDrafts: Record<string, RowDraft> = {};
+
+  rows.forEach((row, index) => {
+    const rowKey = getRowKey(row, index);
+    const existing = rowDrafts.value[rowKey];
+    nextDrafts[rowKey] = existing?.isEditing
+      ? existing
+      : {
+          original: row,
+          values: rowToDraftValues(row),
+          isEditing: false
+        };
+  });
+
+  rowDrafts.value = nextDrafts;
+};
+
+const syncNewRowValues = (columns = previewColumns.value) => {
+  const nextValues: Record<string, string> = {};
+
+  columns.forEach((column) => {
+    nextValues[column.name] = newRowValues.value[column.name] ?? '';
+  });
+
+  newRowValues.value = nextValues;
 };
 
 const applyPreviewFilter = () => {
@@ -319,6 +385,259 @@ const formatCellValue = (value: unknown) => {
 
 const formatFacetValue = (value: string | number | boolean | null) => {
   return value === null ? 'NULL' : String(value);
+};
+
+const isColumnInsertable = (column: TableColumnSchema) => {
+  return !column.extra.includes('auto_increment');
+};
+
+const isColumnUpdatable = (column: TableColumnSchema) => {
+  return !column.extra.includes('auto_increment') && column.key !== 'PRI';
+};
+
+const getRowKey = (row: Record<string, unknown>, index: number) => {
+  if (primaryKeyColumns.value.length === 0) {
+    return `row-${index}`;
+  }
+
+  return primaryKeyColumns.value
+    .map((column) => `${column.name}:${String(row[column.name])}`)
+    .join('|');
+};
+
+const rowToDraftValues = (row: Record<string, unknown>) => {
+  return Object.fromEntries(previewColumns.value.map((column) => [
+    column.name,
+    row[column.name] === null || row[column.name] === undefined ? '' : String(row[column.name])
+  ]));
+};
+
+const buildPrimaryKeyFromRow = (row: Record<string, unknown>): TablePrimaryKey => {
+  return Object.fromEntries(primaryKeyColumns.value.map((column) => [column.name, row[column.name]]));
+};
+
+const buildRowPayload = (
+  values: Record<string, string>,
+  columns: TableColumnSchema[],
+  options: {
+    onlyChanged?: Record<string, unknown>;
+    skipEmpty?: boolean;
+  } = {}
+) => {
+  const payload: Record<string, unknown> = {};
+
+  columns.forEach((column) => {
+    const value = values[column.name] ?? '';
+    const originalValue = options.onlyChanged?.[column.name];
+
+    if (options.skipEmpty && value === '') {
+      return;
+    }
+
+    if (options.onlyChanged && value === (originalValue === null || originalValue === undefined ? '' : String(originalValue))) {
+      return;
+    }
+
+    payload[column.name] = value === '' ? null : value;
+  });
+
+  return payload;
+};
+
+const isRowEditing = (row: Record<string, unknown>, rowIndex: number) => {
+  return Boolean(rowDrafts.value[getRowKey(row, rowIndex)]?.isEditing);
+};
+
+const getDraftValue = (row: Record<string, unknown>, rowIndex: number, columnName: string) => {
+  const rowKey = getRowKey(row, rowIndex);
+  return rowDrafts.value[rowKey]?.values[columnName] ?? '';
+};
+
+const updateDraftValue = (row: Record<string, unknown>, rowIndex: number, columnName: string, value: string) => {
+  const rowKey = getRowKey(row, rowIndex);
+  const draft = rowDrafts.value[rowKey];
+
+  if (!draft) {
+    return;
+  }
+
+  draft.values[columnName] = value;
+};
+
+const updateDraftInputValue = (
+  row: Record<string, unknown>,
+  rowIndex: number,
+  columnName: string,
+  value: string | number
+) => {
+  updateDraftValue(row, rowIndex, columnName, String(value));
+};
+
+const handleNewRowInputEnter = () => {
+  void submitNewRow();
+};
+
+const handleEditRowInputEnter = (row: Record<string, unknown>, rowIndex: number) => {
+  void submitEditRow(row, rowIndex);
+};
+
+const showNewRowEditor = () => {
+  if (!canInsertRows.value) {
+    showTableNotice('当前表没有可手动填写的字段');
+    return;
+  }
+
+  rowError.value = '';
+  syncNewRowValues();
+  isNewRowVisible.value = true;
+};
+
+const cancelNewRow = () => {
+  rowError.value = '';
+  isNewRowVisible.value = false;
+  syncNewRowValues();
+};
+
+const startEditRow = (row: Record<string, unknown>, rowIndex: number) => {
+  if (!hasPrimaryKey.value) {
+    showTableNotice('无主键表暂不支持行内编辑');
+    return;
+  }
+
+  if (updatableColumns.value.length === 0) {
+    showTableNotice('当前表没有可修改字段');
+    return;
+  }
+
+  const rowKey = getRowKey(row, rowIndex);
+  rowDrafts.value[rowKey] = {
+    original: row,
+    values: rowToDraftValues(row),
+    isEditing: true
+  };
+};
+
+const cancelEditRow = (row: Record<string, unknown>, rowIndex: number) => {
+  const rowKey = getRowKey(row, rowIndex);
+  rowDrafts.value[rowKey] = {
+    original: row,
+    values: rowToDraftValues(row),
+    isEditing: false
+  };
+  rowError.value = '';
+};
+
+const submitEditRow = async (row: Record<string, unknown>, rowIndex: number) => {
+  if (!selectedDatabase.value || !selectedTableName.value) {
+    return;
+  }
+
+  const rowKey = getRowKey(row, rowIndex);
+  const draft = rowDrafts.value[rowKey];
+
+  if (!draft) {
+    return;
+  }
+
+  const payload = buildRowPayload(draft.values, updatableColumns.value, {
+    onlyChanged: draft.original
+  });
+
+  if (Object.keys(payload).length === 0) {
+    cancelEditRow(row, rowIndex);
+    return;
+  }
+
+  isRowSaving.value = true;
+  rowError.value = '';
+
+  try {
+    await updateTableRow(selectedDatabase.value.id, selectedTableName.value, buildPrimaryKeyFromRow(draft.original), payload);
+    showTableNotice('行已更新');
+    await loadSelectedTablePreview();
+  } catch (error) {
+    rowError.value = getErrorMessage(error, '行更新失败');
+  } finally {
+    isRowSaving.value = false;
+  }
+};
+
+const submitNewRow = async () => {
+  if (!selectedDatabase.value || !selectedTableName.value) {
+    return;
+  }
+
+  const payload = buildRowPayload(newRowValues.value, insertableColumns.value, {
+    skipEmpty: true
+  });
+
+  if (Object.keys(payload).length === 0) {
+    rowError.value = '请至少填写一个字段';
+    return;
+  }
+
+  isRowSaving.value = true;
+  rowError.value = '';
+
+  try {
+    await createTableRow(selectedDatabase.value.id, selectedTableName.value, payload);
+    showTableNotice('行已新增');
+    isNewRowVisible.value = false;
+    syncNewRowValues();
+    await loadSelectedTablePreview();
+  } catch (error) {
+    rowError.value = getErrorMessage(error, '新增行失败');
+  } finally {
+    isRowSaving.value = false;
+  }
+};
+
+const removeRow = async (row: Record<string, unknown>) => {
+  if (!selectedDatabase.value || !selectedTableName.value) {
+    return;
+  }
+
+  if (!hasPrimaryKey.value) {
+    showTableNotice('无主键表暂不支持删除行');
+    return;
+  }
+
+  isRowSaving.value = true;
+  rowError.value = '';
+
+  try {
+    await deleteTableRow(selectedDatabase.value.id, selectedTableName.value, buildPrimaryKeyFromRow(row));
+    showTableNotice('行已删除');
+    await loadSelectedTablePreview();
+  } catch (error) {
+    rowError.value = getErrorMessage(error, '删除行失败');
+  } finally {
+    isRowSaving.value = false;
+  }
+};
+
+const openDeleteRowDialog = (row: Record<string, unknown>) => {
+  if (!hasPrimaryKey.value) {
+    showTableNotice('无主键表暂不支持删除行');
+    return;
+  }
+
+  deletingRow.value = row;
+  rowError.value = '';
+  isDeleteRowDialogVisible.value = true;
+};
+
+const confirmDeleteRow = async () => {
+  if (!deletingRow.value) {
+    return;
+  }
+
+  await removeRow(deletingRow.value);
+
+  if (!rowError.value) {
+    deletingRow.value = null;
+    isDeleteRowDialogVisible.value = false;
+  }
 };
 
 const createDraftColumn = (overrides: Partial<DraftColumn> = {}): DraftColumn => ({
@@ -532,6 +851,8 @@ const normalizeDraftDefaultValue = (value: string, type: string): string | numbe
 
 const selectTable = (table: DatabaseObject) => {
   resetPreviewFilters();
+  rowError.value = '';
+  isNewRowVisible.value = false;
 
   if (selectedTableName.value === table.name) {
     void loadSelectedTablePreview();
@@ -752,6 +1073,14 @@ onMounted(() => {
                 </div>
                 <div class="table-workbench-actions">
                   <button
+                    class="dialog-button primary"
+                    type="button"
+                    :disabled="!canInsertRows || isRowSaving"
+                    @click="showNewRowEditor"
+                  >
+                    新增行
+                  </button>
+                  <button
                     class="dialog-button"
                     type="button"
                     :disabled="isSchemaLoading"
@@ -770,85 +1099,212 @@ onMounted(() => {
                 </div>
               </div>
 
-              <p
-                v-if="previewError"
-                class="database-feedback error"
-              >
-                {{ previewError }}
-              </p>
+              <template v-if="previewError">
+                <p class="database-feedback error">
+                  {{ previewError }}
+                </p>
+              </template>
 
-              <div
-                v-else-if="previewColumns.length === 0"
-                class="table-empty compact"
-              >
-                <strong>暂无字段</strong>
-                <span>这张表还没有可预览的列。</span>
-              </div>
+              <template v-else>
+                <div
+                  v-if="!hasPrimaryKey && previewColumns.length > 0"
+                  class="row-mode-notice"
+                >
+                  <span>无主键表</span>
+                  <p>当前版本允许新增和筛选浏览；因为缺少稳定行定位，行级编辑和删除暂时锁定。</p>
+                </div>
 
-              <div
-                v-else
-                class="preview-table-shell"
-              >
-                <table class="preview-table">
-                  <thead>
-                    <tr>
-                      <th
-                        v-for="column in previewColumns"
-                        :key="column.name"
-                      >
-                        <div class="preview-column-head">
-                          <strong>{{ column.name }}</strong>
-                          <span>{{ column.columnType }}</span>
-                          <el-select
-                            v-if="tablePreview?.facets[column.name]"
-                            v-model="columnFilters[column.name].value"
-                            clearable
-                            filterable
-                            placeholder=""
-                            size="small"
-                            @keyup.enter="applyPreviewFilter"
-                          >
-                            <el-option
-                              v-for="value in tablePreview.facets[column.name]"
-                              :key="`${column.name}-${formatFacetValue(value)}`"
-                              :label="formatFacetValue(value)"
-                              :value="formatFacetValue(value)"
+                <p
+                  v-if="rowError"
+                  class="database-feedback error"
+                >
+                  {{ rowError }}
+                </p>
+
+                <div
+                  v-if="previewColumns.length === 0"
+                  class="table-empty compact"
+                >
+                  <strong>暂无字段</strong>
+                  <span>这张表还没有可预览的列。</span>
+                </div>
+
+                <div
+                  v-else
+                  class="preview-table-shell"
+                >
+                  <table class="preview-table">
+                    <thead>
+                      <tr>
+                        <th class="preview-action-column">
+                          操作
+                        </th>
+                        <th
+                          v-for="column in previewColumns"
+                          :key="column.name"
+                        >
+                          <div class="preview-column-head">
+                            <strong>{{ column.name }}</strong>
+                            <span>{{ column.columnType }}</span>
+                            <el-select
+                              v-if="tablePreview?.facets[column.name]"
+                              v-model="columnFilters[column.name].value"
+                              clearable
+                              filterable
+                              placeholder=""
+                              size="small"
+                              @keyup.enter="applyPreviewFilter"
+                            >
+                              <el-option
+                                v-for="value in tablePreview.facets[column.name]"
+                                :key="`${column.name}-${formatFacetValue(value)}`"
+                                :label="formatFacetValue(value)"
+                                :value="formatFacetValue(value)"
+                              />
+                            </el-select>
+                            <el-input
+                              v-else
+                              v-model="columnFilters[column.name].value"
+                              clearable
+                              size="small"
+                              placeholder=""
+                              @keyup.enter="applyPreviewFilter"
                             />
-                          </el-select>
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-if="isNewRowVisible"
+                        class="new-row-line"
+                      >
+                        <td class="preview-action-column row-action-cell">
+                          <div class="row-actions">
+                            <button
+                              class="row-action-button primary"
+                              type="button"
+                              :disabled="isRowSaving"
+                              @click="submitNewRow"
+                            >
+                              保存新增
+                            </button>
+                            <button
+                              class="row-action-button"
+                              type="button"
+                              :disabled="isRowSaving"
+                              @click="cancelNewRow"
+                            >
+                              取消
+                            </button>
+                          </div>
+                        </td>
+                        <td
+                          v-for="column in previewColumns"
+                          :key="column.name"
+                        >
                           <el-input
-                            v-else
-                            v-model="columnFilters[column.name].value"
-                            clearable
+                            v-if="isColumnInsertable(column)"
+                            v-model="newRowValues[column.name]"
+                            class="cell-editor"
                             size="small"
                             placeholder=""
-                            @keyup.enter="applyPreviewFilter"
+                            @keyup.enter="handleNewRowInputEnter"
                           />
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-if="previewRows.length === 0">
-                      <td :colspan="previewColumns.length">
-                        <div class="preview-empty-cell">暂无匹配数据</div>
-                      </td>
-                    </tr>
-                    <tr
-                      v-for="(row, rowIndex) in previewRows"
-                      :key="rowIndex"
-                    >
-                      <td
-                        v-for="column in previewColumns"
-                        :key="column.name"
+                          <span
+                            v-else
+                            class="readonly-cell"
+                          >
+                            自动生成
+                          </span>
+                        </td>
+                      </tr>
+
+                      <tr v-if="previewRows.length === 0 && !isNewRowVisible">
+                        <td :colspan="previewColumns.length + 1">
+                          <div class="preview-empty-cell">暂无匹配数据</div>
+                        </td>
+                      </tr>
+                      <tr
+                        v-for="(row, rowIndex) in previewRows"
+                        :key="getRowKey(row, rowIndex)"
+                        :class="{ 'is-editing-row': isRowEditing(row, rowIndex) }"
                       >
-                        <span :class="{ 'null-cell': row[column.name] === null || row[column.name] === undefined }">
-                          {{ formatCellValue(row[column.name]) }}
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                        <td class="preview-action-column row-action-cell">
+                          <div
+                            v-if="isRowEditing(row, rowIndex)"
+                            class="row-actions"
+                          >
+                            <button
+                              class="row-action-button primary"
+                              type="button"
+                              :disabled="isRowSaving"
+                              @click="submitEditRow(row, rowIndex)"
+                            >
+                              更新
+                            </button>
+                            <button
+                              class="row-action-button"
+                              type="button"
+                              :disabled="isRowSaving"
+                              @click="cancelEditRow(row, rowIndex)"
+                            >
+                              撤销
+                            </button>
+                          </div>
+                          <div
+                            v-else
+                            class="row-actions"
+                          >
+                            <button
+                              class="row-action-button"
+                              type="button"
+                              :disabled="!canEditRows || isRowSaving"
+                              @click="startEditRow(row, rowIndex)"
+                            >
+                              编辑
+                            </button>
+                            <button
+                              class="row-action-button danger"
+                              type="button"
+                              :disabled="!hasPrimaryKey || isRowSaving"
+                              @click="openDeleteRowDialog(row)"
+                            >
+                              删除
+                            </button>
+                          </div>
+                        </td>
+                        <td
+                          v-for="column in previewColumns"
+                          :key="column.name"
+                        >
+                          <el-input
+                            v-if="isRowEditing(row, rowIndex) && isColumnUpdatable(column)"
+                            class="cell-editor"
+                            size="small"
+                            :model-value="getDraftValue(row, rowIndex, column.name)"
+                            placeholder=""
+                            @update:model-value="updateDraftInputValue(row, rowIndex, column.name, $event)"
+                            @keyup.enter="handleEditRowInputEnter(row, rowIndex)"
+                          />
+                          <span
+                            v-else
+                            :class="{ 'null-cell': row[column.name] === null || row[column.name] === undefined }"
+                          >
+                            {{ formatCellValue(row[column.name]) }}
+                          </span>
+                          <em
+                            v-if="isRowEditing(row, rowIndex) && !isColumnUpdatable(column)"
+                            class="cell-lock-tip"
+                          >
+                            只读定位
+                          </em>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </template>
 
               <div
                 v-if="tablePreview?.hasMore"
@@ -1228,6 +1684,46 @@ onMounted(() => {
         </el-button>
       </template>
     </GlassDialog>
+
+    <GlassDialog
+      v-model="isDeleteRowDialogVisible"
+      title="删除行数据"
+      width="440px"
+    >
+      <div class="delete-table-form">
+        <p>
+          即将删除当前行。定位主键：
+          <strong>{{ deletingRowPrimaryKeyText || '未识别' }}</strong>
+        </p>
+        <p
+          v-if="rowError"
+          class="dialog-error"
+        >
+          {{ rowError }}
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <button
+            class="dialog-button ghost"
+            type="button"
+            :disabled="isRowSaving"
+            @click="isDeleteRowDialogVisible = false"
+          >
+            取消
+          </button>
+          <button
+            class="dialog-button danger"
+            type="button"
+            :disabled="isRowSaving"
+            @click="confirmDeleteRow"
+          >
+            {{ isRowSaving ? '删除中…' : '确认删除' }}
+          </button>
+        </div>
+      </template>
+    </GlassDialog>
   </main>
 </template>
 
@@ -1594,6 +2090,35 @@ onMounted(() => {
   min-width: 136px;
 }
 
+.row-mode-notice {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  color: var(--glass-text-muted);
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.16);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 0% 50%, hsla(var(--theme-hue), 82%, 60%, 0.14), transparent 38%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.row-mode-notice span {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  color: var(--theme-primary-light);
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.22);
+  border-radius: 999px;
+  background: hsla(var(--theme-hue), 80%, 60%, 0.08);
+}
+
+.row-mode-notice p {
+  margin: 0;
+  line-height: 1.6;
+}
+
 .preview-table-shell {
   overflow: auto;
   max-height: min(58vh, 660px);
@@ -1621,6 +2146,21 @@ onMounted(() => {
   vertical-align: top;
 }
 
+.preview-table .preview-action-column {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  width: 132px;
+  min-width: 132px;
+  max-width: 132px;
+}
+
+.preview-table td.preview-action-column {
+  background: rgba(7, 12, 28, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 .preview-table th {
   position: sticky;
   top: 0;
@@ -1629,6 +2169,10 @@ onMounted(() => {
     linear-gradient(135deg, hsla(var(--theme-hue), 80%, 24%, 0.86), rgba(7, 12, 28, 0.9));
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+}
+
+.preview-table th.preview-action-column {
+  z-index: 4;
 }
 
 .preview-table td {
@@ -1640,6 +2184,59 @@ onMounted(() => {
 
 .preview-table tbody tr:hover td {
   background: hsla(var(--theme-hue), 80%, 60%, 0.065);
+}
+
+.preview-table tbody tr.is-editing-row td,
+.preview-table tbody tr.new-row-line td {
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.12), rgba(255, 255, 255, 0.045));
+}
+
+.row-action-cell {
+  overflow: visible !important;
+  white-space: normal !important;
+}
+
+.row-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.row-action-button {
+  min-height: 30px;
+  padding: 0 10px;
+  color: var(--glass-text);
+  font-size: 12px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  cursor: pointer;
+  transition: var(--glass-transition);
+}
+
+.row-action-button:hover:not(:disabled) {
+  color: var(--glass-text-strong);
+  border-color: hsla(var(--theme-hue), 90%, 72%, 0.38);
+  background: hsla(var(--theme-hue), 80%, 60%, 0.12);
+}
+
+.row-action-button.primary {
+  color: var(--glass-text-strong);
+  border-color: hsla(var(--theme-hue), 90%, 72%, 0.36);
+  background: hsla(var(--theme-hue), 80%, 60%, 0.18);
+}
+
+.row-action-button.danger:hover:not(:disabled) {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.46);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.row-action-button:disabled {
+  color: rgba(255, 255, 255, 0.36);
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: not-allowed;
 }
 
 .preview-column-head {
@@ -1678,6 +2275,30 @@ onMounted(() => {
 .null-cell {
   color: rgba(255, 255, 255, 0.36);
   font-style: italic;
+}
+
+.readonly-cell,
+.cell-lock-tip {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+}
+
+.cell-lock-tip {
+  display: block;
+  margin-top: 4px;
+  font-style: normal;
+}
+
+.cell-editor {
+  min-width: 150px;
+}
+
+.cell-editor :deep(.el-input__wrapper) {
+  min-height: 30px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07) !important;
+  box-shadow: none !important;
 }
 
 .preview-empty-cell {
@@ -1919,6 +2540,14 @@ onMounted(() => {
   background:
     radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.22), transparent 26%),
     linear-gradient(135deg, hsla(var(--theme-hue), 84%, 60%, 0.32), hsla(calc(var(--theme-hue) + 28), 80%, 58%, 0.16));
+}
+
+.dialog-button.danger {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.34);
+  background:
+    radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.16), transparent 26%),
+    linear-gradient(135deg, rgba(248, 113, 113, 0.18), rgba(127, 29, 29, 0.08));
 }
 
 .dialog-button:disabled {

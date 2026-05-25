@@ -67,6 +67,19 @@ type CreateTableBody = {
   indexes?: unknown;
 };
 
+type CreateRowBody = {
+  row?: unknown;
+};
+
+type UpdateRowBody = {
+  primaryKey?: unknown;
+  set?: unknown;
+};
+
+type DeleteRowBody = {
+  primaryKey?: unknown;
+};
+
 type DeleteTableBody = {
   confirmation?: {
     confirmed?: unknown;
@@ -115,6 +128,15 @@ type ConstraintSchemaRow = {
 
 type TableCountRow = {
   total: number;
+};
+
+type InsertResult = {
+  insertId?: number;
+  affectedRows?: number;
+};
+
+type ResultHeader = {
+  affectedRows?: number;
 };
 
 type DistinctValueRow = {
@@ -338,6 +360,119 @@ export const previewTableRows = async (
     });
   } catch (error) {
     next(error);
+  }
+};
+
+export const createTableRow = async (
+  req: Request<TableParams, unknown, CreateRowBody>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const context = await getOwnedTableContext(req);
+    const values = normalizeRowInput(req.body.row, context.schema.columns, {
+      allowMissing: true,
+      allowEmpty: false
+    });
+
+    await ensureTableWriteCapacity(context.schemaName, context.tableName);
+
+    const columns = Object.keys(values);
+    const sql = [
+      `INSERT INTO ${context.qualifiedTableName}`,
+      `(${columns.map(quoteIdentifier).join(', ')})`,
+      `VALUES (${columns.map(() => '?').join(', ')})`
+    ].join(' ');
+    const [result] = await pool.query(sql, columns.map((column) => values[column]));
+    const insertedPrimaryKey = buildInsertedPrimaryKey(context.schema.columns, values, result as InsertResult);
+    const row = insertedPrimaryKey
+      ? await readSingleRowByPrimaryKey(context.qualifiedTableName, insertedPrimaryKey)
+      : null;
+
+    sendSuccess(res, '行已新增', {
+      tableName: context.tableName,
+      row,
+      primaryKey: insertedPrimaryKey
+    });
+  } catch (error) {
+    next(convertMysqlError(error, '新增行失败'));
+  }
+};
+
+export const updateTableRow = async (
+  req: Request<TableParams, unknown, UpdateRowBody>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const context = await getOwnedTableContext(req);
+    const primaryKey = normalizePrimaryKeyInput(req.body.primaryKey, context.schema.columns);
+    const values = normalizeRowInput(req.body.set, context.schema.columns, {
+      allowMissing: true,
+      allowEmpty: false,
+      forbiddenColumns: new Set(Object.keys(primaryKey))
+    });
+    await ensureTableWriteCapacity(context.schemaName, context.tableName);
+
+    const setColumns = Object.keys(values);
+    const whereClause = buildPrimaryKeyWhereClause(primaryKey);
+    const [result] = await pool.query(
+      `UPDATE ${context.qualifiedTableName}
+       SET ${setColumns.map((column) => `${quoteIdentifier(column)} = ?`).join(', ')}
+       ${whereClause.sql}`,
+      [...setColumns.map((column) => values[column]), ...whereClause.values]
+    );
+    const affectedRows = Number((result as ResultHeader).affectedRows ?? 0);
+
+    if (affectedRows !== 1) {
+      throw new AppError({
+        httpStatus: 409,
+        type: 'RESOURCE_CONFLICT',
+        code: 'ROW_UPDATE_NOT_UNIQUE',
+        message: '更新目标不存在或不唯一，请刷新后重试'
+      });
+    }
+
+    sendSuccess(res, '行已更新', {
+      tableName: context.tableName,
+      row: await readSingleRowByPrimaryKey(context.qualifiedTableName, primaryKey),
+      primaryKey
+    });
+  } catch (error) {
+    next(convertMysqlError(error, '更新行失败'));
+  }
+};
+
+export const deleteTableRow = async (
+  req: Request<TableParams, unknown, DeleteRowBody>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const context = await getOwnedTableContext(req);
+    const primaryKey = normalizePrimaryKeyInput(req.body.primaryKey, context.schema.columns);
+    const whereClause = buildPrimaryKeyWhereClause(primaryKey);
+    const [result] = await pool.query(
+      `DELETE FROM ${context.qualifiedTableName} ${whereClause.sql}`,
+      whereClause.values
+    );
+    const affectedRows = Number((result as ResultHeader).affectedRows ?? 0);
+
+    if (affectedRows !== 1) {
+      throw new AppError({
+        httpStatus: 409,
+        type: 'RESOURCE_CONFLICT',
+        code: 'ROW_DELETE_NOT_UNIQUE',
+        message: '删除目标不存在或不唯一，请刷新后重试'
+      });
+    }
+
+    sendSuccess(res, '行已删除', {
+      tableName: context.tableName,
+      primaryKey
+    });
+  } catch (error) {
+    next(convertMysqlError(error, '删除行失败'));
   }
 };
 
@@ -712,6 +847,205 @@ const ensureTableExists = async (schemaName: string, tableName: string): Promise
       message: '表不存在'
     });
   }
+};
+
+const getOwnedTableContext = async (req: Request<TableParams>) => {
+  const userID = getCurrentUserID(req);
+  const databaseID = getDatabaseIDFromParams(req.params);
+  const database = await resolveOwnedDatabase(userID, databaseID);
+  const tableName = validateSqlIdentifier(req.params.tableName, '表名');
+  await ensureTableExists(database.schemaName, tableName);
+  const schema = await readTableSchema(database.schemaName, tableName);
+
+  return {
+    schemaName: database.schemaName,
+    tableName,
+    qualifiedTableName: `${quoteIdentifier(database.schemaName)}.${quoteIdentifier(tableName)}`,
+    schema
+  };
+};
+
+const ensureTableWriteCapacity = async (schemaName: string, tableName: string): Promise<void> => {
+  const [rows] = await pool.query(
+    `SELECT COALESCE(data_length + index_length, 0) AS total
+     FROM information_schema.tables
+     WHERE table_schema = ? AND table_name = ?
+     LIMIT 1`,
+    [schemaName, tableName]
+  );
+  const total = Number((rows as Array<{ total: number }>)[0]?.total ?? 0);
+
+  if (total >= limits.maxTableStorageBytes) {
+    throw new AppError({
+      httpStatus: 409,
+      type: 'RESOURCE_CONFLICT',
+      code: 'TABLE_STORAGE_LIMIT_EXCEEDED',
+      message: `单表容量不能超过 ${Math.floor(limits.maxTableStorageBytes / 1024 / 1024)} MB`
+    });
+  }
+};
+
+const normalizeRowInput = (
+  value: unknown,
+  columns: Array<{ name: string; dataType: string; nullable: boolean; extra: string }>,
+  options: {
+    allowMissing: boolean;
+    allowEmpty: boolean;
+    forbiddenColumns?: Set<string>;
+  }
+): Record<string, unknown> => {
+  const body = asRecord<Record<string, unknown>>(value, '行数据格式不正确');
+  const columnMap = new Map(columns.map((column) => [column.name, column]));
+  const values: Record<string, unknown> = {};
+
+  Object.entries(body).forEach(([name, rawValue]) => {
+    if (!columnMap.has(name)) {
+      throwValidationError(`字段 ${name} 不存在`);
+    }
+
+    if (options.forbiddenColumns?.has(name)) {
+      throwValidationError(`字段 ${name} 不允许在本次操作中修改`);
+    }
+
+    values[name] = normalizeRowValue(rawValue, columnMap.get(name)!);
+  });
+
+  if (!options.allowMissing) {
+    columns.forEach((column) => {
+      if (!(column.name in values)) {
+        throwValidationError(`字段 ${column.name} 缺少值`);
+      }
+    });
+  }
+
+  if (!options.allowEmpty && Object.keys(values).length === 0) {
+    throwValidationError('请至少提交一个字段');
+  }
+
+  return values;
+};
+
+const normalizeRowValue = (
+  value: unknown,
+  column: { name: string; dataType: string; nullable: boolean }
+): unknown => {
+  if (value === null) {
+    if (!column.nullable) {
+      throwValidationError(`字段 ${column.name} 不允许为空`);
+    }
+
+    return null;
+  }
+
+  if (column.dataType === 'JSON') {
+    if (typeof value === 'string') {
+      try {
+        JSON.parse(value);
+      } catch {
+        throwValidationError(`字段 ${column.name} 不是合法 JSON`);
+      }
+      return value;
+    }
+
+    return JSON.stringify(value);
+  }
+
+  if (['TINYINT', 'SMALLINT', 'INT', 'BIGINT', 'DECIMAL', 'FLOAT', 'DOUBLE'].includes(column.dataType)) {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) {
+      throwValidationError(`字段 ${column.name} 必须是数字`);
+    }
+    return numberValue;
+  }
+
+  if (column.dataType === 'BOOLEAN') {
+    if (typeof value === 'boolean') {
+      return value ? 1 : 0;
+    }
+
+    const text = String(value).trim().toLowerCase();
+    if (['1', 'true', '是', 'yes'].includes(text)) {
+      return 1;
+    }
+    if (['0', 'false', '否', 'no'].includes(text)) {
+      return 0;
+    }
+    throwValidationError(`字段 ${column.name} 必须是布尔值`);
+  }
+
+  return value;
+};
+
+const normalizePrimaryKeyInput = (
+  value: unknown,
+  columns: Array<{ name: string; dataType: string; key: string; nullable: boolean }>
+): Record<string, unknown> => {
+  const primaryColumns = columns.filter((column) => column.key === 'PRI');
+
+  if (primaryColumns.length === 0) {
+    throw new AppError({
+      httpStatus: 409,
+      type: 'RESOURCE_CONFLICT',
+      code: 'PRIMARY_KEY_REQUIRED',
+      message: '当前表没有主键，暂不支持行级修改或删除'
+    });
+  }
+
+  const body = asRecord<Record<string, unknown>>(value, '主键格式不正确');
+  const primaryKey: Record<string, unknown> = {};
+
+  primaryColumns.forEach((column) => {
+    if (!(column.name in body)) {
+      throwValidationError(`主键字段 ${column.name} 缺少值`);
+    }
+
+    primaryKey[column.name] = normalizeRowValue(body[column.name], column);
+  });
+
+  return primaryKey;
+};
+
+const buildPrimaryKeyWhereClause = (primaryKey: Record<string, unknown>) => ({
+  sql: `WHERE ${Object.keys(primaryKey).map((name) => `${quoteIdentifier(name)} <=> ?`).join(' AND ')}`,
+  values: Object.values(primaryKey)
+});
+
+const buildInsertedPrimaryKey = (
+  columns: Array<{ name: string; key: string; extra: string }>,
+  values: Record<string, unknown>,
+  result: InsertResult
+): Record<string, unknown> | null => {
+  const primaryColumns = columns.filter((column) => column.key === 'PRI');
+
+  if (primaryColumns.length === 0) {
+    return null;
+  }
+
+  const primaryKey: Record<string, unknown> = {};
+
+  primaryColumns.forEach((column) => {
+    if (column.name in values) {
+      primaryKey[column.name] = values[column.name];
+    } else if (column.extra.includes('auto_increment') && result.insertId !== undefined) {
+      primaryKey[column.name] = result.insertId;
+    }
+  });
+
+  return Object.keys(primaryKey).length === primaryColumns.length ? primaryKey : null;
+};
+
+const readSingleRowByPrimaryKey = async (
+  qualifiedTableName: string,
+  primaryKey: Record<string, unknown>
+): Promise<Record<string, unknown> | null> => {
+  const whereClause = buildPrimaryKeyWhereClause(primaryKey);
+  const [rows] = await pool.query(
+    `SELECT * FROM ${qualifiedTableName} ${whereClause.sql} LIMIT 1`,
+    whereClause.values
+  );
+  const items = rows as Array<Record<string, unknown>>;
+
+  return items[0] ? normalizePreviewRow(items[0]) : null;
 };
 
 const normalizePreviewFilters = (

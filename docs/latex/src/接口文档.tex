@@ -760,11 +760,13 @@ updatedAt & string & ISO 时间 \\
 \midrule
 \endhead
 displayName & string & 是 & 标识符规则 \\
-charset & string & 否 & 省略时为 utf8mb4，当前版本仅支持 utf8mb4 \\
-collation & string & 否 & 省略时为 utf8mb4\_unicode\_ci，当前版本仅支持
-utf8mb4\_unicode\_ci \\
+charset & string & 否 & 默认 utf8mb4 \\
+collation & string & 否 & 默认 utf8mb4\_unicode\_ci \\
 \bottomrule
 \end{longtable}
+
+阶段说明：当前版本仅支持 \texttt{utf8mb4} 与
+\texttt{utf8mb4\_unicode\_ci}。
 
 错误：
 
@@ -1261,13 +1263,13 @@ confirmation.confirmText & string & 是 & 等于视图名 \\
 \hypertarget{ux8868ux6570ux636eux63a5ux53e3}{%
 \subsection{11. 表数据接口}\label{ux8868ux6570ux636eux63a5ux53e3}}
 
-\hypertarget{api-row-001-ux5206ux9875ux67e5ux8be2ux6570ux636e}{%
+\hypertarget{api-row-001-ux9884ux89c8ux8868ux6570ux636e}{%
 \subsubsection{API-ROW-001
-分页查询数据}\label{api-row-001-ux5206ux9875ux67e5ux8be2ux6570ux636e}}
+预览表数据}\label{api-row-001-ux9884ux89c8ux8868ux6570ux636e}}
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\NormalTok{GET /api/v1/databases/:databaseId/tables/:tableName/rows}
+\NormalTok{GET /api/v1/databases/:databaseId/tables/:tableName/preview}
 \end{Highlighting}
 \end{Shaded}
 
@@ -1278,16 +1280,60 @@ confirmation.confirmText & string & 是 & 等于视图名 \\
 参数 & 类型 & 必填 & 约束 \\
 \midrule
 \endhead
-page & number & 否 & 最小 1 \\
-pageSize & number & 否 & 服务端最大值限制 \\
-orderBy & string & 否 & 必须是存在字段 \\
-order & string & 否 & ASC、DESC \\
+limit & number & 否 & 1 到服务端分页上限，默认 20 \\
+offset & number & 否 & 0 到查询行数上限，默认 0 \\
+filters & string & 否 & JSON 字符串，字段筛选数组 \\
 \bottomrule
 \end{longtable}
 
-\hypertarget{api-row-002-ux65b0ux589eux6570ux636e}{%
+\texttt{filters{[}{]}}：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+字段 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+column & string & 是 & 必须是目标表真实字段 \\
+value & string & 是 & 非空 \\
+mode & string & 否 & \texttt{equals} 或 \texttt{contains}，默认
+\texttt{contains} \\
+\bottomrule
+\end{longtable}
+
+成功响应 \texttt{data}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+tableName & string & 表名 \\
+columns & array & 字段结构，格式同 \texttt{API-TABLE-003} \\
+rows & array & 当前页行数据 \\
+total & number & 当前筛选条件下总行数 \\
+limit & number & 本次请求行数上限 \\
+offset & number & 本次请求偏移 \\
+hasMore & boolean & 是否还有更多行 \\
+facets & object & 有限离散字段候选值，用于下拉筛选 \\
+\bottomrule
+\end{longtable}
+
+说明：
+
+\begin{itemize}
+\tightlist
+\item
+  V5 阶段使用预览接口承载分页浏览、有限值筛选和包含搜索。
+\item
+  留空筛选条件表示全选；前端按 Enter 或点击刷新后才重新请求。
+\item
+  后续正式查询构造器会在 \texttt{API-QUERY}
+  中支持排序、JOIN、聚合、子查询和更复杂条件。
+\end{itemize}
+
+\hypertarget{api-row-002-ux65b0ux589eux5355ux884cux6570ux636e}{%
 \subsubsection{API-ROW-002
-新增数据}\label{api-row-002-ux65b0ux589eux6570ux636e}}
+新增单行数据}\label{api-row-002-ux65b0ux589eux5355ux884cux6570ux636e}}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1302,42 +1348,42 @@ order & string & 否 & ASC、DESC \\
 参数 & 类型 & 必填 & 约束 \\
 \midrule
 \endhead
-rows & array & 是 & 长度 1 到服务端批量上限 \\
-transactionId & string & 否 & 活跃事务 ID \\
+row & object & 是 & 字段名到字段值的对象，至少包含一个字段 \\
 \bottomrule
 \end{longtable}
 
-\texttt{rows{[}{]}} 是字段名到字段值的对象。字段名必须存在于目标表。
+规则：
 
-批量插入错误响应必须包含：
+\begin{itemize}
+\tightlist
+\item
+  字段名必须存在于目标表。
+\item
+  \texttt{auto\_increment} 字段可以不提交，由 MySQL 自动生成。
+\item
+  前端新增行时空白字段默认不提交，避免误写入 \texttt{NULL}。
+\item
+  后端按表结构校验数字、布尔、JSON 和非空字段。
+\item
+  单表容量达到限制时拒绝新增。
+\end{itemize}
 
-\begin{Shaded}
-\begin{Highlighting}[]
-\FunctionTok{\{}
-  \DataTypeTok{"error"}\FunctionTok{:} \FunctionTok{\{}
-    \DataTypeTok{"type"}\FunctionTok{:} \StringTok{"MYSQL\_CONSTRAINT\_ERROR"}\FunctionTok{,}
-    \DataTypeTok{"code"}\FunctionTok{:} \StringTok{"DB\_NOT\_NULL\_VIOLATION"}\FunctionTok{,}
-    \DataTypeTok{"details"}\FunctionTok{:} \StringTok{"批量插入第 3 行失败"}\FunctionTok{,}
-    \DataTypeTok{"fieldErrors"}\FunctionTok{:} \OtherTok{[}
-      \FunctionTok{\{}
-        \DataTypeTok{"rowIndex"}\FunctionTok{:} \DecValTok{2}\FunctionTok{,}
-        \DataTypeTok{"field"}\FunctionTok{:} \StringTok{"age"}\FunctionTok{,}
-        \DataTypeTok{"message"}\FunctionTok{:} \StringTok{"字段 age 不允许为空"}
-      \FunctionTok{\}}
-    \OtherTok{]}\FunctionTok{,}
-    \DataTypeTok{"mysql"}\FunctionTok{:} \FunctionTok{\{}
-      \DataTypeTok{"errno"}\FunctionTok{:} \DecValTok{1048}\FunctionTok{,}
-      \DataTypeTok{"sqlState"}\FunctionTok{:} \StringTok{"23000"}\FunctionTok{,}
-      \DataTypeTok{"sqlMessage"}\FunctionTok{:} \StringTok{"Column \textquotesingle{}age\textquotesingle{} cannot be null"}
-    \FunctionTok{\}}
-  \FunctionTok{\}}
-\FunctionTok{\}}
-\end{Highlighting}
-\end{Shaded}
+成功响应 \texttt{data}：
 
-\hypertarget{api-row-003-ux4feeux6539ux6570ux636e}{%
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+tableName & string & 表名 \\
+row & object 或 null & 可通过主键回读时返回新增后的行 \\
+primaryKey & object 或 null & 有主键时返回主键值，无主键时为 null \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-row-003-ux4feeux6539ux5355ux884cux6570ux636e}{%
 \subsubsection{API-ROW-003
-修改数据}\label{api-row-003-ux4feeux6539ux6570ux636e}}
+修改单行数据}\label{api-row-003-ux4feeux6539ux5355ux884cux6570ux636e}}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1352,11 +1398,8 @@ transactionId & string & 否 & 活跃事务 ID \\
 参数 & 类型 & 必填 & 约束 \\
 \midrule
 \endhead
+primaryKey & object & 是 & 完整主键字段和值 \\
 set & object & 是 & 字段名到新值的对象 \\
-primaryKey & object & 条件必填 & 行内编辑提交时必填 \\
-where & object & 条件必填 & 批量条件修改时必填 \\
-transactionId & string & 否 & 活跃事务 ID \\
-confirmation & object & 条件必填 & 影响行数达到阈值时必填 \\
 \bottomrule
 \end{longtable}
 
@@ -1369,11 +1412,18 @@ confirmation & object & 条件必填 & 影响行数达到阈值时必填 \\
 \item
   用户点击该行旁边``更新/提交''按钮后，前端调用该接口。
 \item
-  行内编辑必须优先携带 \texttt{primaryKey}，后端使用主键定位唯一行。
+  后端使用 \texttt{primaryKey} 定位唯一行。
 \item
   \texttt{set} 只提交被修改字段，不提交整行数据。
 \item
+  \texttt{primaryKey} 字段和 \texttt{auto\_increment}
+  字段不允许通过行内编辑修改。
+\item
   用户点击``取消''时前端丢弃草稿，不调用后端。
+\item
+  无主键表在 V5 阶段禁止行内编辑。
+\item
+  单表容量达到限制时拒绝更新。
 \end{itemize}
 
 行内编辑请求示例：
@@ -1392,21 +1442,23 @@ confirmation & object & 条件必填 & 影响行数达到阈值时必填 \\
 \end{Highlighting}
 \end{Shaded}
 
-批量条件修改规则：
+错误：
 
-\begin{itemize}
-\tightlist
-\item
-  使用 \texttt{where} GUI 条件对象。
-\item
-  不允许无条件批量修改。
-\item
-  影响行数超过阈值时必须携带 \texttt{confirmation}。
-\end{itemize}
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+code & message \\
+\midrule
+\endhead
+PRIMARY\_KEY\_REQUIRED & 当前表没有主键，暂不支持行级修改或删除 \\
+ROW\_UPDATE\_NOT\_UNIQUE & 更新目标不存在或不唯一，请刷新后重试 \\
+VALIDATION\_FIELD\_INVALID & 字段不存在、类型不合法或字段不允许修改 \\
+MYSQL\_EXECUTION\_ERROR & 更新行失败：\{mysql.sqlMessage\} \\
+\bottomrule
+\end{longtable}
 
-\hypertarget{api-row-004-ux5220ux9664ux6570ux636e}{%
+\hypertarget{api-row-004-ux5220ux9664ux5355ux884cux6570ux636e}{%
 \subsubsection{API-ROW-004
-删除数据}\label{api-row-004-ux5220ux9664ux6570ux636e}}
+删除单行数据}\label{api-row-004-ux5220ux9664ux5355ux884cux6570ux636e}}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1421,32 +1473,54 @@ confirmation & object & 条件必填 & 影响行数达到阈值时必填 \\
 参数 & 类型 & 必填 & 约束 \\
 \midrule
 \endhead
-where & object & 是 & GUI 条件对象 \\
-transactionId & string & 否 & 活跃事务 ID \\
-confirmation & object & 条件必填 & 影响行数达到阈值时必填 \\
+primaryKey & object & 是 & 完整主键字段和值 \\
 \bottomrule
 \end{longtable}
 
-级联影响响应：
+规则：
 
-\begin{Shaded}
-\begin{Highlighting}[]
-\FunctionTok{\{}
-  \DataTypeTok{"code"}\FunctionTok{:} \DecValTok{412}\FunctionTok{,}
-  \DataTypeTok{"message"}\FunctionTok{:} \StringTok{"删除将影响关联表数据，请确认"}\FunctionTok{,}
-  \DataTypeTok{"data"}\FunctionTok{:} \KeywordTok{null}\FunctionTok{,}
-  \DataTypeTok{"traceId"}\FunctionTok{:} \StringTok{"01HZ0000000000000000000000"}\FunctionTok{,}
-  \DataTypeTok{"error"}\FunctionTok{:} \FunctionTok{\{}
-    \DataTypeTok{"type"}\FunctionTok{:} \StringTok{"CONFIRMATION\_REQUIRED"}\FunctionTok{,}
-    \DataTypeTok{"code"}\FunctionTok{:} \StringTok{"CONFIRMATION\_CASCADE\_DELETE"}\FunctionTok{,}
-    \DataTypeTok{"source"}\FunctionTok{:} \StringTok{"server"}\FunctionTok{,}
-    \DataTypeTok{"details"}\FunctionTok{:} \StringTok{"删除 students 中 1 行将级联影响 scores 中 5 行"}\FunctionTok{,}
-    \DataTypeTok{"fieldErrors"}\FunctionTok{:} \OtherTok{[]}\FunctionTok{,}
-    \DataTypeTok{"mysql"}\FunctionTok{:} \KeywordTok{null}
-  \FunctionTok{\}}
-\FunctionTok{\}}
-\end{Highlighting}
-\end{Shaded}
+\begin{itemize}
+\tightlist
+\item
+  后端使用 \texttt{primaryKey} 定位唯一行。
+\item
+  无主键表在 V5 阶段禁止单行删除。
+\item
+  前端删除前使用玻璃风格确认窗口展示主键信息。
+\end{itemize}
+
+错误：
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+code & message \\
+\midrule
+\endhead
+PRIMARY\_KEY\_REQUIRED & 当前表没有主键，暂不支持行级修改或删除 \\
+ROW\_DELETE\_NOT\_UNIQUE & 删除目标不存在或不唯一，请刷新后重试 \\
+MYSQL\_EXECUTION\_ERROR & 删除行失败：\{mysql.sqlMessage\} \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-row-005-ux6279ux91cfux6570ux636eux64cdux4f5cux89c4ux5212}{%
+\subsubsection{API-ROW-005
+批量数据操作（规划）}\label{api-row-005-ux6279ux91cfux6570ux636eux64cdux4f5cux89c4ux5212}}
+
+批量新增、批量条件修改和批量条件删除作为后续增强接口落地。规划要求如下：
+
+\begin{itemize}
+\tightlist
+\item
+  批量新增必须限制请求行数，并在失败时返回失败行号、失败字段、MySQL
+  错误码和数据库错误消息。
+\item
+  批量修改和批量删除必须使用 GUI 条件对象，不允许无条件操作。
+\item
+  影响行数超过阈值时必须返回
+  \texttt{CONFIRMATION\_REQUIRED}，由前端二次确认后继续。
+\item
+  涉及级联删除时必须展示级联影响范围。
+\end{itemize}
 
 \hypertarget{gui-ux67e5ux8be2ux63a5ux53e3}{%
 \subsection{12. GUI 查询接口}\label{gui-ux67e5ux8be2ux63a5ux53e3}}

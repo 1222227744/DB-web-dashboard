@@ -100,6 +100,14 @@ export type TablePreviewData = {
   facets: Record<string, Array<string | number | boolean | null>>;
 };
 
+export type TablePrimaryKey = Record<string, unknown>;
+
+export type TableRowMutationData = {
+  tableName: string;
+  row: Record<string, unknown> | null;
+  primaryKey: TablePrimaryKey | null;
+};
+
 export type DatabaseObjectListData = {
   items: DatabaseObject[];
   total: number;
@@ -144,6 +152,47 @@ export const fetchTablePreview = async (
     silentError: true
   });
   return res.data as TablePreviewData;
+};
+
+export const createTableRow = async (
+  databaseID: number,
+  tableName: string,
+  row: Record<string, unknown>
+): Promise<TableRowMutationData> => {
+  const res: any = await request.post(`/v1/databases/${databaseID}/tables/${tableName}/rows`, {
+    row
+  }, {
+    silentError: true
+  });
+  return res.data as TableRowMutationData;
+};
+
+export const updateTableRow = async (
+  databaseID: number,
+  tableName: string,
+  primaryKey: TablePrimaryKey,
+  set: Record<string, unknown>
+): Promise<TableRowMutationData> => {
+  const res: any = await request.patch(`/v1/databases/${databaseID}/tables/${tableName}/rows`, {
+    primaryKey,
+    set
+  }, {
+    silentError: true
+  });
+  return res.data as TableRowMutationData;
+};
+
+export const deleteTableRow = async (
+  databaseID: number,
+  tableName: string,
+  primaryKey: TablePrimaryKey
+): Promise<void> => {
+  await request.delete(`/v1/databases/${databaseID}/tables/${tableName}/rows`, {
+    data: {
+      primaryKey
+    },
+    silentError: true
+  });
 };
 
 export const deleteTable = async (databaseID: number, tableName: string, confirmName: string): Promise<void> => {
