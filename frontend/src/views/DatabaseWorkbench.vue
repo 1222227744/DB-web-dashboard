@@ -1690,6 +1690,7 @@ onMounted(() => {
                     multiple
                     collapse-tags
                     collapse-tags-tooltip
+                    popper-class="workbench-select-popper"
                     placeholder="选择显示列"
                     size="small"
                   >
@@ -3123,6 +3124,45 @@ onMounted(() => {
   min-width: min(100%, 320px);
 }
 
+.preview-toolbar :deep(.el-select__wrapper) {
+  min-height: 36px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.18);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.1), rgba(255, 255, 255, 0.055)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 10px 22px rgba(0, 0, 0, 0.12) !important;
+}
+
+.preview-toolbar :deep(.el-select__wrapper.is-focused) {
+  border-color: hsla(var(--theme-hue), 90%, 72%, 0.42);
+  box-shadow:
+    0 0 0 1px hsla(var(--theme-hue), 90%, 72%, 0.16),
+    0 0 24px hsla(var(--theme-hue), 80%, 62%, 0.14) !important;
+}
+
+.preview-toolbar :deep(.el-select__placeholder),
+.preview-toolbar :deep(.el-select__input) {
+  color: var(--glass-text-muted);
+}
+
+.preview-toolbar :deep(.el-tag) {
+  --el-tag-bg-color: hsla(var(--theme-hue), 80%, 60%, 0.16);
+  --el-tag-border-color: hsla(var(--theme-hue), 80%, 72%, 0.18);
+  --el-tag-text-color: var(--glass-text-strong);
+  border-radius: 999px;
+}
+
+.preview-toolbar :deep(.el-tag__close) {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.preview-toolbar :deep(.el-tag__close:hover) {
+  color: var(--glass-text-strong);
+  background: hsla(var(--theme-hue), 80%, 62%, 0.24);
+}
+
 .row-mode-notice {
   display: flex;
   gap: 12px;
@@ -3444,6 +3484,32 @@ onMounted(() => {
     0 10px 22px rgba(0, 0, 0, 0.12) !important;
 }
 
+.dialog-field :deep(.el-input-number .el-input__inner) {
+  color: var(--glass-text-strong);
+  background: transparent !important;
+}
+
+.dialog-field :deep(.el-input-number__decrease),
+.dialog-field :deep(.el-input-number__increase) {
+  color: var(--glass-text-muted);
+  border-color: hsla(var(--theme-hue), 80%, 72%, 0.14) !important;
+  background: hsla(var(--theme-hue), 80%, 60%, 0.08) !important;
+}
+
+.dialog-field :deep(.el-input-number__decrease:hover),
+.dialog-field :deep(.el-input-number__increase:hover) {
+  color: var(--glass-text-strong);
+  background: hsla(var(--theme-hue), 80%, 60%, 0.16) !important;
+}
+
+.dialog-field :deep(.el-input-number.is-disabled .el-input__wrapper),
+.dialog-field :deep(.el-input-number.is-disabled .el-input-number__decrease),
+.dialog-field :deep(.el-input-number.is-disabled .el-input-number__increase) {
+  color: rgba(255, 255, 255, 0.34);
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
 .dialog-field :deep(.el-textarea__inner) {
   color: var(--glass-text-strong);
   border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.18);
@@ -3461,6 +3527,34 @@ onMounted(() => {
 
 .compact-field :deep(.el-input-number) {
   width: 100%;
+}
+
+:global(.workbench-select-popper) {
+  overflow: hidden;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.2) !important;
+  border-radius: 16px !important;
+  background:
+    linear-gradient(145deg, rgba(10, 16, 34, 0.96), hsla(var(--theme-hue), 54%, 16%, 0.94)) !important;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+:global(.workbench-select-popper .el-select-dropdown__item) {
+  color: var(--glass-text-muted);
+}
+
+:global(.workbench-select-popper .el-select-dropdown__item.is-hovering),
+:global(.workbench-select-popper .el-select-dropdown__item:hover) {
+  color: var(--glass-text-strong);
+  background: hsla(var(--theme-hue), 80%, 60%, 0.14);
+}
+
+:global(.workbench-select-popper .el-select-dropdown__item.is-selected) {
+  color: var(--theme-primary-light);
+  background: hsla(var(--theme-hue), 80%, 60%, 0.18);
 }
 
 .create-table-form {
