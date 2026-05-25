@@ -13,13 +13,17 @@ import {
   fetchTablePreview,
   fetchTableSchema,
   updateTableRow,
+  updateTableSchema,
   type CreateTablePayload,
   type DatabaseObject,
+  type MutationConfirmation,
   type TableColumnInput,
   type TableColumnSchema,
+  type TableIndexInput,
   type TablePreviewData,
   type TablePreviewFilter,
   type TablePrimaryKey,
+  type TableSchemaOperation,
   type TableSchema
 } from '../utils/tables';
 
@@ -45,6 +49,8 @@ type RowDraft = {
   values: Record<string, string>;
   isEditing: boolean;
 };
+
+type SchemaEditorMode = 'ADD_COLUMN' | 'MODIFY_COLUMN' | 'ADD_INDEX' | 'ADD_CONSTRAINT';
 
 const route = useRoute();
 const router = useRouter();
@@ -81,9 +87,39 @@ const newRowValues = ref<Record<string, string>>({});
 const isNewRowVisible = ref(false);
 const isDeleteRowDialogVisible = ref(false);
 const deletingRow = ref<Record<string, unknown> | null>(null);
+const selectedRowKeys = ref<string[]>([]);
+const isBatchDeleteDialogVisible = ref(false);
+const batchDeleteError = ref('');
+const isBatchInsertDialogVisible = ref(false);
+const batchInsertText = ref('');
+const batchInsertError = ref('');
+const isBatchUpdateDialogVisible = ref(false);
+const batchUpdateColumnName = ref('');
+const batchUpdateValue = ref('');
+const batchUpdateSetNull = ref(false);
+const batchUpdateError = ref('');
+const sortState = ref<{ orderBy: string; order: 'ASC' | 'DESC' } | null>(null);
+const visibleColumnNames = ref<string[]>([]);
+const schemaEditorMode = ref<SchemaEditorMode>('ADD_COLUMN');
+const schemaDraftColumn = ref<DraftColumn | null>(null);
+const schemaTargetColumnName = ref('');
+const schemaIndexName = ref('');
+const schemaIndexUnique = ref(false);
+const schemaIndexColumns = ref<string[]>([]);
+const schemaConstraintName = ref('');
+const schemaConstraintColumn = ref('');
+const schemaConstraintValues = ref('');
+const schemaActionError = ref('');
+const isSchemaSaving = ref(false);
 
 const sqlIdentifierPattern = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 const supportedTableTypes = ['INT', 'BIGINT', 'VARCHAR', 'TEXT', 'DATETIME', 'DATE', 'BOOLEAN', 'DECIMAL', 'JSON'];
+const schemaEditorModeOptions: Array<{ value: SchemaEditorMode; label: string }> = [
+  { value: 'ADD_COLUMN', label: '新增字段' },
+  { value: 'MODIFY_COLUMN', label: '修改字段' },
+  { value: 'ADD_INDEX', label: '新增索引' },
+  { value: 'ADD_CONSTRAINT', label: '有限取值约束' }
+];
 const previewPageSize = 20;
 let draftColumnSeed = 0;
 let tableNoticeTimer: number | null = null;
@@ -109,6 +145,14 @@ const schemaSummary = computed(() => {
   };
 });
 const previewColumns = computed(() => tablePreview.value?.columns ?? []);
+const displayedPreviewColumns = computed(() => {
+  if (visibleColumnNames.value.length === 0) {
+    return previewColumns.value;
+  }
+
+  const visibleNames = new Set(visibleColumnNames.value);
+  return previewColumns.value.filter((column) => visibleNames.has(column.name));
+});
 const previewRows = computed(() => tablePreview.value?.rows ?? []);
 const previewOffset = computed(() => tablePreview.value?.offset ?? 0);
 const previewLoadedCount = computed(() => previewOffset.value + previewRows.value.length);
@@ -120,6 +164,10 @@ const updatableColumns = computed(() => {
 });
 const canInsertRows = computed(() => Boolean(selectedDatabase.value && selectedTableName.value && insertableColumns.value.length > 0));
 const canEditRows = computed(() => Boolean(selectedDatabase.value && selectedTableName.value && hasPrimaryKey.value && updatableColumns.value.length > 0));
+const selectedRows = computed(() => {
+  const selectedKeys = new Set(selectedRowKeys.value);
+  return previewRows.value.filter((row, index) => selectedKeys.has(getRowKey(row, index)));
+});
 const deletingRowPrimaryKeyText = computed(() => {
   if (!deletingRow.value || primaryKeyColumns.value.length === 0) {
     return '';
@@ -269,7 +317,8 @@ const loadSelectedTablePreview = async (options: { append?: boolean } = {}) => {
     const preview = await fetchTablePreview(selectedDatabase.value.id, selectedTableName.value, {
       limit: previewPageSize,
       offset: options.append ? previewLoadedCount.value : 0,
-      filters: buildPreviewFilters()
+      filters: buildPreviewFilters(),
+      sort: sortState.value
     });
 
     const nextPreview = options.append && tablePreview.value
@@ -314,12 +363,23 @@ const syncColumnFilters = (preview: TablePreviewData) => {
   });
 
   columnFilters.value = nextFilters;
+  syncVisibleColumns(preview.columns);
   syncRowDrafts(preview.rows);
   syncNewRowValues(preview.columns);
+  syncSelectedRows(preview.rows);
 };
 
 const resetPreviewFilters = () => {
   columnFilters.value = {};
+};
+
+const syncVisibleColumns = (columns = previewColumns.value) => {
+  const names = columns.map((column) => column.name);
+  visibleColumnNames.value = visibleColumnNames.value.filter((name) => names.includes(name));
+
+  if (visibleColumnNames.value.length === 0) {
+    visibleColumnNames.value = names;
+  }
 };
 
 const syncRowDrafts = (rows: Array<Record<string, unknown>>) => {
@@ -340,6 +400,11 @@ const syncRowDrafts = (rows: Array<Record<string, unknown>>) => {
   rowDrafts.value = nextDrafts;
 };
 
+const syncSelectedRows = (rows: Array<Record<string, unknown>>) => {
+  const rowKeys = new Set(rows.map((row, index) => getRowKey(row, index)));
+  selectedRowKeys.value = selectedRowKeys.value.filter((rowKey) => rowKeys.has(rowKey));
+};
+
 const syncNewRowValues = (columns = previewColumns.value) => {
   const nextValues: Record<string, string> = {};
 
@@ -358,6 +423,32 @@ const loadMorePreviewRows = () => {
   void loadSelectedTablePreview({ append: true });
 };
 
+const toggleSort = (columnName: string) => {
+  if (sortState.value?.orderBy !== columnName) {
+    sortState.value = {
+      orderBy: columnName,
+      order: 'ASC'
+    };
+  } else if (sortState.value.order === 'ASC') {
+    sortState.value = {
+      orderBy: columnName,
+      order: 'DESC'
+    };
+  } else {
+    sortState.value = null;
+  }
+
+  void loadSelectedTablePreview();
+};
+
+const getSortMark = (columnName: string) => {
+  if (sortState.value?.orderBy !== columnName) {
+    return '排序';
+  }
+
+  return sortState.value.order === 'ASC' ? '升序' : '降序';
+};
+
 const openSchemaDialog = () => {
   if (!selectedTableName.value) {
     showTableNotice('请先选择一张表');
@@ -369,6 +460,8 @@ const openSchemaDialog = () => {
   if (!selectedTableSchema.value) {
     void loadSelectedTableSchema();
   }
+
+  resetSchemaEditor();
 };
 
 const formatCellValue = (value: unknown) => {
@@ -490,6 +583,65 @@ const showNewRowEditor = () => {
   rowError.value = '';
   syncNewRowValues();
   isNewRowVisible.value = true;
+};
+
+const openBatchInsertDialog = () => {
+  if (!canInsertRows.value) {
+    showTableNotice('当前表没有可手动填写的字段');
+    return;
+  }
+
+  batchInsertText.value = '';
+  batchInsertError.value = '';
+  isBatchInsertDialogVisible.value = true;
+};
+
+const submitBatchInsert = async () => {
+  if (!selectedDatabase.value || !selectedTableName.value) {
+    return;
+  }
+
+  batchInsertError.value = '';
+  let rows: Array<Record<string, unknown>>;
+
+  try {
+    const parsed = JSON.parse(batchInsertText.value);
+    rows = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    batchInsertError.value = '请输入合法 JSON 数组';
+    return;
+  }
+
+  if (rows.length < 1) {
+    batchInsertError.value = '请至少填写一行数据';
+    return;
+  }
+
+  if (!rows.every((row) => row && typeof row === 'object' && !Array.isArray(row))) {
+    batchInsertError.value = 'JSON 数组中的每一项都必须是对象';
+    return;
+  }
+
+  isRowSaving.value = true;
+
+  try {
+    await createTableRow(
+      selectedDatabase.value.id,
+      selectedTableName.value,
+      rows,
+      {
+        confirmed: true,
+        confirmText: selectedTableName.value
+      }
+    );
+    showTableNotice(`已批量新增 ${rows.length} 行`);
+    isBatchInsertDialogVisible.value = false;
+    await loadSelectedTablePreview();
+  } catch (error) {
+    batchInsertError.value = getErrorMessage(error, '批量新增失败');
+  } finally {
+    isRowSaving.value = false;
+  }
 };
 
 const cancelNewRow = () => {
@@ -627,6 +779,134 @@ const openDeleteRowDialog = (row: Record<string, unknown>) => {
   isDeleteRowDialogVisible.value = true;
 };
 
+const isRowSelected = (row: Record<string, unknown>, rowIndex: number) => {
+  return selectedRowKeys.value.includes(getRowKey(row, rowIndex));
+};
+
+const toggleRowSelection = (row: Record<string, unknown>, rowIndex: number) => {
+  if (!hasPrimaryKey.value) {
+    return;
+  }
+
+  const rowKey = getRowKey(row, rowIndex);
+  selectedRowKeys.value = selectedRowKeys.value.includes(rowKey)
+    ? selectedRowKeys.value.filter((key) => key !== rowKey)
+    : [...selectedRowKeys.value, rowKey];
+};
+
+const toggleAllRowsSelection = () => {
+  if (!hasPrimaryKey.value || previewRows.value.length === 0) {
+    return;
+  }
+
+  if (selectedRowKeys.value.length === previewRows.value.length) {
+    selectedRowKeys.value = [];
+    return;
+  }
+
+  selectedRowKeys.value = previewRows.value.map((row, index) => getRowKey(row, index));
+};
+
+const removeSelectedRows = async () => {
+  if (!selectedDatabase.value || !selectedTableName.value || selectedRows.value.length === 0) {
+    return;
+  }
+
+  isRowSaving.value = true;
+  rowError.value = '';
+
+  try {
+    await deleteTableRow(
+      selectedDatabase.value.id,
+      selectedTableName.value,
+      selectedRows.value.map((row) => buildPrimaryKeyFromRow(row)),
+      {
+        confirmed: true,
+        confirmText: selectedTableName.value
+      }
+    );
+    showTableNotice(`已删除 ${selectedRows.value.length} 行`);
+    selectedRowKeys.value = [];
+    await loadSelectedTablePreview();
+  } catch (error) {
+    const message = getErrorMessage(error, '批量删除失败');
+    rowError.value = message;
+    batchDeleteError.value = message;
+  } finally {
+    isRowSaving.value = false;
+  }
+};
+
+const openBatchDeleteDialog = () => {
+  if (!hasPrimaryKey.value || selectedRows.value.length === 0) {
+    showTableNotice('请先选择可删除的行');
+    return;
+  }
+
+  rowError.value = '';
+  batchDeleteError.value = '';
+  isBatchDeleteDialogVisible.value = true;
+};
+
+const confirmBatchDelete = async () => {
+  await removeSelectedRows();
+
+  if (!batchDeleteError.value && !rowError.value) {
+    isBatchDeleteDialogVisible.value = false;
+  }
+};
+
+const openBatchUpdateDialog = () => {
+  if (!canEditRows.value || selectedRows.value.length === 0) {
+    showTableNotice('请先选择可修改的行');
+    return;
+  }
+
+  batchUpdateColumnName.value = updatableColumns.value[0]?.name ?? '';
+  batchUpdateValue.value = '';
+  batchUpdateSetNull.value = false;
+  batchUpdateError.value = '';
+  isBatchUpdateDialogVisible.value = true;
+};
+
+const submitBatchUpdate = async () => {
+  if (!selectedDatabase.value || !selectedTableName.value || selectedRows.value.length === 0) {
+    return;
+  }
+
+  batchUpdateError.value = '';
+
+  if (!batchUpdateColumnName.value) {
+    batchUpdateError.value = '请选择要修改的字段';
+    return;
+  }
+
+  isRowSaving.value = true;
+
+  try {
+    await updateTableRow(
+      selectedDatabase.value.id,
+      selectedTableName.value,
+      selectedRows.value.map((row) => buildPrimaryKeyFromRow(row)),
+      {
+        [batchUpdateColumnName.value]: batchUpdateSetNull.value ? null : batchUpdateValue.value
+      },
+      {
+        confirmed: true,
+        confirmText: selectedTableName.value
+      }
+    );
+    showTableNotice(`已批量更新 ${selectedRows.value.length} 行`);
+    selectedRowKeys.value = [];
+    isBatchUpdateDialogVisible.value = false;
+    await loadSelectedTablePreview();
+  } catch (error) {
+    batchUpdateError.value = getErrorMessage(error, '批量更新失败');
+  } finally {
+    isRowSaving.value = false;
+  }
+};
+
 const confirmDeleteRow = async () => {
   if (!deletingRow.value) {
     return;
@@ -677,6 +957,39 @@ const removeTableColumn = (columnID: number) => {
   tableColumns.value = tableColumns.value.filter((column) => column.id !== columnID);
 };
 
+const resetSchemaEditor = () => {
+  schemaEditorMode.value = 'ADD_COLUMN';
+  schemaDraftColumn.value = createDraftColumn();
+  schemaTargetColumnName.value = '';
+  schemaIndexName.value = '';
+  schemaIndexUnique.value = false;
+  schemaIndexColumns.value = [];
+  schemaConstraintName.value = '';
+  schemaConstraintColumn.value = '';
+  schemaConstraintValues.value = '';
+  schemaActionError.value = '';
+};
+
+const loadColumnIntoSchemaDraft = () => {
+  const column = selectedTableSchema.value?.columns.find((item) => item.name === schemaTargetColumnName.value);
+
+  if (!column) {
+    schemaDraftColumn.value = createDraftColumn();
+    return;
+  }
+
+  schemaDraftColumn.value = createDraftColumn({
+    name: column.name,
+    type: column.dataType === 'TINYINT' && column.columnType.toLowerCase() === 'tinyint(1)' ? 'BOOLEAN' : column.dataType,
+    length: column.length,
+    nullable: column.nullable,
+    primaryKey: column.key === 'PRI',
+    autoIncrement: column.extra.includes('auto_increment'),
+    defaultValue: column.defaultValue ?? '',
+    comment: column.comment
+  });
+};
+
 const applyColumnTypeDefaults = (column: DraftColumn) => {
   if (column.type !== 'VARCHAR') {
     column.length = null;
@@ -690,6 +1003,75 @@ const applyColumnTypeDefaults = (column: DraftColumn) => {
     column.nullable = false;
     column.primaryKey = true;
   }
+};
+
+const buildSingleColumnInput = (
+  draft: DraftColumn,
+  setError: (message: string) => void,
+  options: { allowPrimaryKey?: boolean } = {}
+): TableColumnInput | null => {
+  const name = draft.name.trim();
+
+  if (!name) {
+    setError('字段名不能为空');
+    return null;
+  }
+
+  if (!sqlIdentifierPattern.test(name)) {
+    setError(`${name} 不是合法字段名`);
+    return null;
+  }
+
+  if (!draft.type) {
+    setError(`${name} 请选择字段类型`);
+    return null;
+  }
+
+  if (!supportedTableTypes.includes(draft.type)) {
+    setError(`${name} 的字段类型暂不支持`);
+    return null;
+  }
+
+  const column: TableColumnInput = {
+    name,
+    type: draft.type,
+    nullable: options.allowPrimaryKey && draft.primaryKey ? false : draft.nullable,
+    autoIncrement: draft.autoIncrement || undefined
+  };
+
+  if (draft.type === 'VARCHAR') {
+    const length = Number(draft.length ?? 0);
+
+    if (!Number.isInteger(length) || length < 1 || length > 16383) {
+      setError(`${name} 的 VARCHAR 长度需为 1 到 16383`);
+      return null;
+    }
+
+    column.length = length;
+  }
+
+  const defaultValue = draft.defaultValue.trim();
+
+  if (defaultValue) {
+    const previousError = tableDialogError.value;
+    tableDialogError.value = '';
+    const normalizedDefaultValue = normalizeDraftDefaultValue(defaultValue, draft.type);
+
+    if (normalizedDefaultValue === undefined) {
+      setError(tableDialogError.value || `${name} 的默认值不合法`);
+      tableDialogError.value = previousError;
+      return null;
+    }
+
+    tableDialogError.value = previousError;
+    column.defaultValue = normalizedDefaultValue;
+  }
+
+  if (draft.comment.trim()) {
+    column.comment = draft.comment.trim();
+  }
+
+  return column;
 };
 
 const submitCreateTable = async () => {
@@ -744,30 +1126,20 @@ const buildCreateTablePayload = (): CreateTablePayload | null => {
   }
 
   for (const draft of tableColumns.value) {
-    const name = draft.name.trim();
+    const column = buildSingleColumnInput(draft, (message) => {
+      tableDialogError.value = message;
+    }, {
+      allowPrimaryKey: true
+    });
 
-    if (!name) {
-      tableDialogError.value = '字段名不能为空';
+    if (!column) {
       return null;
     }
 
-    if (!sqlIdentifierPattern.test(name)) {
-      tableDialogError.value = `${name} 不是合法字段名`;
-      return null;
-    }
+    const name = column.name;
 
     if (names.has(name)) {
       tableDialogError.value = `字段 ${name} 重复`;
-      return null;
-    }
-
-    if (!draft.type) {
-      tableDialogError.value = `${name} 请选择字段类型`;
-      return null;
-    }
-
-    if (!supportedTableTypes.includes(draft.type)) {
-      tableDialogError.value = `${name} 的字段类型暂不支持`;
       return null;
     }
 
@@ -775,40 +1147,6 @@ const buildCreateTablePayload = (): CreateTablePayload | null => {
 
     if (draft.primaryKey) {
       primaryColumns.push(name);
-    }
-
-    const column: TableColumnInput = {
-      name,
-      type: draft.type,
-      nullable: draft.primaryKey ? false : draft.nullable,
-      autoIncrement: draft.autoIncrement || undefined
-    };
-
-    if (draft.type === 'VARCHAR') {
-      const length = Number(draft.length ?? 0);
-
-      if (!Number.isInteger(length) || length < 1 || length > 16383) {
-        tableDialogError.value = `${name} 的 VARCHAR 长度需为 1 到 16383`;
-        return null;
-      }
-
-      column.length = length;
-    }
-
-    const defaultValue = draft.defaultValue.trim();
-
-    if (defaultValue) {
-      const normalizedDefaultValue = normalizeDraftDefaultValue(defaultValue, draft.type);
-
-      if (normalizedDefaultValue === undefined) {
-        return null;
-      }
-
-      column.defaultValue = normalizedDefaultValue;
-    }
-
-    if (draft.comment.trim()) {
-      column.comment = draft.comment.trim();
     }
 
     columns.push(column);
@@ -849,10 +1187,198 @@ const normalizeDraftDefaultValue = (value: string, type: string): string | numbe
   return value;
 };
 
+const submitSchemaOperation = async () => {
+  if (!selectedDatabase.value || !selectedTableName.value) {
+    return;
+  }
+
+  const operation = buildSchemaOperation();
+
+  if (!operation) {
+    return;
+  }
+
+  const needsConfirmation = ['MODIFY_COLUMN', 'DROP_COLUMN', 'DROP_INDEX', 'DROP_CONSTRAINT'].includes(operation.action);
+  isSchemaSaving.value = true;
+  schemaActionError.value = '';
+
+  try {
+    selectedTableSchema.value = await updateTableSchema(
+      selectedDatabase.value.id,
+      selectedTableName.value,
+      [operation],
+      needsConfirmation
+        ? {
+            confirmed: true,
+            confirmText: selectedTableName.value
+          }
+        : undefined
+    );
+    showTableNotice('表结构已更新');
+    resetSchemaEditor();
+    await loadSelectedTablePreview();
+  } catch (error) {
+    schemaActionError.value = getErrorMessage(error, '表结构更新失败');
+  } finally {
+    isSchemaSaving.value = false;
+  }
+};
+
+const buildSchemaOperation = (): TableSchemaOperation | null => {
+  schemaActionError.value = '';
+
+  if (schemaEditorMode.value === 'ADD_COLUMN' || schemaEditorMode.value === 'MODIFY_COLUMN') {
+    const draft = schemaDraftColumn.value;
+
+    if (!draft) {
+      schemaActionError.value = '请填写字段信息';
+      return null;
+    }
+
+    const column = buildSingleColumnInput(draft, (message) => {
+      schemaActionError.value = message;
+    });
+
+    if (!column) {
+      return null;
+    }
+
+    if (schemaEditorMode.value === 'ADD_COLUMN') {
+      return {
+        action: 'ADD_COLUMN',
+        column
+      };
+    }
+
+    if (!schemaTargetColumnName.value) {
+      schemaActionError.value = '请选择要修改的字段';
+      return null;
+    }
+
+    return {
+      action: 'MODIFY_COLUMN',
+      oldName: schemaTargetColumnName.value,
+      column
+    };
+  }
+
+  if (schemaEditorMode.value === 'ADD_INDEX') {
+    const name = schemaIndexName.value.trim();
+
+    if (!sqlIdentifierPattern.test(name)) {
+      schemaActionError.value = '索引名需以英文字母开头，只能包含英文字母、数字和下划线';
+      return null;
+    }
+
+    if (schemaIndexColumns.value.length === 0) {
+      schemaActionError.value = '请至少选择一个索引字段';
+      return null;
+    }
+
+    const index: TableIndexInput = {
+      name,
+      unique: schemaIndexUnique.value,
+      columns: schemaIndexColumns.value.map((name) => ({
+        name,
+        order: 'ASC'
+      }))
+    };
+
+    return {
+      action: 'ADD_INDEX',
+      index
+    };
+  }
+
+  const name = schemaConstraintName.value.trim();
+
+  if (!sqlIdentifierPattern.test(name)) {
+    schemaActionError.value = '约束名需以英文字母开头，只能包含英文字母、数字和下划线';
+    return null;
+  }
+
+  if (!schemaConstraintColumn.value) {
+    schemaActionError.value = '请选择有限取值字段';
+    return null;
+  }
+
+  const values = schemaConstraintValues.value
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (values.length === 0) {
+    schemaActionError.value = '请用英文逗号分隔填写允许值';
+    return null;
+  }
+
+  return {
+    action: 'ADD_CONSTRAINT',
+    constraint: {
+      name,
+      type: 'CHECK_IN',
+      columns: [schemaConstraintColumn.value],
+      column: schemaConstraintColumn.value,
+      values
+    }
+  };
+};
+
+const dropColumnFromSchema = async (name: string) => {
+  await submitDirectSchemaOperation({
+    action: 'DROP_COLUMN',
+    name
+  });
+};
+
+const dropIndexFromSchema = async (name: string) => {
+  await submitDirectSchemaOperation({
+    action: 'DROP_INDEX',
+    name
+  });
+};
+
+const dropConstraintFromSchema = async (name: string) => {
+  await submitDirectSchemaOperation({
+    action: 'DROP_CONSTRAINT',
+    name
+  });
+};
+
+const submitDirectSchemaOperation = async (operation: TableSchemaOperation) => {
+  if (!selectedDatabase.value || !selectedTableName.value) {
+    return;
+  }
+
+  isSchemaSaving.value = true;
+  schemaActionError.value = '';
+
+  try {
+    selectedTableSchema.value = await updateTableSchema(
+      selectedDatabase.value.id,
+      selectedTableName.value,
+      [operation],
+      {
+        confirmed: true,
+        confirmText: selectedTableName.value
+      } as MutationConfirmation
+    );
+    showTableNotice('表结构已更新');
+    await loadSelectedTablePreview();
+  } catch (error) {
+    schemaActionError.value = getErrorMessage(error, '表结构更新失败');
+  } finally {
+    isSchemaSaving.value = false;
+  }
+};
+
 const selectTable = (table: DatabaseObject) => {
   resetPreviewFilters();
   rowError.value = '';
   isNewRowVisible.value = false;
+  selectedRowKeys.value = [];
+  sortState.value = null;
+  visibleColumnNames.value = [];
 
   if (selectedTableName.value === table.name) {
     void loadSelectedTablePreview();
@@ -908,6 +1434,15 @@ const showTableNotice = (message: string) => {
     tableNotice.value = '';
     tableNoticeTimer = null;
   }, 2200);
+};
+
+const selectSchemaEditorMode = (mode: SchemaEditorMode) => {
+  schemaEditorMode.value = mode;
+  schemaActionError.value = '';
+
+  if (mode === 'MODIFY_COLUMN') {
+    loadColumnIntoSchemaDraft();
+  }
 };
 
 watch(selectedTableName, (tableName) => {
@@ -1083,10 +1618,34 @@ onMounted(() => {
                   <button
                     class="dialog-button"
                     type="button"
+                    :disabled="!canInsertRows || isRowSaving"
+                    @click="openBatchInsertDialog"
+                  >
+                    批量新增
+                  </button>
+                  <button
+                    class="dialog-button"
+                    type="button"
                     :disabled="isSchemaLoading"
                     @click="openSchemaDialog"
                   >
                     结构管理
+                  </button>
+                  <button
+                    class="dialog-button danger"
+                    type="button"
+                    :disabled="selectedRows.length === 0 || isRowSaving"
+                    @click="openBatchUpdateDialog"
+                  >
+                    批量修改 {{ selectedRows.length || '' }}
+                  </button>
+                  <button
+                    class="dialog-button danger"
+                    type="button"
+                    :disabled="selectedRows.length === 0 || isRowSaving"
+                    @click="openBatchDeleteDialog"
+                  >
+                    批量删除 {{ selectedRows.length || '' }}
                   </button>
                   <button
                     class="dialog-button"
@@ -1122,6 +1681,28 @@ onMounted(() => {
                 </p>
 
                 <div
+                  v-if="previewColumns.length > 0"
+                  class="preview-toolbar"
+                >
+                  <span>显示列</span>
+                  <el-select
+                    v-model="visibleColumnNames"
+                    multiple
+                    collapse-tags
+                    collapse-tags-tooltip
+                    placeholder="选择显示列"
+                    size="small"
+                  >
+                    <el-option
+                      v-for="column in previewColumns"
+                      :key="column.name"
+                      :label="column.name"
+                      :value="column.name"
+                    />
+                  </el-select>
+                </div>
+
+                <div
                   v-if="previewColumns.length === 0"
                   class="table-empty compact"
                 >
@@ -1137,14 +1718,29 @@ onMounted(() => {
                     <thead>
                       <tr>
                         <th class="preview-action-column">
-                          操作
+                          <div class="preview-action-head">
+                            <span>操作</span>
+                            <input
+                              type="checkbox"
+                              :checked="selectedRowKeys.length === previewRows.length && previewRows.length > 0"
+                              :disabled="!hasPrimaryKey || previewRows.length === 0"
+                              @change="toggleAllRowsSelection"
+                            />
+                          </div>
                         </th>
                         <th
-                          v-for="column in previewColumns"
+                          v-for="column in displayedPreviewColumns"
                           :key="column.name"
                         >
                           <div class="preview-column-head">
-                            <strong>{{ column.name }}</strong>
+                            <button
+                              class="sort-button"
+                              type="button"
+                              @click="toggleSort(column.name)"
+                            >
+                              <strong>{{ column.name }}</strong>
+                              <em>{{ getSortMark(column.name) }}</em>
+                            </button>
                             <span>{{ column.columnType }}</span>
                             <el-select
                               v-if="tablePreview?.facets[column.name]"
@@ -1200,7 +1796,7 @@ onMounted(() => {
                           </div>
                         </td>
                         <td
-                          v-for="column in previewColumns"
+                          v-for="column in displayedPreviewColumns"
                           :key="column.name"
                         >
                           <el-input
@@ -1221,7 +1817,7 @@ onMounted(() => {
                       </tr>
 
                       <tr v-if="previewRows.length === 0 && !isNewRowVisible">
-                        <td :colspan="previewColumns.length + 1">
+                        <td :colspan="displayedPreviewColumns.length + 1">
                           <div class="preview-empty-cell">暂无匹配数据</div>
                         </td>
                       </tr>
@@ -1235,6 +1831,12 @@ onMounted(() => {
                             v-if="isRowEditing(row, rowIndex)"
                             class="row-actions"
                           >
+                            <input
+                              type="checkbox"
+                              :checked="isRowSelected(row, rowIndex)"
+                              :disabled="!hasPrimaryKey"
+                              @change="toggleRowSelection(row, rowIndex)"
+                            />
                             <button
                               class="row-action-button primary"
                               type="button"
@@ -1256,6 +1858,12 @@ onMounted(() => {
                             v-else
                             class="row-actions"
                           >
+                            <input
+                              type="checkbox"
+                              :checked="isRowSelected(row, rowIndex)"
+                              :disabled="!hasPrimaryKey"
+                              @change="toggleRowSelection(row, rowIndex)"
+                            />
                             <button
                               class="row-action-button"
                               type="button"
@@ -1275,7 +1883,7 @@ onMounted(() => {
                           </div>
                         </td>
                         <td
-                          v-for="column in previewColumns"
+                          v-for="column in displayedPreviewColumns"
                           :key="column.name"
                         >
                           <el-input
@@ -1475,9 +2083,9 @@ onMounted(() => {
 
         <div class="dialog-tips">
           <span>表名和字段名使用英文标识符</span>
-          <span>主键可选；无主键表暂只支持浏览</span>
+          <span>主键可选；无主键表支持浏览和新增</span>
           <span>VARCHAR 需要填写长度</span>
-          <span>当前版本创建后暂不支持改表</span>
+          <span>创建后可进入结构管理继续调整</span>
         </div>
       </div>
 
@@ -1530,35 +2138,179 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="schema-management-actions">
-          <button
-            class="dialog-button"
-            type="button"
-            disabled
+        <div class="schema-editor-panel">
+          <div class="schema-editor-tabs">
+            <button
+              v-for="mode in schemaEditorModeOptions"
+              :key="mode.value"
+              class="schema-mode-button"
+              :class="{ active: schemaEditorMode === mode.value }"
+              type="button"
+              @click="selectSchemaEditorMode(mode.value)"
+            >
+              {{ mode.label }}
+            </button>
+          </div>
+
+          <div
+            v-if="schemaEditorMode === 'ADD_COLUMN' || schemaEditorMode === 'MODIFY_COLUMN'"
+            class="schema-editor-form"
           >
-            新增字段（后续开放）
-          </button>
-          <button
-            class="dialog-button"
-            type="button"
-            disabled
+            <label
+              v-if="schemaEditorMode === 'MODIFY_COLUMN'"
+              class="dialog-field"
+            >
+              <span>目标字段</span>
+              <el-select
+                v-model="schemaTargetColumnName"
+                placeholder="选择字段"
+                @change="loadColumnIntoSchemaDraft"
+              >
+                <el-option
+                  v-for="column in selectedTableSchema.columns"
+                  :key="column.name"
+                  :label="column.name"
+                  :value="column.name"
+                />
+              </el-select>
+            </label>
+            <template v-if="schemaDraftColumn">
+              <label class="dialog-field">
+                <span>字段名</span>
+                <el-input
+                  v-model="schemaDraftColumn.name"
+                  maxlength="64"
+                />
+              </label>
+              <label class="dialog-field">
+                <span>类型</span>
+                <el-select
+                  v-model="schemaDraftColumn.type"
+                  placeholder="选择类型"
+                  @change="applyColumnTypeDefaults(schemaDraftColumn)"
+                >
+                  <el-option
+                    v-for="type in supportedTableTypes"
+                    :key="type"
+                    :label="type"
+                    :value="type"
+                  />
+                </el-select>
+              </label>
+              <label class="dialog-field compact-field">
+                <span>长度</span>
+                <el-input-number
+                  v-model="schemaDraftColumn.length"
+                  :disabled="schemaDraftColumn.type !== 'VARCHAR'"
+                  :min="1"
+                  :max="16383"
+                  controls-position="right"
+                />
+              </label>
+              <label class="dialog-field">
+                <span>默认值</span>
+                <el-input
+                  v-model="schemaDraftColumn.defaultValue"
+                  placeholder="可留空"
+                />
+              </label>
+              <label class="dialog-field">
+                <span>备注</span>
+                <el-input
+                  v-model="schemaDraftColumn.comment"
+                  maxlength="255"
+                  placeholder="可留空"
+                />
+              </label>
+              <div class="column-flags schema-flags">
+                <el-checkbox v-model="schemaDraftColumn.nullable">可空</el-checkbox>
+                <el-checkbox
+                  v-model="schemaDraftColumn.autoIncrement"
+                  :disabled="schemaDraftColumn.type !== 'INT' && schemaDraftColumn.type !== 'BIGINT'"
+                  @change="applyColumnTypeDefaults(schemaDraftColumn)"
+                >
+                  自增
+                </el-checkbox>
+              </div>
+            </template>
+          </div>
+
+          <div
+            v-else-if="schemaEditorMode === 'ADD_INDEX'"
+            class="schema-editor-form"
           >
-            修改字段（后续开放）
-          </button>
-          <button
-            class="dialog-button"
-            type="button"
-            disabled
+            <label class="dialog-field">
+              <span>索引名</span>
+              <el-input v-model="schemaIndexName" maxlength="64" />
+            </label>
+            <label class="dialog-field">
+              <span>索引字段</span>
+              <el-select
+                v-model="schemaIndexColumns"
+                multiple
+                placeholder="选择字段"
+              >
+                <el-option
+                  v-for="column in selectedTableSchema.columns"
+                  :key="column.name"
+                  :label="column.name"
+                  :value="column.name"
+                />
+              </el-select>
+            </label>
+            <div class="column-flags schema-flags">
+              <el-checkbox v-model="schemaIndexUnique">唯一索引</el-checkbox>
+            </div>
+          </div>
+
+          <div
+            v-else
+            class="schema-editor-form"
           >
-            删除字段（后续开放）
-          </button>
-          <button
-            class="dialog-button"
-            type="button"
-            disabled
+            <label class="dialog-field">
+              <span>约束名</span>
+              <el-input v-model="schemaConstraintName" maxlength="64" />
+            </label>
+            <label class="dialog-field">
+              <span>字段</span>
+              <el-select
+                v-model="schemaConstraintColumn"
+                placeholder="选择字段"
+              >
+                <el-option
+                  v-for="column in selectedTableSchema.columns"
+                  :key="column.name"
+                  :label="column.name"
+                  :value="column.name"
+                />
+              </el-select>
+            </label>
+            <label class="dialog-field schema-wide-field">
+              <span>允许值</span>
+              <el-input
+                v-model="schemaConstraintValues"
+                placeholder="例如：男,女"
+              />
+            </label>
+          </div>
+
+          <p
+            v-if="schemaActionError"
+            class="dialog-error"
           >
-            约束管理（后续开放）
-          </button>
+            {{ schemaActionError }}
+          </p>
+
+          <div class="schema-editor-actions">
+            <button
+              class="dialog-button primary"
+              type="button"
+              :disabled="isSchemaSaving"
+              @click="submitSchemaOperation"
+            >
+              {{ isSchemaSaving ? '保存中…' : '应用结构变更' }}
+            </button>
+          </div>
         </div>
 
         <div class="schema-section">
@@ -1582,6 +2334,14 @@ onMounted(() => {
                 <em v-if="column.extra">{{ column.extra }}</em>
                 <em v-if="column.defaultValue !== null">默认 {{ column.defaultValue }}</em>
               </div>
+              <button
+                class="database-text-button danger"
+                type="button"
+                :disabled="isSchemaSaving || selectedTableSchema.columns.length <= 1"
+                @click="dropColumnFromSchema(column.name)"
+              >
+                删除字段
+              </button>
             </article>
           </div>
         </div>
@@ -1603,6 +2363,15 @@ onMounted(() => {
               :key="index.name"
             >
               {{ index.unique ? '唯一' : '普通' }} · {{ index.name }}：{{ index.columns.map((column) => column.name).join(', ') }}
+              <button
+                v-if="index.name !== 'PRIMARY'"
+                class="database-text-button danger inline-action"
+                type="button"
+                :disabled="isSchemaSaving"
+                @click="dropIndexFromSchema(index.name)"
+              >
+                删除
+              </button>
             </p>
           </section>
           <section class="schema-mini-card">
@@ -1621,6 +2390,15 @@ onMounted(() => {
               :key="constraint.name"
             >
               {{ constraint.type }} · {{ constraint.columns.join(', ') || constraint.name }}
+              <span v-if="constraint.expression"> · {{ constraint.expression }}</span>
+              <button
+                class="database-text-button danger inline-action"
+                type="button"
+                :disabled="isSchemaSaving"
+                @click="dropConstraintFromSchema(constraint.name)"
+              >
+                删除
+              </button>
             </p>
           </section>
         </div>
@@ -1643,6 +2421,189 @@ onMounted(() => {
             @click="isSchemaDialogVisible = false"
           >
             关闭结构管理
+          </button>
+        </div>
+      </template>
+    </GlassDialog>
+
+    <GlassDialog
+      v-model="isBatchInsertDialogVisible"
+      label="ROWS"
+      title="批量新增行"
+      :description="selectedTableName ? `向 ${selectedTableName} 一次写入多行数据` : '批量写入多行数据'"
+      width="min(94vw, 760px)"
+      hide-header
+    >
+      <div class="batch-row-form">
+        <div class="batch-row-hint">
+          <span>JSON ARRAY</span>
+          <p>请输入对象数组，字段名需要与表字段一致；不填写的字段会交给数据库默认值或空值规则处理。</p>
+        </div>
+
+        <label class="dialog-field">
+          <span>数据内容</span>
+          <el-input
+            v-model="batchInsertText"
+            type="textarea"
+            :rows="10"
+            resize="none"
+            placeholder='例如：[{"name":"Alice","age":18},{"name":"Bob","age":20}]'
+          />
+        </label>
+
+        <div class="batch-row-meta">
+          <span>可写字段：{{ insertableColumns.map((column) => column.name).join('、') || '无' }}</span>
+          <span>超过 1 行会携带显式确认信息，防止误批量写入。</span>
+        </div>
+
+        <p
+          v-if="batchInsertError"
+          class="dialog-error"
+        >
+          {{ batchInsertError }}
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <button
+            class="dialog-button ghost"
+            type="button"
+            :disabled="isRowSaving"
+            @click="isBatchInsertDialogVisible = false"
+          >
+            取消
+          </button>
+          <button
+            class="dialog-button primary"
+            type="button"
+            :disabled="isRowSaving"
+            @click="submitBatchInsert"
+          >
+            {{ isRowSaving ? '写入中…' : '批量新增' }}
+          </button>
+        </div>
+      </template>
+    </GlassDialog>
+
+    <GlassDialog
+      v-model="isBatchUpdateDialogVisible"
+      label="ROWS"
+      title="批量修改行"
+      :description="selectedTableName ? `修改 ${selectedTableName} 中已选的 ${selectedRows.length} 行` : '批量修改已选行'"
+      width="min(94vw, 620px)"
+      hide-header
+    >
+      <div class="batch-row-form">
+        <div class="batch-row-hint">
+          <span>{{ selectedRows.length }} ROWS</span>
+          <p>当前批量修改只支持一次修改一个字段；需要先勾选行，再确认提交。</p>
+        </div>
+
+        <label class="dialog-field">
+          <span>目标字段</span>
+          <el-select
+            v-model="batchUpdateColumnName"
+            placeholder="选择要修改的字段"
+          >
+            <el-option
+              v-for="column in updatableColumns"
+              :key="column.name"
+              :label="`${column.name} · ${column.columnType}`"
+              :value="column.name"
+            />
+          </el-select>
+        </label>
+
+        <label class="dialog-field">
+          <span>新值</span>
+          <el-input
+            v-model="batchUpdateValue"
+            :disabled="batchUpdateSetNull"
+            placeholder="留空表示写入空字符串；勾选下方选项才会设为 NULL"
+            @keyup.enter="submitBatchUpdate"
+          />
+        </label>
+
+        <div class="column-flags batch-null-toggle">
+          <el-checkbox v-model="batchUpdateSetNull">
+            将该字段设为 NULL
+          </el-checkbox>
+        </div>
+
+        <p
+          v-if="batchUpdateError"
+          class="dialog-error"
+        >
+          {{ batchUpdateError }}
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <button
+            class="dialog-button ghost"
+            type="button"
+            :disabled="isRowSaving"
+            @click="isBatchUpdateDialogVisible = false"
+          >
+            取消
+          </button>
+          <button
+            class="dialog-button primary"
+            type="button"
+            :disabled="isRowSaving || selectedRows.length === 0"
+            @click="submitBatchUpdate"
+          >
+            {{ isRowSaving ? '修改中…' : '确认批量修改' }}
+          </button>
+        </div>
+      </template>
+    </GlassDialog>
+
+    <GlassDialog
+      v-model="isBatchDeleteDialogVisible"
+      label="ROWS"
+      title="批量删除行"
+      :description="selectedTableName ? `将从 ${selectedTableName} 删除 ${selectedRows.length} 行` : '批量删除已选行'"
+      width="min(94vw, 520px)"
+      hide-header
+    >
+      <div class="delete-table-form">
+        <p>
+          这次会删除已勾选的
+          <strong>{{ selectedRows.length }}</strong>
+          行数据。服务端会使用主键列表定位，并要求表名确认。
+        </p>
+        <div class="batch-row-meta">
+          <span>确认文本：{{ selectedTableName }}</span>
+          <span>删除后当前版本无法恢复</span>
+        </div>
+        <p
+          v-if="batchDeleteError"
+          class="dialog-error"
+        >
+          {{ batchDeleteError }}
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <button
+            class="dialog-button ghost"
+            type="button"
+            :disabled="isRowSaving"
+            @click="isBatchDeleteDialogVisible = false"
+          >
+            取消
+          </button>
+          <button
+            class="dialog-button danger"
+            type="button"
+            :disabled="isRowSaving || selectedRows.length === 0"
+            @click="confirmBatchDelete"
+          >
+            {{ isRowSaving ? '删除中…' : '确认批量删除' }}
           </button>
         </div>
       </template>
@@ -2090,6 +3051,78 @@ onMounted(() => {
   min-width: 136px;
 }
 
+.schema-editor-panel {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.14);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.08), rgba(255, 255, 255, 0.035));
+}
+
+.schema-editor-tabs,
+.schema-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.schema-mode-button {
+  min-height: 34px;
+  padding: 0 12px;
+  color: var(--glass-text-muted);
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: var(--glass-transition);
+}
+
+.schema-mode-button.active,
+.schema-mode-button:hover {
+  color: var(--glass-text-strong);
+  border-color: hsla(var(--theme-hue), 90%, 72%, 0.36);
+  background: hsla(var(--theme-hue), 80%, 60%, 0.12);
+}
+
+.schema-editor-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.schema-wide-field,
+.schema-flags {
+  grid-column: span 2;
+}
+
+.inline-action {
+  margin-left: 8px;
+}
+
+.preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.preview-toolbar span {
+  color: var(--glass-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.preview-toolbar :deep(.el-select) {
+  min-width: min(100%, 320px);
+}
+
 .row-mode-notice {
   display: flex;
   gap: 12px;
@@ -2153,6 +3186,32 @@ onMounted(() => {
   width: 132px;
   min-width: 132px;
   max-width: 132px;
+}
+
+.preview-action-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.sort-button {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sort-button em {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
 }
 
 .preview-table td.preview-action-column {
@@ -2385,6 +3444,21 @@ onMounted(() => {
     0 10px 22px rgba(0, 0, 0, 0.12) !important;
 }
 
+.dialog-field :deep(.el-textarea__inner) {
+  color: var(--glass-text-strong);
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.18);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.075), rgba(255, 255, 255, 0.055)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 10px 22px rgba(0, 0, 0, 0.12) !important;
+}
+
+.dialog-field :deep(.el-textarea__inner::placeholder) {
+  color: rgba(255, 255, 255, 0.34);
+}
+
 .compact-field :deep(.el-input-number) {
   width: 100%;
 }
@@ -2509,6 +3583,55 @@ onMounted(() => {
   width: 100%;
 }
 
+.batch-row-form {
+  display: grid;
+  gap: 18px;
+}
+
+.batch-row-hint {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.14);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 0% 50%, hsla(var(--theme-hue), 82%, 60%, 0.14), transparent 40%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.batch-row-hint span {
+  color: var(--theme-primary-light);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.batch-row-hint p,
+.batch-row-meta {
+  margin: 0;
+  color: var(--glass-text-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.batch-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.batch-row-meta span {
+  padding: 7px 10px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.14);
+  border-radius: 999px;
+  background: hsla(var(--theme-hue), 80%, 60%, 0.06);
+}
+
+.batch-null-toggle {
+  grid-column: auto;
+  min-height: auto;
+}
+
 .dialog-button {
   min-width: 104px;
   min-height: 40px;
@@ -2593,6 +3716,15 @@ onMounted(() => {
 
   .column-editor-row {
     grid-template-columns: 1fr;
+  }
+
+  .schema-editor-form {
+    grid-template-columns: 1fr;
+  }
+
+  .schema-wide-field,
+  .schema-flags {
+    grid-column: auto;
   }
 
   .column-flags {

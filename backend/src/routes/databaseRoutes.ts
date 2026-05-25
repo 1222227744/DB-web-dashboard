@@ -8,6 +8,7 @@ import {
   getTableSchema,
   listDatabaseObjects,
   previewTableRows,
+  updateTableSchema,
   updateTableRow
 } from '../controllers/tableController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
@@ -21,6 +22,7 @@ router.post('/', createDatabase);
 router.get('/:databaseId/objects', listDatabaseObjects);
 router.post('/:databaseId/tables', createTable);
 router.get('/:databaseId/tables/:tableName/schema', getTableSchema);
+router.patch('/:databaseId/tables/:tableName/schema', updateTableSchema);
 router.get('/:databaseId/tables/:tableName/preview', previewTableRows);
 router.post('/:databaseId/tables/:tableName/rows', createTableRow);
 router.patch('/:databaseId/tables/:tableName/rows', updateTableRow);

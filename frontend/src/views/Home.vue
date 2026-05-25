@@ -11,6 +11,13 @@ import {
   renameDatabase,
   type UserDatabase
 } from '../utils/databases';
+import {
+  fetchUserAssetBlob,
+  fetchProfile,
+  updateProfile,
+  uploadUserAsset,
+  type UserProfile
+} from '../utils/profile';
 import { applyPreferences, fetchPreferences, updatePreferences } from '../utils/preferences';
 
 const router = useRouter();
@@ -18,6 +25,16 @@ const router = useRouter();
 const user = computed(() => getAuthUser());
 const themeHue = ref(210);
 const isPreferenceSaving = ref(false);
+const profile = ref<UserProfile | null>(null);
+const isProfileDialogVisible = ref(false);
+const isProfileLoading = ref(false);
+const isProfileSaving = ref(false);
+const profileDraftNickname = ref('');
+const profileError = ref('');
+const avatarInputRef = ref<HTMLInputElement | null>(null);
+const backgroundInputRef = ref<HTMLInputElement | null>(null);
+const avatarObjectUrl = ref<string | null>(null);
+const backgroundObjectUrl = ref<string | null>(null);
 const databases = ref<UserDatabase[]>([]);
 const databaseLimit = ref(10);
 const isDatabaseLoading = ref(false);
@@ -53,6 +70,23 @@ const dashboardCards = computed(() => [
     description: '按当前数据库统计'
   }
 ]);
+
+const displayName = computed(() => {
+  return profile.value?.nickname || user.value?.displayName || '用户';
+});
+
+const avatarText = computed(() => {
+  const name = displayName.value.trim();
+  return name ? name.slice(0, 2).toUpperCase() : 'DB';
+});
+
+const avatarImageUrl = computed(() => {
+  return avatarObjectUrl.value;
+});
+
+const backgroundImageUrl = computed(() => {
+  return backgroundObjectUrl.value;
+});
 
 const selectedDatabase = computed(() => {
   return databases.value.find((database) => database.id === activeDatabaseID.value) ?? databases.value[0] ?? null;
@@ -300,6 +334,121 @@ const loadPreferences = async () => {
   }
 };
 
+const loadProfile = async () => {
+  try {
+    const nextProfile = await fetchProfile();
+    profile.value = nextProfile;
+    await loadProfileAssets(nextProfile);
+  } catch {
+    console.warn('资料加载失败，已使用登录信息兜底');
+  }
+};
+
+const loadProfileAssets = async (nextProfile: UserProfile) => {
+  await Promise.all([
+    loadAssetObjectUrl(nextProfile.avatarUrl, 'avatar'),
+    loadAssetObjectUrl(nextProfile.backgroundUrl, 'background')
+  ]);
+};
+
+const loadAssetObjectUrl = async (assetUrl: string | null, assetType: 'avatar' | 'background') => {
+  if (!assetUrl) {
+    setAssetObjectUrl(assetType, null);
+    return;
+  }
+
+  try {
+    const blob = await fetchUserAssetBlob(assetUrl);
+    setAssetObjectUrl(assetType, URL.createObjectURL(blob));
+  } catch {
+    console.warn(`${assetType} 资源加载失败`);
+    setAssetObjectUrl(assetType, null);
+  }
+};
+
+const setAssetObjectUrl = (assetType: 'avatar' | 'background', objectUrl: string | null) => {
+  const targetRef = assetType === 'avatar' ? avatarObjectUrl : backgroundObjectUrl;
+
+  if (targetRef.value) {
+    URL.revokeObjectURL(targetRef.value);
+  }
+
+  targetRef.value = objectUrl;
+};
+
+const openProfileDialog = () => {
+  profileDraftNickname.value = displayName.value;
+  profileError.value = '';
+  isProfileDialogVisible.value = true;
+};
+
+const submitProfile = async () => {
+  const nickname = profileDraftNickname.value.trim();
+  profileError.value = '';
+
+  if (nickname.length < 2 || nickname.length > 20) {
+    profileError.value = '昵称长度必须为 2 到 20 个字符';
+    return;
+  }
+
+  isProfileSaving.value = true;
+
+  try {
+    profile.value = await updateProfile(nickname);
+    isProfileDialogVisible.value = false;
+  } catch (error) {
+    profileError.value = getErrorMessage(error, '资料更新失败，请稍后重试。');
+  } finally {
+    isProfileSaving.value = false;
+  }
+};
+
+const openAssetPicker = (assetType: 'avatar' | 'background') => {
+  profileError.value = '';
+
+  if (assetType === 'avatar') {
+    avatarInputRef.value?.click();
+  } else {
+    backgroundInputRef.value?.click();
+  }
+};
+
+const handleAssetSelected = async (event: Event, assetType: 'avatar' | 'background') => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+
+  if (!file) {
+    return;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    profileError.value = '请选择图片文件';
+    return;
+  }
+
+  const maxBytes = assetType === 'avatar' ? 2 * 1024 * 1024 : 8 * 1024 * 1024;
+
+  if (file.size > maxBytes) {
+    profileError.value = assetType === 'avatar' ? '头像不能超过 2 MB' : '背景图不能超过 8 MB';
+    return;
+  }
+
+  isProfileLoading.value = true;
+  profileError.value = '';
+
+  try {
+    await uploadUserAsset(assetType, file);
+    const nextProfile = await fetchProfile();
+    profile.value = nextProfile;
+    await loadProfileAssets(nextProfile);
+  } catch (error) {
+    profileError.value = getErrorMessage(error, assetType === 'avatar' ? '头像上传失败' : '背景上传失败');
+  } finally {
+    isProfileLoading.value = false;
+  }
+};
+
 const saveThemeHue = async () => {
   isPreferenceSaving.value = true;
 
@@ -479,6 +628,7 @@ const showDatabaseNotice = (message: string) => {
 
 onMounted(() => {
   void loadPreferences();
+  void loadProfile();
   void loadDatabases();
   resetAuroraBlobs();
   window.addEventListener('resize', resizeAuroraBlobs);
@@ -496,6 +646,9 @@ onUnmounted(() => {
   if (noticeTimer !== null) {
     window.clearTimeout(noticeTimer);
   }
+
+  setAssetObjectUrl('avatar', null);
+  setAssetObjectUrl('background', null);
 });
 </script>
 
@@ -515,7 +668,7 @@ onUnmounted(() => {
       <header class="workbench-topbar">
         <div class="topbar-title">
           <p class="home-label">DBMS 控制台</p>
-          <h1>欢迎回来，{{ user?.displayName || '用户' }}</h1>
+          <h1>欢迎回来，{{ displayName }}</h1>
         </div>
 
         <div class="user-summary">
@@ -532,7 +685,22 @@ onUnmounted(() => {
               @change="saveThemeHueOnChange"
             />
           </div>
-          <span class="account-chip">账号：{{ user?.accountNo || '-' }}</span>
+          <button
+            class="profile-chip"
+            type="button"
+            @click="openProfileDialog"
+          >
+            <span
+              class="profile-avatar"
+              :style="avatarImageUrl ? { backgroundImage: `url(${avatarImageUrl})` } : undefined"
+            >
+              <span v-if="!avatarImageUrl">{{ avatarText }}</span>
+            </span>
+            <span class="profile-chip-copy">
+              <strong>{{ displayName }}</strong>
+              <small>账号：{{ user?.accountNo || '-' }}</small>
+            </span>
+          </button>
           <button class="ghost-button logout-button" @click="handleLogout">退出登录</button>
         </div>
       </header>
@@ -633,6 +801,12 @@ onUnmounted(() => {
 
         <section class="workbench-content">
           <section class="hero-panel glass-card">
+            <div
+              v-if="backgroundImageUrl"
+              class="hero-background-image"
+              :style="{ backgroundImage: `url(${backgroundImageUrl})` }"
+              aria-hidden="true"
+            ></div>
             <div class="hero-copy">
               <p class="home-label">开始使用</p>
               <h2>你的本地 MySQL 控制台已经准备好</h2>
@@ -796,6 +970,110 @@ onUnmounted(() => {
         >
           删除
         </el-button>
+      </template>
+    </GlassDialog>
+
+    <GlassDialog
+      v-model="isProfileDialogVisible"
+      label="PROFILE"
+      title="个人资料"
+      description="管理你的展示昵称、头像和首页背景资源。图片只保存元信息到系统库，文件本体保存在服务端资源目录。"
+      icon-text="ME"
+      hide-header
+    >
+      <div
+        v-loading="isProfileLoading"
+        class="profile-dialog-body"
+      >
+        <div class="profile-preview-card">
+          <span
+            class="profile-preview-avatar"
+            :style="avatarImageUrl ? { backgroundImage: `url(${avatarImageUrl})` } : undefined"
+          >
+            <span v-if="!avatarImageUrl">{{ avatarText }}</span>
+          </span>
+          <div>
+            <strong>{{ displayName }}</strong>
+            <p>账号：{{ user?.accountNo || '-' }}</p>
+          </div>
+        </div>
+
+        <label class="dialog-field">
+          <span>展示昵称</span>
+          <el-input
+            v-model="profileDraftNickname"
+            maxlength="20"
+            :class="{ 'is-error': profileError }"
+            @keyup.enter="submitProfile"
+          />
+        </label>
+
+        <div class="asset-actions">
+          <button
+            class="dialog-button ghost"
+            type="button"
+            :disabled="isProfileLoading"
+            @click="openAssetPicker('avatar')"
+          >
+            上传头像
+          </button>
+          <button
+            class="dialog-button ghost"
+            type="button"
+            :disabled="isProfileLoading"
+            @click="openAssetPicker('background')"
+          >
+            上传首页背景
+          </button>
+        </div>
+
+        <input
+          ref="avatarInputRef"
+          class="hidden-file-input"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          @change="handleAssetSelected($event, 'avatar')"
+        />
+        <input
+          ref="backgroundInputRef"
+          class="hidden-file-input"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          @change="handleAssetSelected($event, 'background')"
+        />
+
+        <p
+          v-if="profileError"
+          class="dialog-error"
+        >
+          {{ profileError }}
+        </p>
+
+        <div class="dialog-tips">
+          <span>头像 ≤ 2 MB</span>
+          <span>背景 ≤ 8 MB</span>
+          <span>支持 png / jpg / webp</span>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <button
+            class="dialog-button ghost"
+            type="button"
+            @click="isProfileDialogVisible = false"
+          >
+            取消
+          </button>
+          <button
+            class="dialog-button primary"
+            type="button"
+            :disabled="isProfileSaving"
+            @click="submitProfile"
+          >
+            {{ isProfileSaving ? '保存中…' : '保存资料' }}
+          </button>
+        </div>
       </template>
     </GlassDialog>
 
@@ -1014,6 +1292,83 @@ onUnmounted(() => {
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.profile-chip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  max-width: 240px;
+  min-height: 44px;
+  padding: 5px 13px 5px 6px;
+  color: var(--glass-text);
+  text-align: left;
+  border: 1px solid var(--glass-border-soft);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.12), rgba(255, 255, 255, 0.055));
+  box-shadow:
+    var(--glass-shadow-control),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: var(--glass-transition);
+}
+
+.profile-chip:hover {
+  color: var(--glass-text-strong);
+  border-color: hsla(var(--theme-hue), 90%, 72%, 0.42);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.22),
+    0 0 24px hsla(var(--theme-hue), 80%, 62%, 0.18);
+  transform: translateY(-1px);
+}
+
+.profile-avatar,
+.profile-preview-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--glass-text-strong);
+  font-weight: 800;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.28), transparent 30%),
+    linear-gradient(135deg, hsla(var(--theme-hue), 88%, 62%, 0.42), rgba(255, 255, 255, 0.08));
+  background-position: center;
+  background-size: cover;
+  box-shadow:
+    0 0 24px hsla(var(--theme-hue), 80%, 62%, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.profile-avatar {
+  width: 34px;
+  height: 34px;
+  font-size: 12px;
+  border: 1px solid hsla(var(--theme-hue), 90%, 72%, 0.36);
+  border-radius: 50%;
+}
+
+.profile-chip-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.profile-chip-copy strong,
+.profile-chip-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-chip-copy strong {
+  color: var(--glass-text-strong);
+  font-size: 13px;
+}
+
+.profile-chip-copy small {
+  color: var(--glass-text-muted);
+  font-size: 11px;
 }
 
 .workbench-shell {
@@ -1274,6 +1629,31 @@ onUnmounted(() => {
   padding: clamp(34px, 5vw, 72px);
 }
 
+.hero-background-image {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-position: center;
+  background-size: cover;
+  opacity: 0.22;
+  filter: saturate(1.08) contrast(1.04);
+}
+
+.hero-background-image::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background:
+    radial-gradient(circle at 28% 20%, transparent 0 24%, rgba(7, 12, 28, 0.2) 54%),
+    linear-gradient(90deg, rgba(5, 8, 22, 0.22), rgba(5, 8, 22, 0.48));
+}
+
+.hero-copy,
+.hero-orb {
+  position: relative;
+  z-index: 1;
+}
+
 .hero-copy h2 {
   max-width: 760px;
   margin: 0;
@@ -1489,6 +1869,56 @@ onUnmounted(() => {
   margin: 0 0 16px;
   color: var(--glass-text-muted);
   line-height: 1.7;
+}
+
+.profile-dialog-body {
+  display: grid;
+  gap: 18px;
+}
+
+.profile-preview-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.16);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.09), rgba(255, 255, 255, 0.035));
+}
+
+.profile-preview-avatar {
+  width: 58px;
+  height: 58px;
+  font-size: 18px;
+  border: 1px solid hsla(var(--theme-hue), 90%, 72%, 0.38);
+  border-radius: 20px;
+}
+
+.profile-preview-card strong {
+  display: block;
+  overflow: hidden;
+  color: var(--glass-text-strong);
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-preview-card p {
+  margin: 6px 0 0;
+  color: var(--glass-text-muted);
+  font-size: 13px;
+}
+
+.asset-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hidden-file-input {
+  display: none;
 }
 
 .create-database-form {
@@ -1708,6 +2138,15 @@ onUnmounted(() => {
 
   .account-chip {
     max-width: 100%;
+  }
+
+  .profile-chip {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .asset-actions {
+    grid-template-columns: 1fr;
   }
 
   .topbar-theme-control:hover,

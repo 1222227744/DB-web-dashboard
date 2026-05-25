@@ -730,7 +730,7 @@ Rotation}\label{refresh-token-rotation}}
 \item
   读取资源必须校验 \texttt{asset.user\_id\ =\ currentUserId}。
 \item
-  SVG 固定拒绝。
+  允许 png、jpeg、webp；SVG 固定拒绝，避免脚本、外链和内容嗅探风险。
 \end{itemize}
 
 \hypertarget{ux6570ux636eux5e93ux7ba1ux7406ux8be6ux7ec6ux8bbeux8ba1}{%
@@ -1088,7 +1088,8 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \item
   禁止单行删除。
 \item
-  后续批量修改/删除必须通过 GUI 条件构造器和二次确认。
+  基于主键列表的批量修改/删除必须限制影响行数并进行二次确认；基于条件的批量修改/删除必须通过
+  GUI 条件构造器。
 \end{itemize}
 
 原因：
@@ -1111,11 +1112,13 @@ V5 已落地接口：
   \texttt{GET\ /api/v1/databases/:databaseId/tables/:tableName/preview}：分页预览、字段筛选、有限值
   facets。
 \item
-  \texttt{POST\ /api/v1/databases/:databaseId/tables/:tableName/rows}：新增单行。
+  \texttt{POST\ /api/v1/databases/:databaseId/tables/:tableName/rows}：新增单行和批量新增。
 \item
-  \texttt{PATCH\ /api/v1/databases/:databaseId/tables/:tableName/rows}：基于主键更新单行。
+  \texttt{PATCH\ /api/v1/databases/:databaseId/tables/:tableName/rows}：基于主键更新单行和基于主键列表批量修改。
 \item
-  \texttt{DELETE\ /api/v1/databases/:databaseId/tables/:tableName/rows}：基于主键删除单行。
+  \texttt{DELETE\ /api/v1/databases/:databaseId/tables/:tableName/rows}：基于主键删除单行和基于主键列表批量删除。
+\item
+  \texttt{PATCH\ /api/v1/databases/:databaseId/tables/:tableName/schema}：在线结构管理。
 \end{itemize}
 
 V5 已落地前端交互：
@@ -1127,11 +1130,31 @@ V5 已落地前端交互：
 \item
   表头筛选留空表示全选，按 Enter 或刷新按钮后请求。
 \item
+  支持表头排序和列显示控制。
+\item
   新增行在表格顶部进入草稿态，保存后刷新预览。
+\item
+  批量新增通过 JSON 数组弹窗提交。
 \item
   行内编辑只修改本地草稿，点击``更新''后才提交。
 \item
+  批量修改通过已选主键列表和字段值弹窗提交。
+\item
+  批量删除通过已选主键列表和确认弹窗提交。
+\item
   无主键表只允许浏览和新增，编辑与删除按钮禁用。
+\end{itemize}
+
+已补齐能力：
+
+\begin{itemize}
+\tightlist
+\item
+  后端支持批量新增、批量修改和批量删除，并使用事务保证批次原子性。
+\item
+  前端支持排序、列显示控制、批量新增、基于主键列表的批量修改和批量删除。
+\item
+  结构管理支持字段新增、字段修改、字段删除、索引新增/删除和字符串有限取值检查约束。
 \end{itemize}
 
 后续增强：
@@ -1139,13 +1162,9 @@ V5 已落地前端交互：
 \begin{itemize}
 \tightlist
 \item
-  批量新增、批量修改和批量删除。
+  基于 GUI 条件构造器的条件批量修改/删除。
 \item
-  排序、列显示控制和更完整的分页器。
-\item
-  字符串有限取值约束、枚举式约束与结构管理联动。
-\item
-  数据写操作审计日志的完整落库。
+  级联影响分析和数据写操作审计日志的完整落库。
 \end{itemize}
 
 \hypertarget{ux7ed3ux6784ux5316ux67e5ux8be2ux8be6ux7ec6ux8bbeux8ba1}{%
@@ -1756,7 +1775,7 @@ state；当页面状态变复杂时再引入 Pinia。正式设计推荐使用 Pi
 \item
   支持基于主键删除单行。
 \item
-  排序、列显示控制和批量删除作为后续增强。
+  支持排序、列显示控制、批量新增、基于主键列表的批量修改和批量删除。
 \end{itemize}
 
 行状态：
@@ -1991,7 +2010,9 @@ state；当页面状态变复杂时再引入 Pinia。正式设计推荐使用 Pi
 \item
   删除表。
 \item
-  索引、约束、视图逐步扩展。
+  字段、索引和约束管理。
+\item
+  视图逐步扩展。
 \end{itemize}
 
 当前实现范围：
@@ -1999,15 +2020,15 @@ state；当页面状态变复杂时再引入 Pinia。正式设计推荐使用 Pi
 \begin{itemize}
 \tightlist
 \item
-  已完成数据库对象列表、结构化创建表、表结构读取、删除表。
+  已完成数据库对象列表、结构化创建表、表结构读取、删除表和在线结构管理。
 \item
-  创建表阶段支持字段、可选主键、唯一约束和普通/唯一索引的服务端校验与
+  创建表阶段支持字段、可选主键、唯一约束、外键、有限取值检查约束和普通/唯一索引的服务端校验与
   DDL 生成。
 \item
-  外键、检查约束、字符串有限取值约束、枚举式约束、视图管理和在线修改表结构作为后续增强逐步落地。
+  在线结构管理支持字段新增、字段修改、字段删除、索引新增/删除、约束新增/删除，其中有限取值通过
+  CHECK 约束表达。
 \item
-  结构管理窗口作为后续字段增删改、索引管理、约束管理的统一入口；V4
-  先完成读取与入口占位。
+  视图管理仍随 GUI 查询构造器后续落地。
 \end{itemize}
 
 \hypertarget{phase-5ux8868ux6570ux636e-crud}{%
@@ -2019,17 +2040,25 @@ CRUD}\label{phase-5ux8868ux6570ux636e-crud}}
 \item
   分页预览和字段筛选。
 \item
+  排序和列显示控制。
+\item
   单行新增。
+\item
+  批量新增。
 \item
   行内编辑草稿态。
 \item
   基于主键的行级更新。
 \item
+  基于主键列表的批量修改。
+\item
   基于主键的单行删除。
+\item
+  基于主键列表的批量删除。
 \item
   无主键表浏览、新增和只读保护。
 \item
-  批量写入限制和二次确认作为后续增强。
+  基于主键列表的批量写入限制、二次确认和事务原子性。
 \end{itemize}
 
 \hypertarget{phase-6gui-ux67e5ux8be2ux6784ux9020ux5668}{%
@@ -2300,7 +2329,7 @@ CRUD}\label{phase-5ux8868ux6570ux636e-crud}}
   \texttt{API-WORKBENCH}、\texttt{API-PREF}；对应安全
   \texttt{SEC-AUTHZ}。
 \item
-  用户资源：对应需求 \texttt{REQ-ASSET}；对应接口后续补充
+  用户资源：对应需求 \texttt{REQ-ASSET}；对应接口
   \texttt{API-ASSET}；对应安全 \texttt{SEC-FILE}。
 \item
   数据库管理：对应需求 \texttt{REQ-DB}；对应接口
@@ -2435,16 +2464,16 @@ stat\_snapshots & 统计快照表 \\
 \begin{Highlighting}[]
 \KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ users (}
   \KeywordTok{id} \DataTypeTok{INT}\NormalTok{ AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户内部唯一 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  account\_no }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{10}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{UNIQUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}10 位登录账号\textquotesingle{}}\NormalTok{,}
-\NormalTok{  password\_hash }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}bcrypt 密码哈希\textquotesingle{}}\NormalTok{,}
+\NormalTok{  user\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{50}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户名，仅供展示\textquotesingle{}}\NormalTok{,}
+\NormalTok{  account\_no }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{10}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}登录账号，10 位随机数字\textquotesingle{}}\NormalTok{,}
+\NormalTok{  password\_hash }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}bcrypt 密码哈希值\textquotesingle{}}\NormalTok{,}
 \NormalTok{  status ENUM(}\StringTok{\textquotesingle{}active\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}disabled\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}active\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户状态\textquotesingle{}}\NormalTok{,}
-\NormalTok{  last\_login\_time DATETIME }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}最近登录时间\textquotesingle{}}\NormalTok{,}
-\NormalTok{  register\_time }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}注册时间\textquotesingle{}}\NormalTok{,}
-\NormalTok{  updated\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{ON} \KeywordTok{UPDATE} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}更新时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  register\_time }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}账号注册时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  last\_login\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}最近登录时间\textquotesingle{}}\NormalTok{,}
 
-  \KeywordTok{INDEX}\NormalTok{ idx\_users\_account\_no (account\_no),}
-  \KeywordTok{INDEX}\NormalTok{ idx\_users\_status (status)}
-\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户认证表\textquotesingle{}}\NormalTok{;}
+  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_users\_account\_no (account\_no),}
+  \KeywordTok{KEY}\NormalTok{ idx\_users\_status (status)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}系统用户表\textquotesingle{}}\NormalTok{;}
 \end{Highlighting}
 \end{Shaded}
 
@@ -2456,14 +2485,14 @@ stat\_snapshots & 统计快照表 \\
 \begin{Highlighting}[]
 \KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ user\_profiles (}
 \NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  display\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{50}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}展示昵称\textquotesingle{}}\NormalTok{,}
-\NormalTok{  avatar\_asset\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}头像资源 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  bio }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}个人简介\textquotesingle{}}\NormalTok{,}
+\NormalTok{  nickname }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{50}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}展示昵称\textquotesingle{}}\NormalTok{,}
+\NormalTok{  avatar\_asset\_id BIGINT }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}头像资源 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
 \NormalTok{  updated\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{ON} \KeywordTok{UPDATE} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}更新时间\textquotesingle{}}\NormalTok{,}
 
-  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_user\_profiles\_user}
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_profiles\_user}
     \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{)}
+    \KeywordTok{ON} \KeywordTok{DELETE} \KeywordTok{CASCADE}
 \NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户资料表\textquotesingle{}}\NormalTok{;}
 \end{Highlighting}
 \end{Shaded}
@@ -2476,20 +2505,17 @@ stat\_snapshots & 统计快照表 \\
 \begin{Highlighting}[]
 \KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ user\_preferences (}
 \NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  theme\_mode ENUM(}\StringTok{\textquotesingle{}dark\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}light\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}dark\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}主题模式\textquotesingle{}}\NormalTok{,}
-\NormalTok{  theme\_hue }\DataTypeTok{SMALLINT}\NormalTok{ UNSIGNED }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \DecValTok{210} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}主题色相，0{-}359\textquotesingle{}}\NormalTok{,}
-\NormalTok{  background\_preset }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{50}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}particle\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}背景预设\textquotesingle{}}\NormalTok{,}
-\NormalTok{  background\_asset\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}背景资源 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  table\_page\_size }\DataTypeTok{INT}\NormalTok{ UNSIGNED }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \DecValTok{20} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}表格默认分页大小\textquotesingle{}}\NormalTok{,}
-\NormalTok{  confirm\_batch\_insert }\DataTypeTok{BOOLEAN} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{TRUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}批量插入确认\textquotesingle{}}\NormalTok{,}
-\NormalTok{  confirm\_batch\_update }\DataTypeTok{BOOLEAN} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{TRUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}批量修改确认\textquotesingle{}}\NormalTok{,}
-\NormalTok{  confirm\_batch\_delete }\DataTypeTok{BOOLEAN} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{TRUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}批量删除确认\textquotesingle{}}\NormalTok{,}
-\NormalTok{  confirm\_cascade\_delete }\DataTypeTok{BOOLEAN} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{TRUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}级联删除确认\textquotesingle{}}\NormalTok{,}
+\NormalTok{  theme\_color }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{20}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}\#409EFF\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}主题色\textquotesingle{}}\NormalTok{,}
+\NormalTok{  background\_mode ENUM(}\StringTok{\textquotesingle{}particle\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}image\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}gradient\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}particle\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}背景类型\textquotesingle{}}\NormalTok{,}
+\NormalTok{  background\_asset\_id BIGINT }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}背景资源 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  layout\_json JSON }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}工作台布局配置，保存主题模式和分页大小等可扩展偏好\textquotesingle{}}\NormalTok{,}
+\NormalTok{  confirm\_preferences\_json JSON }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}二次确认偏好\textquotesingle{}}\NormalTok{,}
 \NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
 \NormalTok{  updated\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{ON} \KeywordTok{UPDATE} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}更新时间\textquotesingle{}}\NormalTok{,}
 
-  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_user\_preferences\_user}
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_preferences\_user}
     \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{)}
+    \KeywordTok{ON} \KeywordTok{DELETE} \KeywordTok{CASCADE}
 \NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户偏好表\textquotesingle{}}\NormalTok{;}
 \end{Highlighting}
 \end{Shaded}
@@ -2511,8 +2537,8 @@ stat\_snapshots & 统计快照表 \\
 \begin{Shaded}
 \begin{Highlighting}[]
 \KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ user\_assets (}
-  \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}资源 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}所属用户 ID\textquotesingle{}}\NormalTok{,}
+  \KeywordTok{id}\NormalTok{ BIGINT AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}资源 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  asset\_type ENUM(}\StringTok{\textquotesingle{}avatar\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}background\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}other\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}资源类型\textquotesingle{}}\NormalTok{,}
 \NormalTok{  storage\_type }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{30}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}local\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}存储类型\textquotesingle{}}\NormalTok{,}
 \NormalTok{  storage\_key }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{500}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}存储键\textquotesingle{}}\NormalTok{,}
@@ -2524,11 +2550,12 @@ stat\_snapshots & 统计快照表 \\
 \NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
 \NormalTok{  deleted\_at DATETIME }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}删除时间\textquotesingle{}}\NormalTok{,}
 
-  \KeywordTok{INDEX}\NormalTok{ idx\_user\_assets\_user\_type (user\_id, asset\_type),}
-  \KeywordTok{INDEX}\NormalTok{ idx\_user\_assets\_status (status),}
-
-  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_user\_assets\_user}
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_assets\_user}
     \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{)}
+    \KeywordTok{ON} \KeywordTok{DELETE} \KeywordTok{CASCADE}\NormalTok{,}
+  \KeywordTok{KEY}\NormalTok{ idx\_assets\_user\_type (user\_id, asset\_type),}
+  \KeywordTok{KEY}\NormalTok{ idx\_assets\_user\_time (user\_id, created\_at),}
+  \KeywordTok{KEY}\NormalTok{ idx\_assets\_status (status)}
 \NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户资源元信息表\textquotesingle{}}\NormalTok{;}
 \end{Highlighting}
 \end{Shaded}
@@ -2552,25 +2579,21 @@ stat\_snapshots & 统计快照表 \\
 \begin{Shaded}
 \begin{Highlighting}[]
 \KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ refresh\_tokens (}
-  \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}Refresh Token ID\textquotesingle{}}\NormalTok{,}
+  \KeywordTok{id}\NormalTok{ BIGINT AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}Refresh Token ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  token\_hash }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}Refresh Token 哈希\textquotesingle{}}\NormalTok{,}
-\NormalTok{  token\_family }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}Token 家族 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  expires\_at DATETIME }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}过期时间\textquotesingle{}}\NormalTok{,}
-\NormalTok{  revoked\_at DATETIME }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}撤销时间\textquotesingle{}}\NormalTok{,}
-\NormalTok{  replaced\_by\_token\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}轮换后的新 Token ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  created\_ip }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{45}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建 IP\textquotesingle{}}\NormalTok{,}
-\NormalTok{  user\_agent }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{255}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}User{-}Agent\textquotesingle{}}\NormalTok{,}
+\NormalTok{  token\_hash }\DataTypeTok{CHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}Refresh Token SHA{-}256 哈希\textquotesingle{}}\NormalTok{,}
+\NormalTok{  token\_family }\DataTypeTok{CHAR}\NormalTok{(}\DecValTok{36}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}Token 家族 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  expires\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}过期时间\textquotesingle{}}\NormalTok{,}
+\NormalTok{  revoked\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}撤销时间\textquotesingle{}}\NormalTok{,}
 \NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
 
-  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_refresh\_token\_hash (token\_hash),}
-  \KeywordTok{INDEX}\NormalTok{ idx\_refresh\_tokens\_user (user\_id),}
-  \KeywordTok{INDEX}\NormalTok{ idx\_refresh\_tokens\_family (token\_family),}
-  \KeywordTok{INDEX}\NormalTok{ idx\_refresh\_tokens\_expires (expires\_at),}
-
-  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_refresh\_tokens\_user}
+  \KeywordTok{CONSTRAINT}\NormalTok{ fk\_refresh\_user}
     \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{)}
-\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}Refresh Token 表\textquotesingle{}}\NormalTok{;}
+    \KeywordTok{ON} \KeywordTok{DELETE} \KeywordTok{CASCADE}\NormalTok{,}
+  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ idx\_refresh\_token\_hash (token\_hash),}
+  \KeywordTok{KEY}\NormalTok{ idx\_refresh\_user\_family (user\_id, token\_family),}
+  \KeywordTok{KEY}\NormalTok{ idx\_refresh\_user\_expires (user\_id, expires\_at)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}Refresh Token 会话表\textquotesingle{}}\NormalTok{;}
 \end{Highlighting}
 \end{Shaded}
 
@@ -2581,25 +2604,24 @@ stat\_snapshots & 统计快照表 \\
 \begin{Shaded}
 \begin{Highlighting}[]
 \KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ user\_databases (}
-  \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}所属用户 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  display\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户看到的数据库名称\textquotesingle{}}\NormalTok{,}
-\NormalTok{  schema\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{128}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}MySQL 中真实数据库名称\textquotesingle{}}\NormalTok{,}
-\NormalTok{  status ENUM(}\StringTok{\textquotesingle{}active\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}deleting\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}deleted\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}active\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}状态\textquotesingle{}}\NormalTok{,}
+  \KeywordTok{id}\NormalTok{ BIGINT AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户数据库元数据 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  display\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户可见数据库名\textquotesingle{}}\NormalTok{,}
+\NormalTok{  schema\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{128}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}实际 MySQL schema 名称\textquotesingle{}}\NormalTok{,}
+\NormalTok{  status ENUM(}\StringTok{\textquotesingle{}active\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}deleting\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}deleted\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}active\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}数据库状态\textquotesingle{}}\NormalTok{,}
 \NormalTok{  table\_count }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \DecValTok{0} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}表数量快照\textquotesingle{}}\NormalTok{,}
 \NormalTok{  size\_bytes BIGINT }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \DecValTok{0} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}容量快照\textquotesingle{}}\NormalTok{,}
 \NormalTok{  created\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}创建时间\textquotesingle{}}\NormalTok{,}
 \NormalTok{  updated\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{ON} \KeywordTok{UPDATE} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}更新时间\textquotesingle{}}\NormalTok{,}
 \NormalTok{  deleted\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NULL} \KeywordTok{DEFAULT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}删除时间\textquotesingle{}}\NormalTok{,}
 
-  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_user\_databases\_schema\_name (schema\_name),}
-  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_user\_databases\_user\_display\_status (user\_id, display\_name, status),}
-  \KeywordTok{INDEX}\NormalTok{ idx\_user\_databases\_user\_status\_time (user\_id, status, created\_at),}
-
   \KeywordTok{CONSTRAINT}\NormalTok{ fk\_user\_databases\_user}
     \KeywordTok{FOREIGN} \KeywordTok{KEY}\NormalTok{ (user\_id) }\KeywordTok{REFERENCES}\NormalTok{ users(}\KeywordTok{id}\NormalTok{)}
-    \KeywordTok{ON} \KeywordTok{DELETE} \KeywordTok{CASCADE}
-\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户数据库归属表\textquotesingle{}}\NormalTok{;}
+    \KeywordTok{ON} \KeywordTok{DELETE} \KeywordTok{CASCADE}\NormalTok{,}
+  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_user\_databases\_schema\_name (schema\_name),}
+  \KeywordTok{UNIQUE} \KeywordTok{KEY}\NormalTok{ uk\_user\_databases\_user\_display\_status (user\_id, display\_name, status),}
+  \KeywordTok{KEY}\NormalTok{ idx\_user\_databases\_user\_status\_time (user\_id, status, created\_at)}
+\NormalTok{) }\KeywordTok{COMMENT}\OperatorTok{=}\StringTok{\textquotesingle{}用户数据库元数据表\textquotesingle{}}\NormalTok{;}
 \end{Highlighting}
 \end{Shaded}
 

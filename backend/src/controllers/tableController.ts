@@ -1,4 +1,5 @@
 import { type NextFunction, type Request, type Response } from 'express';
+import { type PoolConnection } from 'mysql2/promise';
 import pool from '../config/db.js';
 import { limits } from '../config/limits.js';
 import { AppError } from '../errors/AppError.js';
@@ -18,6 +19,8 @@ type TablePreviewQuery = {
   limit?: string;
   offset?: string;
   filters?: string;
+  orderBy?: string;
+  order?: string;
 };
 
 type TablePreviewFilter = {
@@ -47,6 +50,12 @@ type CreateConstraintBody = {
   name?: unknown;
   type?: unknown;
   columns?: unknown;
+  column?: unknown;
+  values?: unknown;
+  referencedTable?: unknown;
+  referencedColumns?: unknown;
+  onDelete?: unknown;
+  onUpdate?: unknown;
 };
 
 type CreateIndexColumnBody = {
@@ -69,15 +78,40 @@ type CreateTableBody = {
 
 type CreateRowBody = {
   row?: unknown;
+  rows?: unknown;
+  confirmation?: ConfirmationBody;
 };
 
 type UpdateRowBody = {
   primaryKey?: unknown;
+  primaryKeys?: unknown;
   set?: unknown;
+  confirmation?: ConfirmationBody;
 };
 
 type DeleteRowBody = {
   primaryKey?: unknown;
+  primaryKeys?: unknown;
+  confirmation?: ConfirmationBody;
+};
+
+type ConfirmationBody = {
+  confirmed?: unknown;
+  confirmText?: unknown;
+};
+
+type UpdateTableSchemaBody = {
+  operations?: unknown;
+  confirmation?: ConfirmationBody;
+};
+
+type SchemaOperationBody = {
+  action?: unknown;
+  column?: unknown;
+  oldName?: unknown;
+  name?: unknown;
+  index?: unknown;
+  constraint?: unknown;
 };
 
 type DeleteTableBody = {
@@ -124,6 +158,7 @@ type ConstraintSchemaRow = {
   constraint_type: string;
   column_name: string | null;
   ordinal_position: number;
+  check_clause: string | null;
 };
 
 type TableCountRow = {
@@ -158,8 +193,13 @@ type NormalizedColumn = {
 
 type NormalizedConstraint = {
   name: string;
-  type: 'PRIMARY_KEY' | 'UNIQUE';
+  type: 'PRIMARY_KEY' | 'UNIQUE' | 'FOREIGN_KEY' | 'CHECK_IN';
   columns: string[];
+  referencedTable?: string;
+  referencedColumns?: string[];
+  onDelete?: 'RESTRICT' | 'CASCADE' | 'SET NULL' | 'NO ACTION';
+  onUpdate?: 'RESTRICT' | 'CASCADE' | 'SET NULL' | 'NO ACTION';
+  values?: Array<string | number | boolean>;
 };
 
 type NormalizedIndex = {
@@ -193,6 +233,15 @@ type SupportedColumnType =
   | 'BLOB'
   | 'MEDIUMBLOB'
   | 'LONGBLOB';
+
+type NormalizedSchemaOperation =
+  | { action: 'ADD_COLUMN'; column: NormalizedColumn }
+  | { action: 'MODIFY_COLUMN'; oldName: string; column: NormalizedColumn }
+  | { action: 'DROP_COLUMN'; name: string }
+  | { action: 'ADD_INDEX'; index: NormalizedIndex }
+  | { action: 'DROP_INDEX'; name: string }
+  | { action: 'ADD_CONSTRAINT'; constraint: NormalizedConstraint }
+  | { action: 'DROP_CONSTRAINT'; name: string };
 
 const supportedColumnTypes = new Set<SupportedColumnType>([
   'TINYINT',
@@ -279,6 +328,7 @@ export const createTable = async (
     ensureColumnsExist(columnNames, constraints.flatMap((constraint) => constraint.columns));
     ensureColumnsExist(columnNames, indexes.flatMap((index) => index.columns.map((column) => column.name)));
     ensureCreateTableRules(columns, constraints, indexes);
+    await ensureReferencedConstraints(database.schemaName, tableName, constraints, columnNames);
     await ensureTableQuota(database.schemaName);
     await ensureTableNameAvailable(database.schemaName, tableName);
 
@@ -318,6 +368,31 @@ export const getTableSchema = async (
   }
 };
 
+export const updateTableSchema = async (
+  req: Request<TableParams, unknown, UpdateTableSchemaBody>,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const context = await getOwnedTableContext(req);
+    const operations = normalizeSchemaOperations(req.body.operations);
+    ensureSchemaOperationRules(operations, context.schema.columns.map((column) => column.name));
+
+    if (operations.some(isDangerousSchemaOperation)) {
+      validateGenericConfirmation(req.body.confirmation, context.tableName, '该结构变更需要二次确认');
+    }
+
+    for (const operation of operations) {
+      await executeSchemaOperation(context.schemaName, context.tableName, operation);
+    }
+
+    const schema = await readTableSchema(context.schemaName, context.tableName);
+    sendSuccess(res, '表结构已更新', schema);
+  } catch (error) {
+    next(convertMysqlError(error, '表结构更新失败'));
+  }
+};
+
 export const previewTableRows = async (
   req: Request<TableParams, unknown, unknown, TablePreviewQuery>,
   res: Response,
@@ -335,6 +410,7 @@ export const previewTableRows = async (
     const offset = parseOptionalInteger(req.query.offset, '预览偏移量', 0, limits.maxQueryRows, 0);
     const filters = normalizePreviewFilters(req.query.filters, schema.columns);
     const whereClause = buildPreviewWhereClause(filters);
+    const orderClause = buildPreviewOrderClause(req.query.orderBy, req.query.order, schema.columns);
     const qualifiedTableName = `${quoteIdentifier(database.schemaName)}.${quoteIdentifier(tableName)}`;
 
     const [countRows] = await pool.query(
@@ -343,7 +419,7 @@ export const previewTableRows = async (
     );
     const total = Number((countRows as TableCountRow[])[0]?.total ?? 0);
     const [rowItems] = await pool.query(
-      `SELECT * FROM ${qualifiedTableName}${whereClause.sql} LIMIT ? OFFSET ?`,
+      `SELECT * FROM ${qualifiedTableName}${whereClause.sql}${orderClause.sql} LIMIT ? OFFSET ?`,
       [...whereClause.values, limit, offset]
     );
     const facets = await readPreviewFacets(database.schemaName, tableName, schema.columns);
@@ -370,29 +446,44 @@ export const createTableRow = async (
 ): Promise<void> => {
   try {
     const context = await getOwnedTableContext(req);
-    const values = normalizeRowInput(req.body.row, context.schema.columns, {
-      allowMissing: true,
-      allowEmpty: false
-    });
+    const rowInputs = normalizeCreateRowInputs(req.body.rows ?? req.body.row, context.schema.columns);
+    validateBatchConfirmation(rowInputs.length, req.body.confirmation, context.tableName, '批量新增需要二次确认');
 
     await ensureTableWriteCapacity(context.schemaName, context.tableName);
 
-    const columns = Object.keys(values);
-    const sql = [
-      `INSERT INTO ${context.qualifiedTableName}`,
-      `(${columns.map(quoteIdentifier).join(', ')})`,
-      `VALUES (${columns.map(() => '?').join(', ')})`
-    ].join(' ');
-    const [result] = await pool.query(sql, columns.map((column) => values[column]));
-    const insertedPrimaryKey = buildInsertedPrimaryKey(context.schema.columns, values, result as InsertResult);
-    const row = insertedPrimaryKey
-      ? await readSingleRowByPrimaryKey(context.qualifiedTableName, insertedPrimaryKey)
-      : null;
+    const result = await runInTransaction(async (connection) => {
+      const insertedRows: Array<Record<string, unknown> | null> = [];
+      const primaryKeys: Array<Record<string, unknown> | null> = [];
+
+      for (const values of rowInputs) {
+        const columns = Object.keys(values);
+        const sql = [
+          `INSERT INTO ${context.qualifiedTableName}`,
+          `(${columns.map(quoteIdentifier).join(', ')})`,
+          `VALUES (${columns.map(() => '?').join(', ')})`
+        ].join(' ');
+        const [queryResult] = await connection.query(sql, columns.map((column) => values[column]));
+        const insertedPrimaryKey = buildInsertedPrimaryKey(context.schema.columns, values, queryResult as InsertResult);
+        const row = insertedPrimaryKey
+          ? await readSingleRowByPrimaryKey(context.qualifiedTableName, insertedPrimaryKey, connection)
+          : null;
+        primaryKeys.push(insertedPrimaryKey);
+        insertedRows.push(row);
+      }
+
+      return {
+        insertedRows,
+        primaryKeys
+      };
+    });
 
     sendSuccess(res, '行已新增', {
       tableName: context.tableName,
-      row,
-      primaryKey: insertedPrimaryKey
+      row: result.insertedRows[0] ?? null,
+      rows: result.insertedRows,
+      primaryKey: result.primaryKeys[0] ?? null,
+      primaryKeys: result.primaryKeys,
+      affectedRows: rowInputs.length
     });
   } catch (error) {
     next(convertMysqlError(error, '新增行失败'));
@@ -406,37 +497,56 @@ export const updateTableRow = async (
 ): Promise<void> => {
   try {
     const context = await getOwnedTableContext(req);
-    const primaryKey = normalizePrimaryKeyInput(req.body.primaryKey, context.schema.columns);
+    const primaryKeys = normalizePrimaryKeyInputs(req.body.primaryKeys ?? req.body.primaryKey, context.schema.columns);
+    validateBatchConfirmation(primaryKeys.length, req.body.confirmation, context.tableName, '批量更新需要二次确认');
     const values = normalizeRowInput(req.body.set, context.schema.columns, {
       allowMissing: true,
       allowEmpty: false,
-      forbiddenColumns: new Set(Object.keys(primaryKey))
+      forbiddenColumns: new Set(context.schema.columns.filter((column) => column.key === 'PRI').map((column) => column.name))
     });
     await ensureTableWriteCapacity(context.schemaName, context.tableName);
 
     const setColumns = Object.keys(values);
-    const whereClause = buildPrimaryKeyWhereClause(primaryKey);
-    const [result] = await pool.query(
-      `UPDATE ${context.qualifiedTableName}
-       SET ${setColumns.map((column) => `${quoteIdentifier(column)} = ?`).join(', ')}
-       ${whereClause.sql}`,
-      [...setColumns.map((column) => values[column]), ...whereClause.values]
-    );
-    const affectedRows = Number((result as ResultHeader).affectedRows ?? 0);
+    const result = await runInTransaction(async (connection) => {
+      const updatedRows: Array<Record<string, unknown> | null> = [];
+      let affectedRows = 0;
 
-    if (affectedRows !== 1) {
-      throw new AppError({
-        httpStatus: 409,
-        type: 'RESOURCE_CONFLICT',
-        code: 'ROW_UPDATE_NOT_UNIQUE',
-        message: '更新目标不存在或不唯一，请刷新后重试'
-      });
-    }
+      for (const primaryKey of primaryKeys) {
+        const whereClause = buildPrimaryKeyWhereClause(primaryKey);
+        const [queryResult] = await connection.query(
+          `UPDATE ${context.qualifiedTableName}
+           SET ${setColumns.map((column) => `${quoteIdentifier(column)} = ?`).join(', ')}
+           ${whereClause.sql}`,
+          [...setColumns.map((column) => values[column]), ...whereClause.values]
+        );
+        const affected = Number((queryResult as ResultHeader).affectedRows ?? 0);
+
+        if (affected !== 1) {
+          throw new AppError({
+            httpStatus: 409,
+            type: 'RESOURCE_CONFLICT',
+            code: 'ROW_UPDATE_NOT_UNIQUE',
+            message: '更新目标不存在或不唯一，请刷新后重试'
+          });
+        }
+
+        affectedRows += affected;
+        updatedRows.push(await readSingleRowByPrimaryKey(context.qualifiedTableName, primaryKey, connection));
+      }
+
+      return {
+        updatedRows,
+        affectedRows
+      };
+    });
 
     sendSuccess(res, '行已更新', {
       tableName: context.tableName,
-      row: await readSingleRowByPrimaryKey(context.qualifiedTableName, primaryKey),
-      primaryKey
+      row: result.updatedRows[0] ?? null,
+      rows: result.updatedRows,
+      primaryKey: primaryKeys[0] ?? null,
+      primaryKeys,
+      affectedRows: result.affectedRows
     });
   } catch (error) {
     next(convertMysqlError(error, '更新行失败'));
@@ -450,26 +560,39 @@ export const deleteTableRow = async (
 ): Promise<void> => {
   try {
     const context = await getOwnedTableContext(req);
-    const primaryKey = normalizePrimaryKeyInput(req.body.primaryKey, context.schema.columns);
-    const whereClause = buildPrimaryKeyWhereClause(primaryKey);
-    const [result] = await pool.query(
-      `DELETE FROM ${context.qualifiedTableName} ${whereClause.sql}`,
-      whereClause.values
-    );
-    const affectedRows = Number((result as ResultHeader).affectedRows ?? 0);
+    const primaryKeys = normalizePrimaryKeyInputs(req.body.primaryKeys ?? req.body.primaryKey, context.schema.columns);
+    validateBatchConfirmation(primaryKeys.length, req.body.confirmation, context.tableName, '批量删除需要二次确认');
+    const affectedRows = await runInTransaction(async (connection) => {
+      let totalAffectedRows = 0;
 
-    if (affectedRows !== 1) {
-      throw new AppError({
-        httpStatus: 409,
-        type: 'RESOURCE_CONFLICT',
-        code: 'ROW_DELETE_NOT_UNIQUE',
-        message: '删除目标不存在或不唯一，请刷新后重试'
-      });
-    }
+      for (const primaryKey of primaryKeys) {
+        const whereClause = buildPrimaryKeyWhereClause(primaryKey);
+        const [result] = await connection.query(
+          `DELETE FROM ${context.qualifiedTableName} ${whereClause.sql}`,
+          whereClause.values
+        );
+        const affected = Number((result as ResultHeader).affectedRows ?? 0);
+
+        if (affected !== 1) {
+          throw new AppError({
+            httpStatus: 409,
+            type: 'RESOURCE_CONFLICT',
+            code: 'ROW_DELETE_NOT_UNIQUE',
+            message: '删除目标不存在或不唯一，请刷新后重试'
+          });
+        }
+
+        totalAffectedRows += affected;
+      }
+
+      return totalAffectedRows;
+    });
 
     sendSuccess(res, '行已删除', {
       tableName: context.tableName,
-      primaryKey
+      primaryKey: primaryKeys[0] ?? null,
+      primaryKeys,
+      affectedRows
     });
   } catch (error) {
     next(convertMysqlError(error, '删除行失败'));
@@ -659,7 +782,9 @@ const normalizeConstraints = (value: unknown): NormalizedConstraint[] => {
     const name = type === 'PRIMARY_KEY'
       ? 'PRIMARY'
       : validateSqlIdentifier(body.name, `第 ${index + 1} 个约束名`);
-    const columns = normalizeColumnNameArray(body.columns, `第 ${index + 1} 个约束字段`);
+    const columns = type === 'CHECK_IN'
+      ? [validateSqlIdentifier(body.column, `第 ${index + 1} 个有限取值字段`)]
+      : normalizeColumnNameArray(body.columns, `第 ${index + 1} 个约束字段`);
 
     if (names.has(name)) {
       throwValidationError(`约束 ${name} 重复`);
@@ -667,20 +792,70 @@ const normalizeConstraints = (value: unknown): NormalizedConstraint[] => {
 
     names.add(name);
 
-    return {
+    const constraint: NormalizedConstraint = {
       name,
       type,
       columns
     };
+
+    if (type === 'CHECK_IN') {
+      constraint.values = normalizeFiniteValues(body.values, name);
+    }
+
+    if (type === 'FOREIGN_KEY') {
+      constraint.referencedTable = validateSqlIdentifier(body.referencedTable, `${name} 引用表`);
+      constraint.referencedColumns = normalizeColumnNameArray(body.referencedColumns, `${name} 引用字段`);
+      constraint.onDelete = normalizeReferenceAction(body.onDelete);
+      constraint.onUpdate = normalizeReferenceAction(body.onUpdate);
+
+      if (constraint.columns.length !== constraint.referencedColumns.length) {
+        throwValidationError(`${name} 的外键字段与引用字段数量不一致`);
+      }
+    }
+
+    return constraint;
   });
 };
 
-const normalizeConstraintType = (value: unknown): 'PRIMARY_KEY' | 'UNIQUE' => {
-  if (value !== 'PRIMARY_KEY' && value !== 'UNIQUE') {
-    throwValidationError('当前版本创建表时仅支持主键和唯一约束');
+const normalizeConstraintType = (value: unknown): NormalizedConstraint['type'] => {
+  if (!['PRIMARY_KEY', 'UNIQUE', 'FOREIGN_KEY', 'CHECK_IN'].includes(String(value))) {
+    throwValidationError('约束仅支持主键、唯一、外键和有限取值检查');
   }
 
-  return value as 'PRIMARY_KEY' | 'UNIQUE';
+  return value as NormalizedConstraint['type'];
+};
+
+const normalizeFiniteValues = (value: unknown, constraintName: string): Array<string | number | boolean> => {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 50) {
+    throwValidationError(`${constraintName} 的有限取值数量必须为 1 到 50`);
+  }
+
+  const items = value as unknown[];
+  const values = items.map((item): string | number | boolean => {
+    if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+      return item;
+    }
+
+    return throwValidationError(`${constraintName} 的有限取值仅支持字符串、数字或布尔值`);
+  });
+
+  if (new Set(values.map((item) => JSON.stringify(item))).size !== values.length) {
+    throwValidationError(`${constraintName} 的有限取值不能重复`);
+  }
+
+  return values;
+};
+
+const normalizeReferenceAction = (value: unknown): 'RESTRICT' | 'CASCADE' | 'SET NULL' | 'NO ACTION' => {
+  if (value === undefined) {
+    return 'RESTRICT';
+  }
+
+  if (!['RESTRICT', 'CASCADE', 'SET NULL', 'NO ACTION'].includes(String(value))) {
+    throwValidationError('外键引用动作不合法');
+  }
+
+  return value as 'RESTRICT' | 'CASCADE' | 'SET NULL' | 'NO ACTION';
 };
 
 const normalizeIndexes = (value: unknown): NormalizedIndex[] => {
@@ -772,6 +947,17 @@ const ensureCreateTableRules = (
     }
   });
 
+  constraints.filter((constraint) => constraint.type === 'FOREIGN_KEY').forEach((constraint) => {
+    if (constraint.onDelete === 'SET NULL') {
+      constraint.columns.forEach((name) => {
+        const column = columns.find((item) => item.name === name);
+        if (column && !column.nullable) {
+          throwValidationError(`${name} 使用 SET NULL 外键规则时必须允许为空`);
+        }
+      });
+    }
+  });
+
   const indexAndConstraintNames = new Set<string>();
 
   constraints.forEach((constraint) => indexAndConstraintNames.add(constraint.name));
@@ -790,6 +976,208 @@ const ensureColumnsExist = (columnNames: Set<string>, usedColumns: string[]): vo
       throwValidationError(`字段 ${name} 不存在`);
     }
   });
+};
+
+const ensureReferencedConstraints = async (
+  schemaName: string,
+  tableName: string,
+  constraints: NormalizedConstraint[],
+  currentColumnNames: Set<string>
+): Promise<void> => {
+  for (const constraint of constraints.filter((item) => item.type === 'FOREIGN_KEY')) {
+    const referencedTable = constraint.referencedTable!;
+    const referencedColumns = constraint.referencedColumns ?? [];
+
+    if (referencedTable === tableName) {
+      ensureColumnsExist(currentColumnNames, referencedColumns);
+      continue;
+    }
+
+    await ensureTableExists(schemaName, referencedTable);
+    const referencedSchema = await readTableSchema(schemaName, referencedTable);
+    ensureColumnsExist(new Set(referencedSchema.columns.map((column) => column.name)), referencedColumns);
+  }
+};
+
+const normalizeSchemaOperations = (value: unknown): NormalizedSchemaOperation[] => {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 20) {
+    throwValidationError('结构操作数量必须为 1 到 20');
+  }
+
+  const items = value as unknown[];
+  return items.map((item, index) => {
+    const body = asRecord<SchemaOperationBody>(item, `第 ${index + 1} 个结构操作格式不正确`);
+
+    if (body.action === 'ADD_COLUMN') {
+      return {
+        action: 'ADD_COLUMN',
+        column: normalizeColumns([body.column])[0]!
+      };
+    }
+
+    if (body.action === 'MODIFY_COLUMN') {
+      return {
+        action: 'MODIFY_COLUMN',
+        oldName: validateSqlIdentifier(body.oldName, '原字段名'),
+        column: normalizeColumns([body.column])[0]!
+      };
+    }
+
+    if (body.action === 'DROP_COLUMN') {
+      return {
+        action: 'DROP_COLUMN',
+        name: validateSqlIdentifier(body.name, '字段名')
+      };
+    }
+
+    if (body.action === 'ADD_INDEX') {
+      return {
+        action: 'ADD_INDEX',
+        index: normalizeIndexes([body.index])[0]!
+      };
+    }
+
+    if (body.action === 'DROP_INDEX') {
+      return {
+        action: 'DROP_INDEX',
+        name: validateSqlIdentifier(body.name, '索引名')
+      };
+    }
+
+    if (body.action === 'ADD_CONSTRAINT') {
+      return {
+        action: 'ADD_CONSTRAINT',
+        constraint: normalizeConstraints([body.constraint])[0]!
+      };
+    }
+
+    if (body.action === 'DROP_CONSTRAINT') {
+      return {
+        action: 'DROP_CONSTRAINT',
+        name: typeof body.name === 'string' && body.name === 'PRIMARY'
+          ? 'PRIMARY'
+          : validateSqlIdentifier(body.name, '约束名')
+      };
+    }
+
+    return throwValidationError(`第 ${index + 1} 个结构操作不支持`);
+  });
+};
+
+const ensureSchemaOperationRules = (operations: NormalizedSchemaOperation[], columnNames: string[]): void => {
+  const knownColumnNames = new Set(columnNames);
+
+  operations.forEach((operation) => {
+    if (operation.action === 'ADD_COLUMN') {
+      if (knownColumnNames.has(operation.column.name)) {
+        throwValidationError(`字段 ${operation.column.name} 已存在`);
+      }
+      knownColumnNames.add(operation.column.name);
+    }
+
+    if (operation.action === 'MODIFY_COLUMN') {
+      if (!knownColumnNames.has(operation.oldName)) {
+        throwValidationError(`字段 ${operation.oldName} 不存在`);
+      }
+      if (operation.column.name !== operation.oldName && knownColumnNames.has(operation.column.name)) {
+        throwValidationError(`字段 ${operation.column.name} 已存在`);
+      }
+      knownColumnNames.delete(operation.oldName);
+      knownColumnNames.add(operation.column.name);
+    }
+
+    if (operation.action === 'DROP_COLUMN') {
+      if (!knownColumnNames.has(operation.name)) {
+        throwValidationError(`字段 ${operation.name} 不存在`);
+      }
+      if (knownColumnNames.size === 1) {
+        throwValidationError('数据表至少必须保留一个字段');
+      }
+      knownColumnNames.delete(operation.name);
+    }
+
+    if (operation.action === 'ADD_INDEX') {
+      ensureColumnsExist(knownColumnNames, operation.index.columns.map((column) => column.name));
+    }
+
+    if (operation.action === 'ADD_CONSTRAINT') {
+      ensureColumnsExist(knownColumnNames, operation.constraint.columns);
+    }
+  });
+};
+
+const isDangerousSchemaOperation = (operation: NormalizedSchemaOperation): boolean => {
+  return ['MODIFY_COLUMN', 'DROP_COLUMN', 'DROP_INDEX', 'DROP_CONSTRAINT'].includes(operation.action);
+};
+
+const executeSchemaOperation = async (
+  schemaName: string,
+  tableName: string,
+  operation: NormalizedSchemaOperation
+): Promise<void> => {
+  const qualifiedTableName = `${quoteIdentifier(schemaName)}.${quoteIdentifier(tableName)}`;
+
+  if (operation.action === 'ADD_COLUMN') {
+    await pool.query(`ALTER TABLE ${qualifiedTableName} ADD COLUMN ${buildColumnSql(operation.column)}`);
+    return;
+  }
+
+  if (operation.action === 'MODIFY_COLUMN') {
+    await pool.query(`ALTER TABLE ${qualifiedTableName} CHANGE COLUMN ${quoteIdentifier(operation.oldName)} ${buildColumnSql(operation.column)}`);
+    return;
+  }
+
+  if (operation.action === 'DROP_COLUMN') {
+    await pool.query(`ALTER TABLE ${qualifiedTableName} DROP COLUMN ${quoteIdentifier(operation.name)}`);
+    return;
+  }
+
+  if (operation.action === 'ADD_INDEX') {
+    await pool.query(`ALTER TABLE ${qualifiedTableName} ADD ${buildIndexSql(operation.index)}`);
+    return;
+  }
+
+  if (operation.action === 'DROP_INDEX') {
+    await pool.query(`ALTER TABLE ${qualifiedTableName} DROP INDEX ${quoteIdentifier(operation.name)}`);
+    return;
+  }
+
+  if (operation.action === 'ADD_CONSTRAINT') {
+    if (operation.constraint.type === 'FOREIGN_KEY') {
+      const schema = await readTableSchema(schemaName, tableName);
+      await ensureReferencedConstraints(schemaName, tableName, [operation.constraint], new Set(schema.columns.map((column) => column.name)));
+    }
+    await pool.query(`ALTER TABLE ${qualifiedTableName} ADD ${buildConstraintSql(operation.constraint)}`);
+    return;
+  }
+
+  const constraintType = await readConstraintType(schemaName, tableName, operation.name);
+
+  if (operation.name === 'PRIMARY' || constraintType === 'PRIMARY KEY') {
+    await pool.query(`ALTER TABLE ${qualifiedTableName} DROP PRIMARY KEY`);
+  } else if (constraintType === 'FOREIGN KEY') {
+    await pool.query(`ALTER TABLE ${qualifiedTableName} DROP FOREIGN KEY ${quoteIdentifier(operation.name)}`);
+  } else if (constraintType === 'CHECK') {
+    await pool.query(`ALTER TABLE ${qualifiedTableName} DROP CHECK ${quoteIdentifier(operation.name)}`);
+  } else {
+    await pool.query(`ALTER TABLE ${qualifiedTableName} DROP INDEX ${quoteIdentifier(operation.name)}`);
+  }
+};
+
+const readConstraintType = async (
+  schemaName: string,
+  tableName: string,
+  constraintName: string
+): Promise<string | null> => {
+  const [rows] = await pool.query(
+    `SELECT CONSTRAINT_TYPE AS constraint_type
+     FROM information_schema.table_constraints
+     WHERE table_schema = ? AND table_name = ? AND constraint_name = ?
+     LIMIT 1`,
+    [schemaName, tableName, constraintName]
+  );
+
+  return ((rows as Array<{ constraint_type: string }>)[0]?.constraint_type ?? null);
 };
 
 const ensureTableQuota = async (schemaName: string): Promise<void> => {
@@ -883,6 +1271,36 @@ const ensureTableWriteCapacity = async (schemaName: string, tableName: string): 
       message: `单表容量不能超过 ${Math.floor(limits.maxTableStorageBytes / 1024 / 1024)} MB`
     });
   }
+};
+
+const normalizeCreateRowInputs = (
+  value: unknown,
+  columns: Array<{ name: string; dataType: string; nullable: boolean; extra: string }>
+): Array<Record<string, unknown>> => {
+  const rawRows = Array.isArray(value) ? value : [value];
+
+  if (rawRows.length < 1) {
+    throwValidationError('请至少提交一行数据');
+  }
+
+  if (rawRows.length > limits.maxBatchInsertRows) {
+    throwValidationError(`单次最多新增 ${limits.maxBatchInsertRows} 行`);
+  }
+
+  return rawRows.map((row, index) => {
+    try {
+      return normalizeRowInput(row, columns, {
+        allowMissing: true,
+        allowEmpty: false
+      });
+    } catch (error) {
+      if (error instanceof AppError) {
+        throwValidationError(`第 ${index + 1} 行：${error.message}`);
+      }
+
+      throw error;
+    }
+  });
 };
 
 const normalizeRowInput = (
@@ -1005,6 +1423,70 @@ const normalizePrimaryKeyInput = (
   return primaryKey;
 };
 
+const normalizePrimaryKeyInputs = (
+  value: unknown,
+  columns: Array<{ name: string; dataType: string; key: string; nullable: boolean }>
+): Array<Record<string, unknown>> => {
+  const items = Array.isArray(value) ? value : [value];
+
+  if (items.length < 1) {
+    throwValidationError('请至少提交一个主键');
+  }
+
+  if (items.length > limits.maxBatchWriteAffectedRows) {
+    throwValidationError(`单次最多影响 ${limits.maxBatchWriteAffectedRows} 行`);
+  }
+
+  return items.map((item, index) => {
+    try {
+      return normalizePrimaryKeyInput(item, columns);
+    } catch (error) {
+      if (error instanceof AppError) {
+        throwValidationError(`第 ${index + 1} 个主键：${error.message}`);
+      }
+
+      throw error;
+    }
+  });
+};
+
+const validateBatchConfirmation = (
+  itemCount: number,
+  confirmation: ConfirmationBody | undefined,
+  confirmText: string,
+  message: string
+): void => {
+  if (itemCount <= 1) {
+    return;
+  }
+
+  validateGenericConfirmation(confirmation, confirmText, message);
+};
+
+const validateGenericConfirmation = (
+  confirmation: ConfirmationBody | undefined,
+  confirmText: string,
+  message: string
+): void => {
+  if (!confirmation || confirmation.confirmed !== true) {
+    throw new AppError({
+      httpStatus: 400,
+      type: 'VALIDATION_ERROR',
+      code: 'CONFIRMATION_REQUIRED',
+      message
+    });
+  }
+
+  if (typeof confirmation.confirmText !== 'string' || confirmation.confirmText.trim() !== confirmText) {
+    throw new AppError({
+      httpStatus: 400,
+      type: 'VALIDATION_ERROR',
+      code: 'CONFIRMATION_TEXT_MISMATCH',
+      message: '确认文本不匹配'
+    });
+  }
+};
+
 const buildPrimaryKeyWhereClause = (primaryKey: Record<string, unknown>) => ({
   sql: `WHERE ${Object.keys(primaryKey).map((name) => `${quoteIdentifier(name)} <=> ?`).join(' AND ')}`,
   values: Object.values(primaryKey)
@@ -1036,16 +1518,33 @@ const buildInsertedPrimaryKey = (
 
 const readSingleRowByPrimaryKey = async (
   qualifiedTableName: string,
-  primaryKey: Record<string, unknown>
+  primaryKey: Record<string, unknown>,
+  connection: PoolConnection | typeof pool = pool
 ): Promise<Record<string, unknown> | null> => {
   const whereClause = buildPrimaryKeyWhereClause(primaryKey);
-  const [rows] = await pool.query(
+  const [rows] = await connection.query(
     `SELECT * FROM ${qualifiedTableName} ${whereClause.sql} LIMIT 1`,
     whereClause.values
   );
   const items = rows as Array<Record<string, unknown>>;
 
   return items[0] ? normalizePreviewRow(items[0]) : null;
+};
+
+const runInTransaction = async <T>(callback: (connection: PoolConnection) => Promise<T>): Promise<T> => {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+    const result = await callback(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 };
 
 const normalizePreviewFilters = (
@@ -1116,6 +1615,28 @@ const buildPreviewWhereClause = (filters: Array<{ column: string; value: string;
       .map((filter) => `${quoteIdentifier(filter.column)} ${filter.mode === 'equals' ? '= ?' : 'LIKE ?'}`)
       .join(' AND ')}`,
     values: filters.map((filter) => filter.mode === 'equals' ? filter.value : `%${filter.value}%`)
+  };
+};
+
+const buildPreviewOrderClause = (
+  orderBy: string | undefined,
+  order: string | undefined,
+  columns: Array<{ name: string }>
+) => {
+  if (!orderBy) {
+    return {
+      sql: ''
+    };
+  }
+
+  const columnNames = new Set(columns.map((column) => column.name));
+
+  if (!columnNames.has(orderBy)) {
+    throwValidationError('排序字段不存在');
+  }
+
+  return {
+    sql: ` ORDER BY ${quoteIdentifier(orderBy)} ${order === 'DESC' ? 'DESC' : 'ASC'}`
   };
 };
 
@@ -1257,7 +1778,21 @@ const buildConstraintSql = (constraint: NormalizedConstraint): string => {
     return `PRIMARY KEY (${columnsSql})`;
   }
 
-  return `CONSTRAINT ${quoteIdentifier(constraint.name)} UNIQUE (${columnsSql})`;
+  if (constraint.type === 'UNIQUE') {
+    return `CONSTRAINT ${quoteIdentifier(constraint.name)} UNIQUE (${columnsSql})`;
+  }
+
+  if (constraint.type === 'CHECK_IN') {
+    return `CONSTRAINT ${quoteIdentifier(constraint.name)} CHECK (${columnsSql} IN (${(constraint.values ?? []).map((value) => pool.escape(value)).join(', ')}))`;
+  }
+
+  return [
+    `CONSTRAINT ${quoteIdentifier(constraint.name)}`,
+    `FOREIGN KEY (${columnsSql})`,
+    `REFERENCES ${quoteIdentifier(constraint.referencedTable ?? '')} (${(constraint.referencedColumns ?? []).map(quoteIdentifier).join(', ')})`,
+    `ON DELETE ${constraint.onDelete ?? 'RESTRICT'}`,
+    `ON UPDATE ${constraint.onUpdate ?? 'RESTRICT'}`
+  ].join(' ');
 };
 
 const buildIndexSql = (index: NormalizedIndex): string => {
@@ -1303,12 +1838,16 @@ const readTableSchema = async (schemaName: string, tableName: string) => {
     `SELECT tc.CONSTRAINT_NAME AS \`constraint_name\`,
             tc.CONSTRAINT_TYPE AS \`constraint_type\`,
             kcu.COLUMN_NAME AS \`column_name\`,
-            kcu.ORDINAL_POSITION AS \`ordinal_position\`
+            kcu.ORDINAL_POSITION AS \`ordinal_position\`,
+            cc.CHECK_CLAUSE AS \`check_clause\`
      FROM information_schema.table_constraints tc
      LEFT JOIN information_schema.key_column_usage kcu
        ON kcu.constraint_schema = tc.constraint_schema
       AND kcu.table_name = tc.table_name
       AND kcu.constraint_name = tc.constraint_name
+     LEFT JOIN information_schema.check_constraints cc
+       ON cc.constraint_schema = tc.constraint_schema
+      AND cc.constraint_name = tc.constraint_name
      WHERE tc.constraint_schema = ? AND tc.table_name = ?
      ORDER BY tc.constraint_name, kcu.ordinal_position`,
     [schemaName, tableName]
@@ -1364,13 +1903,15 @@ const groupConstraints = (rows: ConstraintSchemaRow[]) => {
     name: string;
     type: string;
     columns: string[];
+    expression: string | null;
   }>();
 
   rows.forEach((row) => {
     const constraint = constraints.get(row.constraint_name) ?? {
       name: row.constraint_name,
       type: row.constraint_type,
-      columns: []
+      columns: [],
+      expression: row.check_clause
     };
 
     if (row.column_name) {

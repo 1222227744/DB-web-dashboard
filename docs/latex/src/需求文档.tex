@@ -129,9 +129,10 @@
 \hypertarget{ux9879ux76eeux80ccux666f}{%
 \subsection{2. 项目背景}\label{ux9879ux76eeux80ccux666f}}
 
-当前项目已经具备基础登录注册能力，后续目标是建设一个面向个人用户的本地
-MySQL 可视化管理与数据工作台。系统不重新实现数据库内核，而是在本地 MySQL
-之上提供安全、易用、可视化、可个性化的数据库管理体验。
+当前项目已具备基础登录注册、个性化工作台、数据库管理、表结构管理和表数据
+CRUD 能力，后续目标是在本地 MySQL 之上继续完善 GUI
+查询、统计图表和更完整的审计体验。系统不重新实现数据库内核，而是在本地
+MySQL 之上提供安全、易用、可视化、可个性化的数据库管理体验。
 
 \hypertarget{ux4ea7ux54c1ux5b9aux4f4d}{%
 \subsection{3. 产品定位}\label{ux4ea7ux54c1ux5b9aux4f4d}}
@@ -325,7 +326,10 @@ MySQL 和前端页面被误操作拖垮。
 \hypertarget{ux7248ux672cux89c4ux5212}{%
 \subsection{8. 版本规划}\label{ux7248ux672cux89c4ux5212}}
 
-\begin{longtable}[]{@{}lll@{}}
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.33}}@{}}
 \toprule
 阶段 & 目标 & 主要交付 \\
 \midrule
@@ -335,11 +339,11 @@ V2 & 个性化工作台 & 主题、背景、响应式布局、首页体验 \\
 V3 & 数据库管理 & 数据库列表、创建、修改、删除、容量限制 \\
 V4 & 表结构管理 & 表列表、创建表、结构管理入口、表数据预览、删除表 \\
 V5 & 数据 CRUD &
-分页预览、字段筛选、单行新增、行内编辑、显式提交、单行删除；无主键表浏览和新增、编辑删除只读保护 \\
+分页预览、字段筛选、排序、列显示控制、单行新增、行内编辑、显式提交、单行删除、批量新增、批量修改、批量删除；无主键表浏览和新增、编辑删除只读保护 \\
 V6 & GUI 查询 & JOIN、聚合、分组、HAVING、子查询 \\
 V7 & 统计与 DIY & 图表、审计、Dashboard 卡片、布局偏好 \\
-V8 & 高级结构管理 &
-字段增删改、索引管理、检查约束、字符串有限取值/枚举式约束 \\
+V5+ & 前期遗留补齐 &
+已补齐用户资料资源上传、字段增删改、索引管理、外键接口、字符串有限取值/枚举式检查约束、批量写入接口原子性 \\
 \bottomrule
 \end{longtable}
 

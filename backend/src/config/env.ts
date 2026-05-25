@@ -41,5 +41,6 @@ export const env = {
   dbPassword: requiredEnv('DB_PASSWORD'),
   dbName: requiredEnv('DB_NAME'),
   jwtAccessSecret: requiredEnv('JWT_ACCESS_SECRET'),
-  jwtRefreshSecret: requiredEnv('JWT_REFRESH_SECRET')
+  jwtRefreshSecret: requiredEnv('JWT_REFRESH_SECRET'),
+  assetStorageDir: optionalEnv('ASSET_STORAGE_DIR', 'storage/assets')
 };

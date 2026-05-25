@@ -328,7 +328,7 @@ disableSameTypePrompt & boolean & 否 & 只对中风险操作生效 \\
 单表物理数据量 & 256MB \\
 单次分页返回行数 & 100 \\
 单次查询最大返回行数 & 1000 \\
-单次批量插入行数 & 500 \\
+单次批量新增行数 & 500 \\
 单次批量修改影响行数 & 200 \\
 单次批量删除影响行数 & 200 \\
 查询最大 JOIN 数 & 8 \\
@@ -675,7 +675,8 @@ recentOperations & array & 最近操作，按时间倒序 \\
 \endhead
 themeMode & string & dark、light \\
 themeHue & number & 0-359 \\
-backgroundPreset & string & particle \\
+backgroundPreset & string & particle、image、gradient \\
+backgroundAssetID & number 或 null & 当前背景资源 ID \\
 tablePageSize & number & 1 到服务端最大分页 \\
 confirmBatchInsert & boolean & 布尔值 \\
 confirmBatchUpdate & boolean & 布尔值 \\
@@ -702,6 +703,8 @@ confirmCascadeDelete & boolean & 布尔值 \\
 \midrule
 \endhead
 themeHue & number & 否 & 0-359 \\
+backgroundPreset & string & 否 & particle、image、gradient \\
+backgroundAssetID & number 或 null & 否 & 已上传背景资源 ID 或 null \\
 tablePageSize & number & 否 & 1 到服务端最大分页 \\
 confirmBatchInsert & boolean & 否 & 布尔值 \\
 confirmBatchUpdate & boolean & 否 & 布尔值 \\
@@ -709,6 +712,114 @@ confirmBatchDelete & boolean & 否 & 布尔值 \\
 confirmCascadeDelete & boolean & 否 & 布尔值 \\
 \bottomrule
 \end{longtable}
+
+\hypertarget{api-profile-001-ux83b7ux53d6ux4e2aux4ebaux8d44ux6599}{%
+\subsubsection{API-PROFILE-001
+获取个人资料}\label{api-profile-001-ux83b7ux53d6ux4e2aux4ebaux8d44ux6599}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/users/me/profile}
+\end{Highlighting}
+\end{Shaded}
+
+成功响应 \texttt{data}：
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule
+字段 & 类型 & 约束 \\
+\midrule
+\endhead
+userID & number & 当前用户 ID \\
+nickname & string & 展示昵称 \\
+avatarAssetID & number 或 null & 当前头像资源 ID \\
+avatarUrl & string 或 null & 头像资源读取地址 \\
+backgroundAssetID & number 或 null & 当前背景资源 ID \\
+backgroundUrl & string 或 null & 背景资源读取地址 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-profile-002-ux66f4ux65b0ux4e2aux4ebaux8d44ux6599}{%
+\subsubsection{API-PROFILE-002
+更新个人资料}\label{api-profile-002-ux66f4ux65b0ux4e2aux4ebaux8d44ux6599}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{PATCH /api/v1/users/me/profile}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+nickname & string & 是 & 2 到 20 个字符 \\
+\bottomrule
+\end{longtable}
+
+\hypertarget{api-asset-001-ux4e0aux4f20ux7528ux6237ux8d44ux6e90}{%
+\subsubsection{API-ASSET-001
+上传用户资源}\label{api-asset-001-ux4e0aux4f20ux7528ux6237ux8d44ux6e90}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{POST /api/v1/users/me/assets}
+\end{Highlighting}
+\end{Shaded}
+
+请求体：
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+参数 & 类型 & 必填 & 约束 \\
+\midrule
+\endhead
+assetType & string & 是 & avatar、background \\
+originalName & string & 是 & 原始文件名，服务端清理危险字符 \\
+mimeType & string & 是 & image/png、image/jpeg、image/webp \\
+dataBase64 & string & 是 & base64 或 data URL \\
+\bottomrule
+\end{longtable}
+
+规则：
+
+\begin{itemize}
+\tightlist
+\item
+  头像最大 2 MB，背景图最大 8 MB，单用户资源总量最大 100 MB。
+\item
+  文件保存到服务端资源目录，系统库只保存元信息和归属关系。
+\item
+  上传头像后自动更新 \texttt{user\_profiles.avatar\_asset\_id}。
+\item
+  上传背景后自动更新 \texttt{user\_preferences.background\_mode=image}
+  和 \texttt{background\_asset\_id}。
+\end{itemize}
+
+\hypertarget{api-asset-002-ux8bfbux53d6ux7528ux6237ux8d44ux6e90}{%
+\subsubsection{API-ASSET-002
+读取用户资源}\label{api-asset-002-ux8bfbux53d6ux7528ux6237ux8d44ux6e90}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{GET /api/v1/users/me/assets/:assetId}
+\end{Highlighting}
+\end{Shaded}
+
+规则：
+
+\begin{itemize}
+\tightlist
+\item
+  必须登录。
+\item
+  只能读取归属当前用户的资源。
+\item
+  响应体为图片二进制，\texttt{Content-Type} 使用资源 MIME 类型。
+\end{itemize}
 
 \hypertarget{ux6570ux636eux5e93ux63a5ux53e3}{%
 \subsection{6. 数据库接口}\label{ux6570ux636eux5e93ux63a5ux53e3}}
@@ -918,7 +1029,7 @@ indexes & array & 否 & 索引定义 \\
 \bottomrule
 \end{longtable}
 
-说明：创建表不强制必须包含主键；无主键表允许预览和查询，后续行内更新接口必须按无主键表策略限制。
+说明：创建表不强制必须包含主键；无主键表允许预览和新增，行内更新和删除按无主键表策略锁定。
 
 \texttt{columns{[}{]}}：
 
@@ -959,7 +1070,7 @@ comment & string & 否 & 最大 255 字符 \\
   \texttt{name}：\texttt{string}；必填；标识符规则。
 \item
   \texttt{type}：\texttt{string}；必填；取值为
-  \texttt{PRIMARY\_KEY}、\texttt{FOREIGN\_KEY}、\texttt{UNIQUE}、\texttt{CHECK}。
+  \texttt{PRIMARY\_KEY}、\texttt{FOREIGN\_KEY}、\texttt{UNIQUE}、\texttt{CHECK\_IN}。
 \item
   \texttt{columns}：\texttt{array}；必填；字段名数组，字段必须存在。
 \item
@@ -973,12 +1084,16 @@ comment & string & 否 & 最大 255 字符 \\
   \texttt{onUpdate}：\texttt{string}；条件必填；取值为
   \texttt{RESTRICT}、\texttt{CASCADE}、\texttt{SET\ NULL}、\texttt{NO\ ACTION}。
 \item
-  \texttt{expression}：\texttt{string}；条件必填；\texttt{CHECK}
-  使用，后端表达式白名单校验。
+  \texttt{column}：\texttt{string}；条件必填；\texttt{CHECK\_IN}
+  使用，表示有限取值字段。
+\item
+  \texttt{values}：\texttt{array}；条件必填；\texttt{CHECK\_IN}
+  使用，长度 1 到 50，仅支持字符串、数字或布尔值。
 \end{itemize}
 
-阶段说明：V4 创建表接口先实现可选 \texttt{PRIMARY\_KEY} 和
-\texttt{UNIQUE}；\texttt{FOREIGN\_KEY}、\texttt{CHECK}、字符串有限取值约束、枚举式约束与更完整的约束管理在后续结构管理接口中扩展。
+阶段说明：创建表接口支持可选
+\texttt{PRIMARY\_KEY}、\texttt{UNIQUE}、\texttt{FOREIGN\_KEY} 和
+\texttt{CHECK\_IN}。当前前端创建表弹窗先暴露字段、主键和默认值，更多索引/约束通过结构管理窗口或接口使用。
 
 \texttt{indexes{[}{]}}：
 
@@ -1060,7 +1175,6 @@ action & 必填字段 \\
 \endhead
 ADD\_COLUMN & column \\
 MODIFY\_COLUMN & oldName、column \\
-RENAME\_COLUMN & oldName、newName \\
 DROP\_COLUMN & name \\
 ADD\_CONSTRAINT & constraint \\
 DROP\_CONSTRAINT & name \\
@@ -1283,6 +1397,8 @@ confirmation.confirmText & string & 是 & 等于视图名 \\
 limit & number & 否 & 1 到服务端分页上限，默认 20 \\
 offset & number & 否 & 0 到查询行数上限，默认 0 \\
 filters & string & 否 & JSON 字符串，字段筛选数组 \\
+orderBy & string & 否 & 排序字段，必须存在于目标表 \\
+order & string & 否 & ASC、DESC，默认 ASC \\
 \bottomrule
 \end{longtable}
 
@@ -1327,13 +1443,13 @@ facets & object & 有限离散字段候选值，用于下拉筛选 \\
 \item
   留空筛选条件表示全选；前端按 Enter 或点击刷新后才重新请求。
 \item
-  后续正式查询构造器会在 \texttt{API-QUERY}
-  中支持排序、JOIN、聚合、子查询和更复杂条件。
+  预览接口已支持单字段排序；JOIN、聚合、子查询和更复杂条件归入
+  \texttt{API-QUERY}。
 \end{itemize}
 
-\hypertarget{api-row-002-ux65b0ux589eux5355ux884cux6570ux636e}{%
+\hypertarget{api-row-002-ux65b0ux589eux6570ux636e}{%
 \subsubsection{API-ROW-002
-新增单行数据}\label{api-row-002-ux65b0ux589eux5355ux884cux6570ux636e}}
+新增数据}\label{api-row-002-ux65b0ux589eux6570ux636e}}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1348,7 +1464,10 @@ facets & object & 有限离散字段候选值，用于下拉筛选 \\
 参数 & 类型 & 必填 & 约束 \\
 \midrule
 \endhead
-row & object & 是 & 字段名到字段值的对象，至少包含一个字段 \\
+row & object & 条件必填 & 字段名到字段值的对象，至少包含一个字段 \\
+rows & array & 条件必填 & 批量新增行数组，长度 1 到
+\texttt{maxBatchInsertRows} \\
+confirmation & object & 条件必填 & \texttt{rows} 超过 1 行时必填 \\
 \bottomrule
 \end{longtable}
 
@@ -1362,6 +1481,8 @@ row & object & 是 & 字段名到字段值的对象，至少包含一个字段 \
   \texttt{auto\_increment} 字段可以不提交，由 MySQL 自动生成。
 \item
   前端新增行时空白字段默认不提交，避免误写入 \texttt{NULL}。
+\item
+  批量新增由前端弹窗输入 JSON 数组，超过单行时携带表名确认。
 \item
   后端按表结构校验数字、布尔、JSON 和非空字段。
 \item
@@ -1378,12 +1499,15 @@ row & object & 是 & 字段名到字段值的对象，至少包含一个字段 \
 tableName & string & 表名 \\
 row & object 或 null & 可通过主键回读时返回新增后的行 \\
 primaryKey & object 或 null & 有主键时返回主键值，无主键时为 null \\
+rows & array & 批量新增时返回逐行结果 \\
+primaryKeys & array & 批量新增时返回逐行主键 \\
+affectedRows & number & 影响行数 \\
 \bottomrule
 \end{longtable}
 
-\hypertarget{api-row-003-ux4feeux6539ux5355ux884cux6570ux636e}{%
+\hypertarget{api-row-003-ux4feeux6539ux6570ux636e}{%
 \subsubsection{API-ROW-003
-修改单行数据}\label{api-row-003-ux4feeux6539ux5355ux884cux6570ux636e}}
+修改数据}\label{api-row-003-ux4feeux6539ux6570ux636e}}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1398,8 +1522,11 @@ primaryKey & object 或 null & 有主键时返回主键值，无主键时为 nul
 参数 & 类型 & 必填 & 约束 \\
 \midrule
 \endhead
-primaryKey & object & 是 & 完整主键字段和值 \\
+primaryKey & object & 条件必填 & 完整主键字段和值 \\
+primaryKeys & array & 条件必填 & 完整主键对象数组 \\
 set & object & 是 & 字段名到新值的对象 \\
+confirmation & object & 条件必填 & \texttt{primaryKeys} 超过 1
+行时必填 \\
 \bottomrule
 \end{longtable}
 
@@ -1420,6 +1547,9 @@ set & object & 是 & 字段名到新值的对象 \\
   字段不允许通过行内编辑修改。
 \item
   用户点击``取消''时前端丢弃草稿，不调用后端。
+\item
+  批量修改使用 \texttt{primaryKeys}
+  定位已选行，当前前端一次修改一个非主键非自增字段。
 \item
   无主键表在 V5 阶段禁止行内编辑。
 \item
@@ -1456,9 +1586,9 @@ MYSQL\_EXECUTION\_ERROR & 更新行失败：\{mysql.sqlMessage\} \\
 \bottomrule
 \end{longtable}
 
-\hypertarget{api-row-004-ux5220ux9664ux5355ux884cux6570ux636e}{%
+\hypertarget{api-row-004-ux5220ux9664ux6570ux636e}{%
 \subsubsection{API-ROW-004
-删除单行数据}\label{api-row-004-ux5220ux9664ux5355ux884cux6570ux636e}}
+删除数据}\label{api-row-004-ux5220ux9664ux6570ux636e}}
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -1473,7 +1603,10 @@ MYSQL\_EXECUTION\_ERROR & 更新行失败：\{mysql.sqlMessage\} \\
 参数 & 类型 & 必填 & 约束 \\
 \midrule
 \endhead
-primaryKey & object & 是 & 完整主键字段和值 \\
+primaryKey & object & 条件必填 & 完整主键字段和值 \\
+primaryKeys & array & 条件必填 & 完整主键对象数组 \\
+confirmation & object & 条件必填 & \texttt{primaryKeys} 超过 1
+行时必填 \\
 \bottomrule
 \end{longtable}
 
@@ -1487,6 +1620,9 @@ primaryKey & object & 是 & 完整主键字段和值 \\
   无主键表在 V5 阶段禁止单行删除。
 \item
   前端删除前使用玻璃风格确认窗口展示主键信息。
+\item
+  批量删除使用 \texttt{primaryKeys}
+  定位已选行，前端必须展示二次确认窗口。
 \end{itemize}
 
 错误：
@@ -1502,24 +1638,27 @@ MYSQL\_EXECUTION\_ERROR & 删除行失败：\{mysql.sqlMessage\} \\
 \bottomrule
 \end{longtable}
 
-\hypertarget{api-row-005-ux6279ux91cfux6570ux636eux64cdux4f5cux89c4ux5212}{%
+\hypertarget{api-row-005-ux6279ux91cfux6570ux636eux64cdux4f5c}{%
 \subsubsection{API-ROW-005
-批量数据操作（规划）}\label{api-row-005-ux6279ux91cfux6570ux636eux64cdux4f5cux89c4ux5212}}
+批量数据操作}\label{api-row-005-ux6279ux91cfux6570ux636eux64cdux4f5c}}
 
-批量新增、批量条件修改和批量条件删除作为后续增强接口落地。规划要求如下：
+批量新增、基于主键列表的批量修改和基于主键列表的批量删除已经并入
+\texttt{API-ROW-002} 至 \texttt{API-ROW-004}。批量写入规则如下：
 
 \begin{itemize}
 \tightlist
 \item
-  批量新增必须限制请求行数，并在失败时返回失败行号、失败字段、MySQL
-  错误码和数据库错误消息。
+  批量新增使用 \texttt{rows} 数组，单次最多 \texttt{maxBatchInsertRows}
+  行。
 \item
-  批量修改和批量删除必须使用 GUI 条件对象，不允许无条件操作。
+  批量修改和批量删除使用 \texttt{primaryKeys} 数组，单次最多
+  \texttt{maxBatchWriteAffectedRows} 行。
 \item
-  影响行数超过阈值时必须返回
-  \texttt{CONFIRMATION\_REQUIRED}，由前端二次确认后继续。
+  超过单行时必须提交 \texttt{confirmation.confirmed=true}，且
+  \texttt{confirmation.confirmText} 等于表名。
 \item
-  涉及级联删除时必须展示级联影响范围。
+  同一批次在事务中执行，全成功才提交；任意一行失败则回滚。基于 GUI
+  条件对象的批量修改/删除归入查询构造器阶段。
 \end{itemize}
 
 \hypertarget{gui-ux67e5ux8be2ux63a5ux53e3}{%

@@ -26,8 +26,14 @@ export type TableColumnInput = {
 
 export type TableConstraintInput = {
   name?: string;
-  type: 'PRIMARY_KEY' | 'UNIQUE';
+  type: 'PRIMARY_KEY' | 'UNIQUE' | 'FOREIGN_KEY' | 'CHECK_IN';
   columns: string[];
+  column?: string;
+  values?: Array<string | number | boolean>;
+  referencedTable?: string;
+  referencedColumns?: string[];
+  onDelete?: 'RESTRICT' | 'CASCADE' | 'SET NULL' | 'NO ACTION';
+  onUpdate?: 'RESTRICT' | 'CASCADE' | 'SET NULL' | 'NO ACTION';
 };
 
 export type TableIndexInput = {
@@ -74,6 +80,7 @@ export type TableConstraintSchema = {
   name: string;
   type: string;
   columns: string[];
+  expression?: string | null;
 };
 
 export type TableSchema = {
@@ -87,6 +94,11 @@ export type TablePreviewFilter = {
   column: string;
   value: string;
   mode: 'equals' | 'contains';
+};
+
+export type TablePreviewSort = {
+  orderBy: string;
+  order: 'ASC' | 'DESC';
 };
 
 export type TablePreviewData = {
@@ -105,7 +117,24 @@ export type TablePrimaryKey = Record<string, unknown>;
 export type TableRowMutationData = {
   tableName: string;
   row: Record<string, unknown> | null;
+  rows?: Array<Record<string, unknown> | null>;
   primaryKey: TablePrimaryKey | null;
+  primaryKeys?: Array<TablePrimaryKey | null>;
+  affectedRows?: number;
+};
+
+export type TableSchemaOperation =
+  | { action: 'ADD_COLUMN'; column: TableColumnInput }
+  | { action: 'MODIFY_COLUMN'; oldName: string; column: TableColumnInput }
+  | { action: 'DROP_COLUMN'; name: string }
+  | { action: 'ADD_INDEX'; index: TableIndexInput }
+  | { action: 'DROP_INDEX'; name: string }
+  | { action: 'ADD_CONSTRAINT'; constraint: TableConstraintInput }
+  | { action: 'DROP_CONSTRAINT'; name: string };
+
+export type MutationConfirmation = {
+  confirmed: boolean;
+  confirmText: string;
 };
 
 export type DatabaseObjectListData = {
@@ -141,26 +170,46 @@ export const fetchTablePreview = async (
     limit: number;
     offset: number;
     filters: TablePreviewFilter[];
+    sort?: TablePreviewSort | null;
   }
 ): Promise<TablePreviewData> => {
   const res: any = await request.get(`/v1/databases/${databaseID}/tables/${tableName}/preview`, {
     params: {
       limit: options.limit,
       offset: options.offset,
-      filters: JSON.stringify(options.filters)
+      filters: JSON.stringify(options.filters),
+      orderBy: options.sort?.orderBy,
+      order: options.sort?.order
     },
     silentError: true
   });
   return res.data as TablePreviewData;
 };
 
+export const updateTableSchema = async (
+  databaseID: number,
+  tableName: string,
+  operations: TableSchemaOperation[],
+  confirmation?: MutationConfirmation
+): Promise<TableSchema> => {
+  const res: any = await request.patch(`/v1/databases/${databaseID}/tables/${tableName}/schema`, {
+    operations,
+    confirmation
+  }, {
+    silentError: true
+  });
+  return res.data as TableSchema;
+};
+
 export const createTableRow = async (
   databaseID: number,
   tableName: string,
-  row: Record<string, unknown>
+  row: Record<string, unknown> | Array<Record<string, unknown>>,
+  confirmation?: MutationConfirmation
 ): Promise<TableRowMutationData> => {
   const res: any = await request.post(`/v1/databases/${databaseID}/tables/${tableName}/rows`, {
-    row
+    [Array.isArray(row) ? 'rows' : 'row']: row,
+    confirmation
   }, {
     silentError: true
   });
@@ -170,12 +219,14 @@ export const createTableRow = async (
 export const updateTableRow = async (
   databaseID: number,
   tableName: string,
-  primaryKey: TablePrimaryKey,
-  set: Record<string, unknown>
+  primaryKey: TablePrimaryKey | TablePrimaryKey[],
+  set: Record<string, unknown>,
+  confirmation?: MutationConfirmation
 ): Promise<TableRowMutationData> => {
   const res: any = await request.patch(`/v1/databases/${databaseID}/tables/${tableName}/rows`, {
-    primaryKey,
-    set
+    [Array.isArray(primaryKey) ? 'primaryKeys' : 'primaryKey']: primaryKey,
+    set,
+    confirmation
   }, {
     silentError: true
   });
@@ -185,11 +236,13 @@ export const updateTableRow = async (
 export const deleteTableRow = async (
   databaseID: number,
   tableName: string,
-  primaryKey: TablePrimaryKey
+  primaryKey: TablePrimaryKey | TablePrimaryKey[],
+  confirmation?: MutationConfirmation
 ): Promise<void> => {
   await request.delete(`/v1/databases/${databaseID}/tables/${tableName}/rows`, {
     data: {
-      primaryKey
+      [Array.isArray(primaryKey) ? 'primaryKeys' : 'primaryKey']: primaryKey,
+      confirmation
     },
     silentError: true
   });

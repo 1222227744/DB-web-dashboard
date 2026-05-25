@@ -44,17 +44,22 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 CREATE TABLE IF NOT EXISTS user_assets (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '资源 ID',
   user_id INT NOT NULL COMMENT '用户 ID',
-  asset_type ENUM('avatar', 'background') NOT NULL COMMENT '资源类型',
-  original_name VARCHAR(255) NOT NULL COMMENT '原始文件名',
-  stored_path VARCHAR(500) NOT NULL COMMENT '服务端相对存储路径',
+  asset_type ENUM('avatar', 'background', 'other') NOT NULL COMMENT '资源类型',
+  storage_type VARCHAR(30) NOT NULL DEFAULT 'local' COMMENT '存储类型',
+  storage_key VARCHAR(500) NOT NULL COMMENT '存储键',
+  original_name VARCHAR(255) NULL COMMENT '原始文件名',
   mime_type VARCHAR(100) NOT NULL COMMENT 'MIME 类型',
-  size_bytes BIGINT NOT NULL COMMENT '文件大小',
+  file_size BIGINT UNSIGNED NOT NULL COMMENT '文件大小',
+  checksum VARCHAR(128) NOT NULL COMMENT '文件校验和',
+  status ENUM('active', 'deleted') NOT NULL DEFAULT 'active' COMMENT '状态',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  deleted_at DATETIME NULL COMMENT '删除时间',
   CONSTRAINT fk_assets_user
     FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE,
   KEY idx_assets_user_type (user_id, asset_type),
-  KEY idx_assets_user_time (user_id, created_at)
+  KEY idx_assets_user_time (user_id, created_at),
+  KEY idx_assets_status (status)
 ) COMMENT='用户资源元信息表';
 
 CREATE TABLE IF NOT EXISTS user_databases (
