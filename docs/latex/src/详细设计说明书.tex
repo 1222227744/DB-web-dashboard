@@ -665,6 +665,21 @@ Rotation}\label{refresh-token-rotation}}
   最近操作日志。
 \item
   用户级统计摘要。
+\item
+  数据库入口列表和数据库级摘要卡片。
+\end{itemize}
+
+首页职责边界：
+
+\begin{itemize}
+\tightlist
+\item
+  首页只展示用户层、数据库层统计和数据库入口。
+\item
+  表结构、表数据、查询构造器等数据库内部操作统一进入
+  \texttt{DatabaseWorkbench.vue} 后完成。
+\item
+  \texttt{Home.vue} 不直接承载表设计表单，避免总览页变成具体操作页。
 \end{itemize}
 
 \hypertarget{preferenceservice}{%
@@ -931,7 +946,7 @@ databaseService.createDatabase}\label{databaseservice.createdatabase}}
 \NormalTok{3. 对每个 column 校验 name、type、length、precision、scale、defaultValue。}
 \NormalTok{4. 校验 constraints 引用字段存在。}
 \NormalTok{5. 校验 indexes 引用字段存在。}
-\NormalTok{6. 至少存在一个主键。}
+\NormalTok{6. 校验最多存在一个主键；无主键表允许创建，但数据编辑阶段必须按无主键表策略降级。}
 \NormalTok{7. 生成字段定义 SQL。}
 \NormalTok{8. 生成约束 SQL。}
 \NormalTok{9. 生成索引 SQL。}
@@ -1521,6 +1536,7 @@ statsService.tableOverview}\label{statsservice.tableoverview}}
 \NormalTok{    Login.vue}
 \NormalTok{    Register.vue}
 \NormalTok{    Home.vue}
+\NormalTok{    DatabaseWorkbench.vue}
 \NormalTok{    DatabaseDashboard.vue}
 \NormalTok{    TableDesigner.vue}
 \NormalTok{    TableData.vue}
@@ -1919,6 +1935,22 @@ state；当页面状态变复杂时再引入 Pinia。正式设计推荐使用 Pi
   删除表。
 \item
   索引、约束、视图逐步扩展。
+\end{itemize}
+
+当前实现范围：
+
+\begin{itemize}
+\tightlist
+\item
+  已完成数据库对象列表、结构化创建表、表结构读取、删除表。
+\item
+  创建表阶段支持字段、可选主键、唯一约束和普通/唯一索引的服务端校验与
+  DDL 生成。
+\item
+  外键、检查约束、字符串有限取值约束、枚举式约束、视图管理和在线修改表结构作为后续增强逐步落地。
+\item
+  结构管理窗口作为后续字段增删改、索引管理、约束管理的统一入口；V4
+  先完成读取与入口占位。
 \end{itemize}
 
 \hypertarget{phase-5ux8868ux6570ux636e-crud}{%
@@ -2825,6 +2857,7 @@ GUI 字段类型清单：
 \NormalTok{DATETIME}
 \NormalTok{TIMESTAMP}
 \NormalTok{BOOLEAN}
+\NormalTok{ENUM}
 \NormalTok{JSON}
 \NormalTok{BLOB}
 \NormalTok{MEDIUMBLOB}
@@ -2852,6 +2885,12 @@ GUI 字段类型清单：
   autoIncrement
 \item
   comment
+\item
+  enumValues：枚举式有限取值，落地时优先转换为 MySQL ENUM 或受控 CHECK
+  约束。
+\item
+  checkExpression：检查约束表达式，必须由 GUI
+  结构化配置并由后端白名单生成 SQL。
 \end{itemize}
 
 \hypertarget{ux7d22ux5f15ux8bbeux8ba1}{%

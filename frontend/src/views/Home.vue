@@ -58,6 +58,31 @@ const selectedDatabase = computed(() => {
   return databases.value.find((database) => database.id === activeDatabaseID.value) ?? databases.value[0] ?? null;
 });
 
+const selectedDatabaseSummary = computed(() => {
+  if (!selectedDatabase.value) {
+    return [];
+  }
+
+  return [
+    {
+      label: '数据表',
+      value: `${selectedDatabase.value.tableCount} 张`
+    },
+    {
+      label: '视图',
+      value: `${selectedDatabase.value.viewCount} 个`
+    },
+    {
+      label: '占用空间',
+      value: formatBytes(selectedDatabase.value.sizeBytes)
+    },
+    {
+      label: '字符集',
+      value: selectedDatabase.value.charset
+    }
+  ];
+});
+
 const totalStorageBytes = computed(() => {
   return databases.value.reduce((total, database) => total + database.sizeBytes, 0);
 });
@@ -65,13 +90,6 @@ const totalStorageBytes = computed(() => {
 const isDatabaseLimitReached = computed(() => {
   return databases.value.length >= databaseLimit.value;
 });
-
-const quickActions = [
-  '创建数据库',
-  '设计数据表',
-  '浏览表数据',
-  '打开查询构造器'
-];
 
 const capabilityTags = ['安全登录', '主题外观', '个人空间', '数据库管理'];
 const databaseNamePattern = /^[A-Za-z][A-Za-z0-9_]{1,31}$/;
@@ -651,29 +669,44 @@ onUnmounted(() => {
             </article>
           </div>
 
-          <section class="glass-card action-panel feature-panel">
-            <div>
-              <p class="home-label">快捷入口</p>
-              <h2>常用操作</h2>
-              <p>数据库功能完成后，可以从这里快速进入创建、设计、浏览和查询。</p>
+          <section class="database-focus-card glass-card">
+            <div
+              v-if="selectedDatabase"
+              class="database-focus-content"
+            >
+              <div>
+                <p class="home-label">当前数据库</p>
+                <h3>{{ selectedDatabase.displayName }}</h3>
+                <p>
+                  左侧负责数据库导航和管理；这里专注展示当前选中库的入口和摘要，
+                  避免两组卡片重复表达同一件事。
+                </p>
+              </div>
+              <div class="focus-metrics">
+                <span
+                  v-for="item in selectedDatabaseSummary"
+                  :key="item.label"
+                >
+                  <small>{{ item.label }}</small>
+                  <strong>{{ item.value }}</strong>
+                </span>
+              </div>
+              <button
+                class="dialog-button primary"
+                type="button"
+                @click="router.push(`/databases/${selectedDatabase.id}`)"
+              >
+                进入数据库工作台 →
+              </button>
             </div>
 
-            <div class="quick-actions">
-              <el-button
-                :disabled="false"
-                class="workbench-action-button"
-                @click="openCreateDatabaseDialog"
-              >
-                创建数据库
-              </el-button>
-              <el-button
-                v-for="action in quickActions.slice(1)"
-                :key="action"
-                disabled
-                class="workbench-action-button"
-              >
-                {{ action }}
-              </el-button>
+            <div
+              v-else
+              class="database-focus-empty"
+            >
+              <p class="home-label">当前数据库</p>
+              <h3>还没有数据库</h3>
+              <p>点击左侧“+”创建第一个数据库，之后这里会展示它的入口和概览。</p>
             </div>
           </section>
         </section>
@@ -765,6 +798,7 @@ onUnmounted(() => {
         </el-button>
       </template>
     </GlassDialog>
+
   </main>
 </template>
 
@@ -871,8 +905,7 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-.workbench-topbar h1,
-.action-panel h2 {
+.workbench-topbar h1 {
   margin: 0;
 }
 
@@ -1350,38 +1383,79 @@ onUnmounted(() => {
   line-height: 1.7;
 }
 
-.action-panel {
-  display: flex;
-  justify-content: space-between;
-  gap: clamp(24px, 3.2vw, 44px);
-  align-items: center;
-  padding: clamp(28px, 3.2vw, 42px);
-  background:
-    linear-gradient(120deg, hsla(var(--theme-hue), 85%, 60%, 0.13), rgba(255, 255, 255, 0.045)),
-    var(--glass-panel-bg);
+.database-focus-card {
+  min-height: 260px;
+  padding: clamp(28px, 3.6vw, 46px);
 }
 
-.feature-panel h2 {
-  margin-bottom: 10px;
-}
-
-.feature-panel p:not(.home-label) {
-  max-width: 520px;
-  margin: 0;
-  color: var(--glass-text-muted);
-  line-height: 1.7;
-}
-
-.quick-actions {
+.database-focus-content {
   display: grid;
-  grid-template-columns: repeat(2, minmax(128px, 1fr));
-  gap: 12px;
-  width: min(100%, 340px);
-  min-width: 280px;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: clamp(24px, 3vw, 44px);
+  align-items: center;
 }
 
-.ghost-button,
-.workbench-action-button {
+.database-focus-content h3,
+.database-focus-empty h3 {
+  overflow: hidden;
+  margin: 0;
+  font-size: clamp(30px, 3.8vw, 56px);
+  line-height: 1.04;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.database-focus-content p,
+.database-focus-empty p:not(.home-label) {
+  max-width: 680px;
+  margin: 16px 0 0;
+  color: var(--glass-text-muted);
+  line-height: 1.8;
+}
+
+.focus-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.focus-metrics span {
+  display: grid;
+  gap: 8px;
+  min-height: 88px;
+  padding: 14px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.14);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.09), rgba(255, 255, 255, 0.035));
+}
+
+.focus-metrics small {
+  color: var(--glass-text-muted);
+  font-size: 12px;
+}
+
+.focus-metrics strong {
+  overflow: hidden;
+  color: var(--theme-primary-light);
+  font-size: clamp(18px, 2vw, 24px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.database-focus-content .dialog-button {
+  justify-self: start;
+}
+
+.database-focus-empty {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  color: var(--glass-text-muted);
+  text-align: center;
+}
+
+.ghost-button {
   min-height: 38px;
   padding: 0 18px;
   color: var(--glass-text) !important;
@@ -1397,11 +1471,6 @@ onUnmounted(() => {
   transition: var(--glass-transition) !important;
 }
 
-.workbench-action-button {
-  width: 100%;
-  margin: 0 !important;
-}
-
 .ghost-button {
   border-radius: 999px !important;
   cursor: pointer;
@@ -1414,14 +1483,6 @@ onUnmounted(() => {
     0 12px 30px rgba(0, 0, 0, 0.24),
     0 0 24px hsla(var(--theme-hue), 80%, 62%, 0.22) !important;
   transform: translateY(-1px);
-}
-
-.workbench-action-button.is-disabled,
-.workbench-action-button.is-disabled:hover {
-  color: rgba(255, 255, 255, 0.46) !important;
-  border-color: hsla(var(--theme-hue), 80%, 70%, 0.12) !important;
-  background:
-    linear-gradient(135deg, hsla(var(--theme-hue), 60%, 55%, 0.08), rgba(255, 255, 255, 0.045)) !important;
 }
 
 .delete-database-form p {
@@ -1580,11 +1641,14 @@ onUnmounted(() => {
   .hero-panel {
     min-height: auto;
   }
+
+  .database-focus-content {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 820px) {
-  .workbench-topbar,
-  .action-panel {
+  .workbench-topbar {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -1606,14 +1670,14 @@ onUnmounted(() => {
     grid-template-columns: repeat(3, minmax(150px, 1fr));
   }
 
+  .focus-metrics {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+
   .hero-orb {
     display: none;
   }
 
-  .quick-actions {
-    width: 100%;
-    min-width: 0;
-  }
 }
 
 @media (max-width: 620px) {
@@ -1634,12 +1698,12 @@ onUnmounted(() => {
     overflow-x: visible;
   }
 
-  .dashboard-card {
-    min-height: 148px;
+  .focus-metrics {
+    grid-template-columns: 1fr;
   }
 
-  .quick-actions {
-    grid-template-columns: 1fr;
+  .dashboard-card {
+    min-height: 148px;
   }
 
   .account-chip {

@@ -25,6 +25,14 @@ const routes: Array<RouteRecordRaw> = [
     meta: {
       requiresAuth: true
     }
+  },
+  {
+    path: '/databases/:databaseId',
+    name: 'DatabaseWorkbench',
+    component: () => import('../views/DatabaseWorkbench.vue'),
+    meta: {
+      requiresAuth: true
+    }
   }
 ];
 

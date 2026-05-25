@@ -916,6 +916,8 @@ indexes & array & 否 & 索引定义 \\
 \bottomrule
 \end{longtable}
 
+说明：创建表不强制必须包含主键；无主键表允许预览和查询，后续行内更新接口必须按无主键表策略限制。
+
 \texttt{columns{[}{]}}：
 
 \begin{longtable}[]{@{}llll@{}}
@@ -925,7 +927,7 @@ indexes & array & 否 & 索引定义 \\
 \endhead
 name & string & 是 & 标识符规则 \\
 type & string & 是 & 支持的数据类型 \\
-length & number & 否 & CHAR、VARCHAR 使用，1-65535 \\
+length & number & 否 & CHAR 使用 1-255，VARCHAR 使用 1-16383 \\
 precision & number & 否 & DECIMAL 使用，1-65 \\
 scale & number & 否 & DECIMAL 使用，0 到 precision \\
 unsigned & boolean & 否 & 数值类型使用 \\
@@ -972,6 +974,9 @@ comment & string & 否 & 最大 255 字符 \\
   \texttt{expression}：\texttt{string}；条件必填；\texttt{CHECK}
   使用，后端表达式白名单校验。
 \end{itemize}
+
+阶段说明：V4 创建表接口先实现可选 \texttt{PRIMARY\_KEY} 和
+\texttt{UNIQUE}；\texttt{FOREIGN\_KEY}、\texttt{CHECK}、字符串有限取值约束、枚举式约束与更完整的约束管理在后续结构管理接口中扩展。
 
 \texttt{indexes{[}{]}}：
 
