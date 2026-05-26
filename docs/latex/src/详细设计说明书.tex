@@ -2117,20 +2117,82 @@ CRUD}\label{phase-5ux8868ux6570ux636e-crud}}
 \subsubsection{Phase 7：统计和 DIY
 工作台}\label{phase-7ux7edfux8ba1ux548c-diy-ux5de5ux4f5cux53f0}}
 
+V7 首轮目标是``可用的统计
+Dashboard''，而不是一次性做成无限自定义门户。实现时必须保证现有
+Home、数据库工作台、表数据预览和 GUI 查询能力不回退。
+
+小阶段：
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.25}}@{}}
+\toprule
+小阶段 & 后端交付 & 前端交付 & 验收重点 \\
+\midrule
+\endhead
+V7.1 & \texttt{statsService}、\texttt{auditService.list}、统计与审计路由
+& 统计接口工具函数、审计列表数据模型 &
+接口鉴权、归属校验、分页、容量限制 \\
+V7.2 & 用户级统计聚合 & 首页统计卡片、操作趋势、数据库分布、最近操作 &
+首页只放总览、入口和统计，不放表内部操作 \\
+V7.3 & 数据库级和表级统计聚合 & 工作台统计入口、表结构窗口的统计区域 &
+大表不阻塞，空表和无权限错误可读 \\
+V7.4 & 偏好接口支持 \texttt{dashboardLayout} &
+卡片显示、隐藏、排序和保存 & 刷新后布局保持，主题色全局生效 \\
+V7.5 & 统一错误、审计、性能收口 & 响应式、加载态、空状态、错误态统一 &
+构建通过，横向滚动尽量避免 \\
+\bottomrule
+\end{longtable}
+
+首轮纳入：
+
 \begin{itemize}
 \tightlist
 \item
-  用户级统计。
+  用户级统计：数据库数量、表数量、视图数量、索引数量、估算行数、容量占用、操作趋势、最近操作。
 \item
-  数据库级统计。
+  数据库级统计：表/视图/索引数量、数据大小、索引大小、表大小 Top
+  N、字段类型分布。
 \item
-  表级统计。
+  表级统计：字段数量、主键、外键、索引、估算行数、空值比例、数值字段聚合、分类字段
+  Top N。
 \item
-  Dashboard 卡片。
+  审计日志列表：分页、时间范围、对象类型、操作类型、数据库过滤、traceId
+  检索。
 \item
-  面板显示、隐藏、排序。
+  Dashboard DIY：卡片显示、隐藏、排序和卡片级配置持久化。
+\end{itemize}
+
+首轮不纳入：
+
+\begin{itemize}
+\tightlist
 \item
-  后续增强拖拽布局。
+  自由拖拽网格。
+\item
+  多套布局方案切换。
+\item
+  用户自定义脚本卡片。
+\item
+  后台定时统计任务。
+\item
+  对超大表执行无上限 \texttt{COUNT(*)} 或全表字段扫描。
+\end{itemize}
+
+统计实现原则：
+
+\begin{itemize}
+\tightlist
+\item
+  用户级和数据库级优先使用 \texttt{information\_schema} 估算值。
+\item
+  表级聚合必须限制字段数量、Top N 数量、采样行数或执行时间。
+\item
+  所有字段名、表名、排序字段必须来自后端白名单，不接受前端传 SQL 片段。
+\item
+  统计访问写入审计日志，但审计详情不保存完整查询参数中的敏感值。
 \end{itemize}
 
 \hypertarget{ux5b9eux73b0ux68c0ux67e5ux6e05ux5355}{%
@@ -2558,6 +2620,9 @@ stat\_snapshots & 统计快照表 \\
   删除数据库、删除表、删除字段属于强制确认，不由偏好关闭。
 \item
   批量插入、批量修改、批量删除、级联删除提示由偏好控制。
+\item
+  V7 起 \texttt{layout\_json} 增加 \texttt{dashboardLayout}，用于保存
+  Dashboard 卡片显示、隐藏、排序和卡片级配置。
 \end{itemize}
 
 \hypertarget{user_assets-ux7528ux6237ux8d44ux6e90ux5143ux4fe1ux606fux8868}{%
