@@ -1205,6 +1205,7 @@ V5 已落地前端交互：
 \begin{Highlighting}[]
 \KeywordTok{type}\NormalTok{ ConditionNode }\OperatorTok{=}\NormalTok{ \{}
 \NormalTok{  field}\OperatorTok{?:} \DataTypeTok{string}\OperatorTok{;}
+\NormalTok{  rightField}\OperatorTok{?:} \DataTypeTok{string}\OperatorTok{;}
 \NormalTok{  operator}\OperatorTok{:} \StringTok{\textquotesingle{}eq\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}ne\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}gt\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}gte\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}lt\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}lte\textquotesingle{}} \OperatorTok{|}
     \StringTok{\textquotesingle{}like\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}in\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}notIn\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}between\textquotesingle{}} \OperatorTok{|}
     \StringTok{\textquotesingle{}isNull\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}isNotNull\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}exists\textquotesingle{}} \OperatorTok{|} \StringTok{\textquotesingle{}notExists\textquotesingle{}}\OperatorTok{;}
@@ -1290,6 +1291,31 @@ V5 已落地前端交互：
 
 所有字段、表名、别名使用 \texttt{quoteIdentifier}。所有值放入
 \texttt{params}。
+
+V6 落地实现：
+
+\begin{itemize}
+\tightlist
+\item
+  后端新增 \texttt{queryController.executeSelectQuery}，挂载在
+  \texttt{POST\ /api/v1/databases/:databaseId/query/select}。
+\item
+  后端按登录用户解析 \texttt{databaseId}，只允许访问当前用户拥有的物理
+  schema。
+\item
+  查询 AST 经过体积、来源、字段、操作符、聚合函数、分页、JOIN
+  数量和子查询深度校验。
+\item
+  \texttt{rightField} 用于 JOIN ON
+  或字段间比较，普通值仍全部进入参数绑定。
+\item
+  顶层查询默认分页并返回
+  \texttt{hasMore}，前端通过加载下一页继续追加结果。
+\item
+  前端 \texttt{DatabaseWorkbench.vue}
+  新增``查询构造''模式，普通模式覆盖主表字段、JOIN、筛选、分组、HAVING、排序、分页；高级
+  AST 面板覆盖完整子查询节点。
+\end{itemize}
 
 \hypertarget{ux5b50ux67e5ux8be2ux652fux6301ux8303ux56f4}{%
 \subsubsection{10.5
@@ -2068,19 +2094,23 @@ CRUD}\label{phase-5ux8868ux6570ux636e-crud}}
 \begin{itemize}
 \tightlist
 \item
-  基础 SELECT。
+  基础 SELECT：已落地。
 \item
-  JOIN。
+  JOIN：已落地普通表单和后端校验。
 \item
-  聚合。
+  聚合：已落地
+  \texttt{COUNT}、\texttt{SUM}、\texttt{AVG}、\texttt{MIN}、\texttt{MAX}
+  白名单。
 \item
-  分组。
+  分组：已落地。
 \item
-  HAVING。
+  HAVING：已落地普通表单和后端校验。
 \item
-  子查询。
+  子查询：已落地后端 AST，前端通过高级 AST
+  面板表达派生表、\texttt{IN}、\texttt{EXISTS} 和标量子查询。
 \item
-  查询复杂度限制。
+  查询复杂度限制：已落地 AST 体积、JOIN
+  数、子查询深度、分页大小和执行时间提示。
 \end{itemize}
 
 \hypertarget{phase-7ux7edfux8ba1ux548c-diy-ux5de5ux4f5cux53f0}{%
@@ -3537,6 +3567,11 @@ GUI 查询提交的是结构化查询 AST，不直接提交原始 SQL 字符串�
 \texttt{SELECT} 语句，禁止在查询构造器中生成
 \texttt{INSERT}、\texttt{UPDATE}、\texttt{DELETE}、\texttt{DROP}、\texttt{ALTER}
 等写操作。
+
+V6 已在服务端执行 AST
+校验、用户数据库归属校验、字段作用域解析、标识符引用转义、参数绑定、JOIN
+数量限制、子查询深度限制、分页限制和查询执行时间提示。前端高级 AST
+面板也只提交结构化 JSON，不开放原始 SQL 编辑器。
 
 \hypertarget{sec-sql-006-ux5199ux64cdux4f5cux9650ux5236}{%
 \subsubsection{SEC-SQL-006

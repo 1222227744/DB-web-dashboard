@@ -5,6 +5,14 @@ import GlassDialog from '../components/GlassDialog.vue';
 import { fetchDatabases, type UserDatabase } from '../utils/databases';
 import { applyPreferences, fetchPreferences } from '../utils/preferences';
 import {
+  executeSelectQuery,
+  type QueryCondition,
+  type QueryField,
+  type QueryJoin,
+  type QueryResultData,
+  type SelectQueryAst
+} from '../utils/query';
+import {
   createTable,
   createTableRow,
   deleteTable,
@@ -51,6 +59,40 @@ type RowDraft = {
 };
 
 type SchemaEditorMode = 'ADD_COLUMN' | 'MODIFY_COLUMN' | 'ADD_INDEX' | 'ADD_CONSTRAINT';
+type WorkbenchMode = 'tables' | 'query';
+type QueryAggregate = '' | 'COUNT' | 'SUM' | 'AVG' | 'MIN' | 'MAX';
+
+type QueryFieldDraft = {
+  id: number;
+  tableAlias: string;
+  name: string;
+  alias: string;
+  aggregate: QueryAggregate;
+  distinct: boolean;
+};
+
+type QueryFilterDraft = {
+  id: number;
+  logic: 'AND' | 'OR';
+  field: string;
+  operator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'in' | 'notIn' | 'between' | 'isNull' | 'isNotNull';
+  value: string;
+};
+
+type QueryJoinDraft = {
+  id: number;
+  type: 'INNER' | 'LEFT' | 'RIGHT';
+  table: string;
+  alias: string;
+  leftField: string;
+  rightField: string;
+};
+
+type QuerySortDraft = {
+  id: number;
+  field: string;
+  order: 'ASC' | 'DESC';
+};
 
 const route = useRoute();
 const router = useRouter();
@@ -60,6 +102,7 @@ const selectedDatabase = ref<UserDatabase | null>(null);
 const tableObjects = ref<DatabaseObject[]>([]);
 const selectedTableName = ref('');
 const selectedTableSchema = ref<TableSchema | null>(null);
+const queryBaseSchema = ref<TableSchema | null>(null);
 const isDatabaseLoading = ref(false);
 const isObjectLoading = ref(false);
 const isSchemaLoading = ref(false);
@@ -100,6 +143,7 @@ const batchUpdateSetNull = ref(false);
 const batchUpdateError = ref('');
 const sortState = ref<{ orderBy: string; order: 'ASC' | 'DESC' } | null>(null);
 const visibleColumnNames = ref<string[]>([]);
+const workbenchMode = ref<WorkbenchMode>('tables');
 const schemaEditorMode = ref<SchemaEditorMode>('ADD_COLUMN');
 const schemaDraftColumn = ref<DraftColumn | null>(null);
 const schemaTargetColumnName = ref('');
@@ -111,6 +155,26 @@ const schemaConstraintColumn = ref('');
 const schemaConstraintValues = ref('');
 const schemaActionError = ref('');
 const isSchemaSaving = ref(false);
+const queryBaseTableName = ref('');
+const queryBaseAlias = ref('t');
+const queryFields = ref<QueryFieldDraft[]>([]);
+const queryJoins = ref<QueryJoinDraft[]>([]);
+const queryFilters = ref<QueryFilterDraft[]>([]);
+const queryHavingFilters = ref<QueryFilterDraft[]>([]);
+const queryGroups = ref<string[]>([]);
+const querySorts = ref<QuerySortDraft[]>([]);
+const queryPage = ref(1);
+const queryPageSize = ref(20);
+const queryResult = ref<QueryResultData | null>(null);
+const queryError = ref('');
+const isQueryLoading = ref(false);
+const isAdvancedAstVisible = ref(false);
+const advancedAstText = ref('');
+const lastQueryAst = ref<SelectQueryAst | null>(null);
+let queryFieldSeed = 0;
+let queryJoinSeed = 0;
+let queryFilterSeed = 0;
+let querySortSeed = 0;
 
 const sqlIdentifierPattern = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 const supportedTableTypes = ['INT', 'BIGINT', 'VARCHAR', 'TEXT', 'DATETIME', 'DATE', 'BOOLEAN', 'DECIMAL', 'JSON'];
@@ -119,6 +183,21 @@ const schemaEditorModeOptions: Array<{ value: SchemaEditorMode; label: string }>
   { value: 'MODIFY_COLUMN', label: '修改字段' },
   { value: 'ADD_INDEX', label: '新增索引' },
   { value: 'ADD_CONSTRAINT', label: '有限取值约束' }
+];
+const aggregateOptions: QueryAggregate[] = ['', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX'];
+const queryOperatorOptions: Array<{ value: QueryFilterDraft['operator']; label: string; needsValue: boolean }> = [
+  { value: 'eq', label: '= 等于', needsValue: true },
+  { value: 'ne', label: '≠ 不等于', needsValue: true },
+  { value: 'gt', label: '> 大于', needsValue: true },
+  { value: 'gte', label: '≥ 大于等于', needsValue: true },
+  { value: 'lt', label: '< 小于', needsValue: true },
+  { value: 'lte', label: '≤ 小于等于', needsValue: true },
+  { value: 'like', label: '包含', needsValue: true },
+  { value: 'in', label: '属于列表', needsValue: true },
+  { value: 'notIn', label: '不属于列表', needsValue: true },
+  { value: 'between', label: '介于', needsValue: true },
+  { value: 'isNull', label: '为空', needsValue: false },
+  { value: 'isNotNull', label: '不为空', needsValue: false }
 ];
 const previewPageSize = 20;
 let draftColumnSeed = 0;
@@ -168,6 +247,25 @@ const selectedRows = computed(() => {
   const selectedKeys = new Set(selectedRowKeys.value);
   return previewRows.value.filter((row, index) => selectedKeys.has(getRowKey(row, index)));
 });
+const queryBaseColumns = computed(() => {
+  return queryBaseSchema.value?.columns ?? [];
+});
+const queryAliasOptions = computed(() => {
+  const aliases = [queryBaseAlias.value.trim(), ...queryJoins.value.map((join) => join.alias.trim())]
+    .filter(Boolean);
+  return [...new Set(aliases)];
+});
+const queryFieldOptions = computed(() => {
+  const baseAlias = queryBaseAlias.value.trim();
+  return baseAlias
+    ? queryBaseColumns.value.map((column) => ({
+        label: `${baseAlias}.${column.name}`,
+        value: `${baseAlias}.${column.name}`
+      }))
+    : [];
+});
+const queryResultColumns = computed(() => queryResult.value?.columns ?? []);
+const queryResultRows = computed(() => queryResult.value?.rows ?? []);
 const deletingRowPrimaryKeyText = computed(() => {
   if (!deletingRow.value || primaryKeyColumns.value.length === 0) {
     return '';
@@ -421,6 +519,367 @@ const applyPreviewFilter = () => {
 
 const loadMorePreviewRows = () => {
   void loadSelectedTablePreview({ append: true });
+};
+
+const switchWorkbenchMode = (mode: WorkbenchMode) => {
+  workbenchMode.value = mode;
+
+  if (mode === 'query') {
+    ensureQueryDefaults();
+  }
+};
+
+const ensureQueryDefaults = () => {
+  if (!queryBaseTableName.value && selectedTableName.value) {
+    queryBaseTableName.value = selectedTableName.value;
+  }
+
+  if (!queryBaseAlias.value.trim()) {
+    queryBaseAlias.value = 't';
+  }
+
+  if (selectedDatabase.value && queryBaseTableName.value && queryBaseSchema.value?.tableName !== queryBaseTableName.value) {
+    void loadQueryBaseSchema();
+    return;
+  }
+
+  if (queryFields.value.length === 0 && queryBaseColumns.value.length > 0) {
+    queryFields.value = queryBaseColumns.value.slice(0, 4).map((column) => createQueryFieldDraft({
+      tableAlias: queryBaseAlias.value.trim() || 't',
+      name: column.name
+    }));
+  }
+};
+
+const resetQueryBuilderForTable = (tableName = selectedTableName.value) => {
+  queryBaseTableName.value = tableName;
+  queryBaseAlias.value = 't';
+  queryFields.value = [];
+  queryJoins.value = [];
+  queryFilters.value = [];
+  queryHavingFilters.value = [];
+  queryGroups.value = [];
+  querySorts.value = [];
+  queryPage.value = 1;
+  queryResult.value = null;
+  lastQueryAst.value = null;
+  queryError.value = '';
+  advancedAstText.value = '';
+};
+
+const loadQueryBaseSchema = async () => {
+  if (!selectedDatabase.value || !queryBaseTableName.value) {
+    queryBaseSchema.value = null;
+    return;
+  }
+
+  try {
+    queryBaseSchema.value = await fetchTableSchema(selectedDatabase.value.id, queryBaseTableName.value);
+
+    if (queryFields.value.length === 0) {
+      queryFields.value = queryBaseSchema.value.columns.slice(0, 4).map((column) => createQueryFieldDraft({
+        tableAlias: queryBaseAlias.value.trim() || 't',
+        name: column.name
+      }));
+    }
+  } catch (error) {
+    queryBaseSchema.value = null;
+    queryError.value = getErrorMessage(error, '查询主表结构加载失败');
+  }
+};
+
+const createQueryFieldDraft = (overrides: Partial<QueryFieldDraft> = {}): QueryFieldDraft => ({
+  id: ++queryFieldSeed,
+  tableAlias: queryBaseAlias.value.trim() || 't',
+  name: '',
+  alias: '',
+  aggregate: '',
+  distinct: false,
+  ...overrides
+});
+
+const createQueryJoinDraft = (overrides: Partial<QueryJoinDraft> = {}): QueryJoinDraft => ({
+  id: ++queryJoinSeed,
+  type: 'INNER',
+  table: '',
+  alias: `j${queryJoinSeed}`,
+  leftField: '',
+  rightField: '',
+  ...overrides
+});
+
+const createQueryFilterDraft = (overrides: Partial<QueryFilterDraft> = {}): QueryFilterDraft => ({
+  id: ++queryFilterSeed,
+  logic: queryFilters.value.length === 0 ? 'AND' : 'AND',
+  field: '',
+  operator: 'eq',
+  value: '',
+  ...overrides
+});
+
+const createQuerySortDraft = (overrides: Partial<QuerySortDraft> = {}): QuerySortDraft => ({
+  id: ++querySortSeed,
+  field: '',
+  order: 'ASC',
+  ...overrides
+});
+
+const addQueryField = () => {
+  queryFields.value.push(createQueryFieldDraft());
+};
+
+const addQueryJoin = () => {
+  queryJoins.value.push(createQueryJoinDraft());
+};
+
+const addQueryFilter = () => {
+  queryFilters.value.push(createQueryFilterDraft());
+};
+
+const addQueryHavingFilter = () => {
+  queryHavingFilters.value.push(createQueryFilterDraft({
+    field: queryFields.value[0]?.alias.trim() || queryFields.value[0]?.name.trim() || ''
+  }));
+};
+
+const addQuerySort = () => {
+  querySorts.value.push(createQuerySortDraft());
+};
+
+const removeQueryField = (fieldID: number) => {
+  queryFields.value = queryFields.value.filter((field) => field.id !== fieldID);
+};
+
+const removeQueryJoin = (joinID: number) => {
+  queryJoins.value = queryJoins.value.filter((join) => join.id !== joinID);
+};
+
+const removeQueryFilter = (filterID: number) => {
+  queryFilters.value = queryFilters.value.filter((filter) => filter.id !== filterID);
+};
+
+const removeQueryHavingFilter = (filterID: number) => {
+  queryHavingFilters.value = queryHavingFilters.value.filter((filter) => filter.id !== filterID);
+};
+
+const removeQuerySort = (sortID: number) => {
+  querySorts.value = querySorts.value.filter((sort) => sort.id !== sortID);
+};
+
+const syncQueryFieldsWithBaseTable = () => {
+  queryResult.value = null;
+  lastQueryAst.value = null;
+  queryError.value = '';
+  queryFields.value = [];
+  queryFilters.value = [];
+  queryHavingFilters.value = [];
+  queryGroups.value = [];
+  querySorts.value = [];
+  void loadQueryBaseSchema();
+};
+
+const parseQueryValue = (value: string): unknown => {
+  const trimmed = value.trim();
+
+  if (trimmed === '') {
+    return '';
+  }
+
+  if (trimmed === 'null') {
+    return null;
+  }
+
+  if (trimmed === 'true') {
+    return true;
+  }
+
+  if (trimmed === 'false') {
+    return false;
+  }
+
+  const numericValue = Number(trimmed);
+  return Number.isFinite(numericValue) && trimmed !== '' ? numericValue : trimmed;
+};
+
+const buildQueryAst = (): SelectQueryAst | null => {
+  queryError.value = '';
+  const tableName = queryBaseTableName.value.trim();
+  const baseAlias = queryBaseAlias.value.trim();
+
+  if (!tableName) {
+    queryError.value = '请选择查询主表';
+    return null;
+  }
+
+  if (!sqlIdentifierPattern.test(baseAlias)) {
+    queryError.value = '主表别名需以英文字母开头，只能包含英文字母、数字和下划线';
+    return null;
+  }
+
+  const fields = queryFields.value
+    .filter((field) => field.name.trim())
+    .map((field): QueryField => ({
+      tableAlias: field.tableAlias.trim() || baseAlias,
+      name: field.name.trim(),
+      alias: field.alias.trim() || undefined,
+      aggregate: field.aggregate || undefined,
+      distinct: field.distinct || undefined
+    }));
+
+  if (fields.length === 0) {
+    queryError.value = '请至少选择一个输出字段';
+    return null;
+  }
+
+  const joins: QueryJoin[] = [];
+
+  for (const join of queryJoins.value) {
+    if (!join.table.trim() && !join.alias.trim() && !join.leftField.trim() && !join.rightField.trim()) {
+      continue;
+    }
+
+    if (!join.table.trim() || !join.alias.trim() || !join.leftField.trim() || !join.rightField.trim()) {
+      queryError.value = 'JOIN 需要填写表名、别名和左右字段';
+      return null;
+    }
+
+    joins.push({
+      type: join.type,
+      source: {
+        type: 'table',
+        table: join.table.trim(),
+        alias: join.alias.trim()
+      },
+      alias: join.alias.trim(),
+      on: [
+        {
+          field: join.leftField.trim(),
+          operator: 'eq',
+          rightField: join.rightField.trim()
+        }
+      ]
+    });
+  }
+
+  const normalizeFilterDrafts = (drafts: QueryFilterDraft[], label: string): QueryCondition[] | null => {
+    const conditions: QueryCondition[] = [];
+
+    for (const filter of drafts) {
+      const operatorMeta = queryOperatorOptions.find((operator) => operator.value === filter.operator);
+
+      if (!filter.field.trim()) {
+        continue;
+      }
+
+      if (operatorMeta?.needsValue && !filter.value.trim()) {
+        queryError.value = `${label}填写了字段时，也需要填写筛选值`;
+        return null;
+      }
+
+      const condition: QueryCondition = {
+        field: filter.field.trim(),
+        operator: filter.operator,
+        logic: conditions.length === 0 ? 'AND' : filter.logic
+      };
+
+      if (filter.operator === 'between') {
+        condition.values = filter.value.split(',').map(parseQueryValue);
+      } else if (filter.operator === 'in' || filter.operator === 'notIn') {
+        condition.values = filter.value.split(',').map(parseQueryValue);
+      } else if (operatorMeta?.needsValue) {
+        condition.value = parseQueryValue(filter.value);
+      }
+
+      conditions.push(condition);
+    }
+
+    return conditions;
+  };
+
+  const filters = normalizeFilterDrafts(queryFilters.value, '筛选条件');
+  const having = normalizeFilterDrafts(queryHavingFilters.value, 'HAVING 条件');
+
+  if (!filters || !having) {
+    return null;
+  }
+
+  return {
+    from: {
+      type: 'table',
+      table: tableName,
+      alias: baseAlias
+    },
+    joins: joins.length > 0 ? joins : undefined,
+    fields,
+    filters: filters.length > 0 ? filters : undefined,
+    groups: queryGroups.value.length > 0 ? queryGroups.value : undefined,
+    having: having.length > 0 ? having : undefined,
+    sorts: querySorts.value
+      .filter((sort) => sort.field.trim())
+      .map((sort) => ({
+        field: sort.field.trim(),
+        order: sort.order
+      })),
+    page: queryPage.value,
+    pageSize: queryPageSize.value
+  };
+};
+
+const runQuery = async (options: { useAdvanced?: boolean; append?: boolean } = {}) => {
+  if (!selectedDatabase.value) {
+    queryError.value = '数据库不可用';
+    return;
+  }
+
+  let ast: SelectQueryAst | null = null;
+
+  if (options.append && lastQueryAst.value) {
+    ast = {
+      ...lastQueryAst.value,
+      page: queryPage.value
+    };
+  } else if (options.useAdvanced) {
+    try {
+      ast = JSON.parse(advancedAstText.value) as SelectQueryAst;
+    } catch {
+      queryError.value = '高级 AST 不是合法 JSON';
+      return;
+    }
+  } else {
+    if (!options.append) {
+      queryPage.value = 1;
+    }
+
+    ast = buildQueryAst();
+  }
+
+  if (!ast) {
+    return;
+  }
+
+  isQueryLoading.value = true;
+  queryError.value = '';
+
+  try {
+    const result = await executeSelectQuery(selectedDatabase.value.id, ast);
+    lastQueryAst.value = ast;
+    queryResult.value = options.append && queryResult.value
+      ? {
+          ...result,
+          rows: [...queryResult.value.rows, ...result.rows]
+        }
+      : result;
+    advancedAstText.value = JSON.stringify(ast, null, 2);
+  } catch (error) {
+    queryError.value = getErrorMessage(error, '查询执行失败');
+  } finally {
+    isQueryLoading.value = false;
+  }
+};
+
+const runNextQueryPage = () => {
+  queryPage.value += 1;
+  void runQuery({ append: true });
 };
 
 const toggleSort = (columnName: string) => {
@@ -1379,9 +1838,11 @@ const selectTable = (table: DatabaseObject) => {
   selectedRowKeys.value = [];
   sortState.value = null;
   visibleColumnNames.value = [];
+  resetQueryBuilderForTable(table.name);
 
   if (selectedTableName.value === table.name) {
     void loadSelectedTablePreview();
+    ensureQueryDefaults();
     return;
   }
 
@@ -1448,6 +1909,9 @@ const selectSchemaEditorMode = (mode: SchemaEditorMode) => {
 watch(selectedTableName, (tableName) => {
   void loadSelectedTableSchema(tableName);
   void loadSelectedTablePreview();
+  if (!queryBaseTableName.value) {
+    resetQueryBuilderForTable(tableName);
+  }
 });
 
 onMounted(() => {
@@ -1502,12 +1966,36 @@ onMounted(() => {
       <section class="table-workbench glass-card">
         <header class="table-workbench-header">
           <div>
-            <p class="home-label">表结构管理</p>
+            <p class="home-label">{{ workbenchMode === 'tables' ? '表结构管理' : 'GUI QUERY BUILDER' }}</p>
             <h2>{{ selectedDatabase?.displayName || '请选择数据库' }}</h2>
-            <p>当前阶段支持表列表、创建表、查看结构和删除表；复杂约束和视图会继续扩展。</p>
+            <p>
+              {{ workbenchMode === 'tables'
+                ? '当前阶段支持表列表、创建表、结构管理和行级 CRUD。'
+                : '通过受控 AST 生成 SELECT 查询，支持 JOIN、聚合、分组、HAVING 和子查询。'
+              }}
+            </p>
           </div>
           <div class="table-workbench-actions">
+            <div class="workbench-mode-tabs">
+              <button
+                class="schema-mode-button"
+                :class="{ active: workbenchMode === 'tables' }"
+                type="button"
+                @click="switchWorkbenchMode('tables')"
+              >
+                表数据
+              </button>
+              <button
+                class="schema-mode-button"
+                :class="{ active: workbenchMode === 'query' }"
+                type="button"
+                @click="switchWorkbenchMode('query')"
+              >
+                查询构造
+              </button>
+            </div>
             <button
+              v-if="workbenchMode === 'tables'"
               class="dialog-button"
               type="button"
               :disabled="!selectedDatabase || isObjectLoading"
@@ -1516,6 +2004,7 @@ onMounted(() => {
               {{ isObjectLoading ? '刷新中…' : '刷新' }}
             </button>
             <button
+              v-if="workbenchMode === 'tables'"
               class="dialog-button primary"
               type="button"
               :disabled="!selectedDatabase"
@@ -1585,6 +2074,7 @@ onMounted(() => {
           </aside>
 
           <section
+            v-if="workbenchMode === 'tables'"
             v-loading="isPreviewLoading"
             class="preview-panel"
           >
@@ -1929,6 +2419,539 @@ onMounted(() => {
                 </button>
               </div>
             </template>
+          </section>
+
+          <section
+            v-else
+            v-loading="isQueryLoading"
+            class="preview-panel query-panel"
+          >
+            <div class="preview-head">
+              <div>
+                <span class="schema-kicker">STRUCTURED SELECT</span>
+                <h3>查询构造器</h3>
+                <p>普通模式适合常见查询；高级 AST 保留完整子查询表达能力。</p>
+              </div>
+              <div class="table-workbench-actions">
+                <button
+                  class="dialog-button"
+                  type="button"
+                  @click="isAdvancedAstVisible = !isAdvancedAstVisible"
+                >
+                  {{ isAdvancedAstVisible ? '收起 AST' : '高级 AST' }}
+                </button>
+                <button
+                  class="dialog-button primary"
+                  type="button"
+                  :disabled="isQueryLoading"
+                  @click="runQuery()"
+                >
+                  {{ isQueryLoading ? '执行中…' : '执行查询' }}
+                </button>
+              </div>
+            </div>
+
+            <div class="query-builder-grid">
+              <section class="query-builder-card">
+                <div class="table-panel-title">
+                  <span>查询来源</span>
+                  <small>FROM</small>
+                </div>
+                <div class="query-form-grid">
+                  <label class="dialog-field">
+                    <span>主表</span>
+                    <el-select
+                      v-model="queryBaseTableName"
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                      @change="syncQueryFieldsWithBaseTable"
+                    >
+                      <el-option
+                        v-for="table in baseTables"
+                        :key="table.name"
+                        :label="table.name"
+                        :value="table.name"
+                      />
+                    </el-select>
+                  </label>
+                  <label class="dialog-field">
+                    <span>别名</span>
+                    <el-input
+                      v-model="queryBaseAlias"
+                      maxlength="64"
+                      placeholder=""
+                    />
+                  </label>
+                  <label class="dialog-field">
+                    <span>每页行数</span>
+                    <el-input-number
+                      v-model="queryPageSize"
+                      :min="1"
+                      :max="100"
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section class="query-builder-card">
+                <div class="table-panel-title">
+                  <span>输出字段</span>
+                  <button
+                    class="database-text-button"
+                    type="button"
+                    @click="addQueryField"
+                  >
+                    添加字段
+                  </button>
+                </div>
+                <div class="query-list">
+                  <article
+                    v-for="field in queryFields"
+                    :key="field.id"
+                    class="query-row"
+                  >
+                    <el-select
+                      v-model="field.tableAlias"
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option
+                        v-for="alias in queryAliasOptions"
+                        :key="alias"
+                        :label="alias"
+                        :value="alias"
+                      />
+                    </el-select>
+                    <el-select
+                      v-model="field.name"
+                      filterable
+                      allow-create
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option
+                        v-for="column in queryBaseColumns"
+                        :key="column.name"
+                        :label="column.name"
+                        :value="column.name"
+                      />
+                    </el-select>
+                    <el-select
+                      v-model="field.aggregate"
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option
+                        v-for="aggregate in aggregateOptions"
+                        :key="aggregate || 'none'"
+                        :label="aggregate || '无聚合'"
+                        :value="aggregate"
+                      />
+                    </el-select>
+                    <el-input
+                      v-model="field.alias"
+                      placeholder=""
+                    />
+                    <button
+                      class="row-action-button danger"
+                      type="button"
+                      @click="removeQueryField(field.id)"
+                    >
+                      移除
+                    </button>
+                  </article>
+                </div>
+              </section>
+
+              <section class="query-builder-card">
+                <div class="table-panel-title">
+                  <span>JOIN</span>
+                  <button
+                    class="database-text-button"
+                    type="button"
+                    @click="addQueryJoin"
+                  >
+                    添加 JOIN
+                  </button>
+                </div>
+                <div
+                  v-if="queryJoins.length === 0"
+                  class="query-empty"
+                >
+                  不需要多表查询时可以留空。
+                </div>
+                <div class="query-list">
+                  <article
+                    v-for="join in queryJoins"
+                    :key="join.id"
+                    class="query-row join-row"
+                  >
+                    <el-select
+                      v-model="join.type"
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option label="INNER" value="INNER" />
+                      <el-option label="LEFT" value="LEFT" />
+                      <el-option label="RIGHT" value="RIGHT" />
+                    </el-select>
+                    <el-select
+                      v-model="join.table"
+                      filterable
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option
+                        v-for="table in baseTables"
+                        :key="table.name"
+                        :label="table.name"
+                        :value="table.name"
+                      />
+                    </el-select>
+                    <el-input
+                      v-model="join.alias"
+                      placeholder=""
+                    />
+                    <el-input
+                      v-model="join.leftField"
+                      placeholder="t.id"
+                    />
+                    <el-input
+                      v-model="join.rightField"
+                      placeholder="j1.user_id"
+                    />
+                    <button
+                      class="row-action-button danger"
+                      type="button"
+                      @click="removeQueryJoin(join.id)"
+                    >
+                      移除
+                    </button>
+                  </article>
+                </div>
+              </section>
+
+              <section class="query-builder-card">
+                <div class="table-panel-title">
+                  <span>筛选条件</span>
+                  <button
+                    class="database-text-button"
+                    type="button"
+                    @click="addQueryFilter"
+                  >
+                    添加条件
+                  </button>
+                </div>
+                <div
+                  v-if="queryFilters.length === 0"
+                  class="query-empty"
+                >
+                  留空代表不过滤。
+                </div>
+                <div class="query-list">
+                  <article
+                    v-for="(filter, filterIndex) in queryFilters"
+                    :key="filter.id"
+                    class="query-row filter-row"
+                  >
+                    <el-select
+                      v-model="filter.logic"
+                      :disabled="filterIndex === 0"
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option label="AND" value="AND" />
+                      <el-option label="OR" value="OR" />
+                    </el-select>
+                    <el-select
+                      v-model="filter.field"
+                      filterable
+                      allow-create
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option
+                        v-for="field in queryFieldOptions"
+                        :key="field.value"
+                        :label="field.label"
+                        :value="field.value"
+                      />
+                    </el-select>
+                    <el-select
+                      v-model="filter.operator"
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option
+                        v-for="operator in queryOperatorOptions"
+                        :key="operator.value"
+                        :label="operator.label"
+                        :value="operator.value"
+                      />
+                    </el-select>
+                    <el-input
+                      v-model="filter.value"
+                      :disabled="!queryOperatorOptions.find((operator) => operator.value === filter.operator)?.needsValue"
+                      placeholder=""
+                      @keyup.enter="runQuery()"
+                    />
+                    <button
+                      class="row-action-button danger"
+                      type="button"
+                      @click="removeQueryFilter(filter.id)"
+                    >
+                      移除
+                    </button>
+                  </article>
+                </div>
+              </section>
+
+              <section class="query-builder-card">
+                <div class="table-panel-title">
+                  <span>分组与排序</span>
+                  <button
+                    class="database-text-button"
+                    type="button"
+                    @click="addQuerySort"
+                  >
+                    添加排序
+                  </button>
+                </div>
+                <div class="query-form-grid">
+                  <label class="dialog-field query-wide-field">
+                    <span>GROUP BY</span>
+                    <el-select
+                      v-model="queryGroups"
+                      multiple
+                      filterable
+                      allow-create
+                      collapse-tags
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option
+                        v-for="field in queryFieldOptions"
+                        :key="field.value"
+                        :label="field.label"
+                        :value="field.value"
+                      />
+                    </el-select>
+                  </label>
+                </div>
+                <div class="query-list">
+                  <article
+                    v-for="sort in querySorts"
+                    :key="sort.id"
+                    class="query-row sort-row"
+                  >
+                    <el-select
+                      v-model="sort.field"
+                      filterable
+                      allow-create
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option
+                        v-for="field in queryFieldOptions"
+                        :key="field.value"
+                        :label="field.label"
+                        :value="field.value"
+                      />
+                    </el-select>
+                    <el-select
+                      v-model="sort.order"
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option label="ASC" value="ASC" />
+                      <el-option label="DESC" value="DESC" />
+                    </el-select>
+                    <button
+                      class="row-action-button danger"
+                      type="button"
+                      @click="removeQuerySort(sort.id)"
+                    >
+                      移除
+                    </button>
+                  </article>
+                </div>
+              </section>
+
+              <section class="query-builder-card">
+                <div class="table-panel-title">
+                  <span>HAVING</span>
+                  <button
+                    class="database-text-button"
+                    type="button"
+                    @click="addQueryHavingFilter"
+                  >
+                    添加 HAVING
+                  </button>
+                </div>
+                <div
+                  v-if="queryHavingFilters.length === 0"
+                  class="query-empty"
+                >
+                  聚合筛选可留空；字段可使用输出别名，如 avg_score。
+                </div>
+                <div class="query-list">
+                  <article
+                    v-for="(filter, filterIndex) in queryHavingFilters"
+                    :key="filter.id"
+                    class="query-row filter-row"
+                  >
+                    <el-select
+                      v-model="filter.logic"
+                      :disabled="filterIndex === 0"
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option label="AND" value="AND" />
+                      <el-option label="OR" value="OR" />
+                    </el-select>
+                    <el-input
+                      v-model="filter.field"
+                      placeholder=""
+                    />
+                    <el-select
+                      v-model="filter.operator"
+                      popper-class="workbench-select-popper"
+                      placeholder=""
+                    >
+                      <el-option
+                        v-for="operator in queryOperatorOptions"
+                        :key="operator.value"
+                        :label="operator.label"
+                        :value="operator.value"
+                      />
+                    </el-select>
+                    <el-input
+                      v-model="filter.value"
+                      :disabled="!queryOperatorOptions.find((operator) => operator.value === filter.operator)?.needsValue"
+                      placeholder=""
+                      @keyup.enter="runQuery()"
+                    />
+                    <button
+                      class="row-action-button danger"
+                      type="button"
+                      @click="removeQueryHavingFilter(filter.id)"
+                    >
+                      移除
+                    </button>
+                  </article>
+                </div>
+              </section>
+            </div>
+
+            <section
+              v-if="isAdvancedAstVisible"
+              class="query-builder-card advanced-ast-card"
+            >
+              <div class="table-panel-title">
+                <span>高级 AST</span>
+                <small>JSON 结构化查询，不接受原始 SQL</small>
+              </div>
+              <el-input
+                v-model="advancedAstText"
+                type="textarea"
+                :rows="12"
+                placeholder=""
+              />
+              <div class="query-actions">
+                <button
+                  class="dialog-button"
+                  type="button"
+                  @click="advancedAstText = JSON.stringify(buildQueryAst(), null, 2)"
+                >
+                  生成当前 AST
+                </button>
+                <button
+                  class="dialog-button primary"
+                  type="button"
+                  :disabled="isQueryLoading"
+                  @click="runQuery({ useAdvanced: true })"
+                >
+                  执行高级 AST
+                </button>
+              </div>
+            </section>
+
+            <p
+              v-if="queryError"
+              class="database-feedback error"
+            >
+              {{ queryError }}
+            </p>
+
+            <section
+              v-if="queryResult"
+              class="query-result-panel"
+            >
+              <div class="table-panel-title">
+                <span>查询结果</span>
+                <small>第 {{ queryResult.page ?? queryPage }} 页 · {{ queryResultRows.length }} 行</small>
+              </div>
+              <div
+                v-if="queryResultColumns.length === 0"
+                class="table-empty compact"
+              >
+                <strong>暂无字段</strong>
+                <span>查询没有返回可展示的列。</span>
+              </div>
+              <div
+                v-else
+                class="preview-table-shell query-result-table"
+              >
+                <table class="preview-table">
+                  <thead>
+                    <tr>
+                      <th
+                        v-for="column in queryResultColumns"
+                        :key="column.name"
+                      >
+                        <div class="preview-column-head">
+                          <strong>{{ column.label }}</strong>
+                          <span>{{ column.dataType || column.source || 'QUERY' }}</span>
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="queryResultRows.length === 0">
+                      <td :colspan="queryResultColumns.length">
+                        <div class="preview-empty-cell">没有匹配的数据</div>
+                      </td>
+                    </tr>
+                    <tr
+                      v-for="(row, rowIndex) in queryResultRows"
+                      :key="`query-${rowIndex}`"
+                    >
+                      <td
+                        v-for="column in queryResultColumns"
+                        :key="column.name"
+                      >
+                        <span :class="{ 'null-cell': row[column.name] === null || row[column.name] === undefined }">
+                          {{ formatCellValue(row[column.name]) }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div
+                v-if="queryResult.hasMore"
+                class="preview-more-row"
+              >
+                <button
+                  class="dialog-button"
+                  type="button"
+                  :disabled="isQueryLoading"
+                  @click="runNextQueryPage"
+                >
+                  加载下一页
+                </button>
+              </div>
+            </section>
           </section>
         </div>
 
@@ -3069,6 +4092,16 @@ onMounted(() => {
   gap: 10px;
 }
 
+.workbench-mode-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
 .schema-mode-button {
   min-height: 34px;
   padding: 0 12px;
@@ -3161,6 +4194,117 @@ onMounted(() => {
 .preview-toolbar :deep(.el-tag__close:hover) {
   color: var(--glass-text-strong);
   background: hsla(var(--theme-hue), 80%, 62%, 0.24);
+}
+
+.query-panel {
+  gap: 20px;
+}
+
+.query-builder-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.query-builder-card,
+.query-result-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.13);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 10% 0%, hsla(var(--theme-hue), 80%, 60%, 0.1), transparent 34%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.query-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.query-wide-field {
+  grid-column: 1 / -1;
+}
+
+.query-list {
+  display: grid;
+  gap: 10px;
+}
+
+.query-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.75fr) minmax(120px, 1fr) minmax(112px, 0.8fr) minmax(120px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.query-row.join-row {
+  grid-template-columns: 96px minmax(120px, 1fr) minmax(86px, 0.7fr) minmax(110px, 1fr) minmax(110px, 1fr) auto;
+}
+
+.query-row.filter-row {
+  grid-template-columns: 86px minmax(130px, 1fr) minmax(120px, 0.9fr) minmax(130px, 1fr) auto;
+}
+
+.query-row.sort-row {
+  grid-template-columns: minmax(180px, 1fr) 110px auto;
+}
+
+.query-row :deep(.el-input__wrapper),
+.query-row :deep(.el-select__wrapper),
+.query-builder-card :deep(.el-input__wrapper),
+.query-builder-card :deep(.el-select__wrapper),
+.query-builder-card :deep(.el-input-number .el-input__wrapper) {
+  min-height: 40px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.16);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.075), rgba(255, 255, 255, 0.055)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(0, 0, 0, 0.1) !important;
+}
+
+.query-builder-card :deep(.el-input-number) {
+  width: 100%;
+}
+
+.query-builder-card :deep(.el-textarea__inner) {
+  color: var(--glass-text-strong);
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.16);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.075), rgba(255, 255, 255, 0.055)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 22px rgba(0, 0, 0, 0.1) !important;
+}
+
+.query-empty {
+  padding: 14px;
+  color: var(--glass-text-muted);
+  font-size: 13px;
+  text-align: center;
+  border: 1px dashed hsla(var(--theme-hue), 80%, 72%, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.query-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.query-result-table {
+  max-height: min(50vh, 560px);
 }
 
 .row-mode-notice {
@@ -3816,8 +4960,17 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
+  .query-form-grid,
+  .query-row,
+  .query-row.join-row,
+  .query-row.filter-row,
+  .query-row.sort-row {
+    grid-template-columns: 1fr;
+  }
+
   .schema-wide-field,
-  .schema-flags {
+  .schema-flags,
+  .query-wide-field {
     grid-column: auto;
   }
 

@@ -369,6 +369,12 @@ SQL 字符串，而是提交受控查询 AST。AST 中的主表、JOIN
 复杂查询必须受容量限制约束，包括最大 JOIN
 数、最大子查询深度、最大返回字段数、最大返回行数和最大执行时间。
 
+V6 阶段已落地
+\texttt{POST\ /api/v1/databases/:databaseId/query/select}。前端在数据库工作台内提供``查询构造''模式：普通表单覆盖主表字段、JOIN、筛选、分组、HAVING、排序和分页；高级
+AST 面板保留完整结构化 JSON
+输入，用于表达派生表、\texttt{IN}、\texttt{EXISTS}
+和标量子查询等复杂节点。
+
 \hypertarget{ux4e8bux52a1ux9762ux677f}{%
 \subsubsection{4.7 事务面板}\label{ux4e8bux52a1ux9762ux677f}}
 

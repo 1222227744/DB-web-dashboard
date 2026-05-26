@@ -752,7 +752,11 @@
 \item
   后端生成 SQL 并执行。
 \item
-  查询操作写入审计日志。
+  V6 已落地后端结构化 SELECT
+  接口和前端查询构造入口；普通模式覆盖主表字段、JOIN、筛选、分组、HAVING、排序和分页，高级
+  AST 模式覆盖派生表、\texttt{IN}、\texttt{EXISTS} 和标量子查询。
+\item
+  查询操作写入审计日志归入 V7 审计落库阶段。
 \end{itemize}
 
 \hypertarget{ux4e8bux52a1ux9700ux6c42}{%

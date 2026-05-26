@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { createDatabase, deleteDatabase, listDatabases, renameDatabase } from '../controllers/databaseController.js';
+import { executeSelectQuery } from '../controllers/queryController.js';
 import {
   createTable,
   createTableRow,
@@ -20,6 +21,7 @@ router.use(authMiddleware);
 router.get('/', listDatabases);
 router.post('/', createDatabase);
 router.get('/:databaseId/objects', listDatabaseObjects);
+router.post('/:databaseId/query/select', executeSelectQuery);
 router.post('/:databaseId/tables', createTable);
 router.get('/:databaseId/tables/:tableName/schema', getTableSchema);
 router.patch('/:databaseId/tables/:tableName/schema', updateTableSchema);
