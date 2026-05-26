@@ -7,6 +7,7 @@ import pool from '../config/db.js';
 import { env } from '../config/env.js';
 import { limits } from '../config/limits.js';
 import { AppError } from '../errors/AppError.js';
+import { recordAuditLog } from '../services/auditService.js';
 import { sendSuccess } from '../utils/response.js';
 
 type ProfileRow = {
@@ -51,10 +52,23 @@ type PreferenceData = {
   backgroundPreset: 'particle' | 'image' | 'gradient';
   backgroundAssetID: number | null;
   tablePageSize: number;
+  dashboardLayout: DashboardLayout;
   confirmBatchInsert: boolean;
   confirmBatchUpdate: boolean;
   confirmBatchDelete: boolean;
   confirmCascadeDelete: boolean;
+};
+
+type DashboardLayout = {
+  version: number;
+  cards: DashboardCardLayout[];
+};
+
+type DashboardCardLayout = {
+  id: string;
+  visible: boolean;
+  order: number;
+  config: Record<string, unknown>;
 };
 
 type PreferencePatchBody = {
@@ -62,6 +76,7 @@ type PreferencePatchBody = {
   backgroundPreset?: unknown;
   backgroundAssetID?: unknown;
   tablePageSize?: unknown;
+  dashboardLayout?: unknown;
   confirmBatchInsert?: unknown;
   confirmBatchUpdate?: unknown;
   confirmBatchDelete?: unknown;
@@ -197,6 +212,17 @@ const defaultPreferences: PreferenceData = {
   backgroundPreset: 'particle',
   backgroundAssetID: null,
   tablePageSize: 20,
+  dashboardLayout: {
+    version: 1,
+    cards: [
+      { id: 'database-count', visible: true, order: 10, config: {} },
+      { id: 'table-count', visible: true, order: 20, config: {} },
+      { id: 'storage-usage', visible: true, order: 30, config: {} },
+      { id: 'operation-trend', visible: true, order: 40, config: {} },
+      { id: 'database-distribution', visible: true, order: 50, config: {} },
+      { id: 'recent-operations', visible: true, order: 60, config: {} }
+    ]
+  },
   confirmBatchInsert: true,
   confirmBatchUpdate: true,
   confirmBatchDelete: true,
@@ -237,7 +263,8 @@ export const updatePreferences = async (req: Request, res: Response, next: NextF
         nextPreferences.backgroundAssetID,
         JSON.stringify({
           themeMode: nextPreferences.themeMode,
-          tablePageSize: nextPreferences.tablePageSize
+          tablePageSize: nextPreferences.tablePageSize,
+          dashboardLayout: nextPreferences.dashboardLayout
         }),
         JSON.stringify({
           confirmBatchInsert: nextPreferences.confirmBatchInsert,
@@ -249,6 +276,16 @@ export const updatePreferences = async (req: Request, res: Response, next: NextF
       ]
     );
 
+    await recordAuditLog({
+      req,
+      userID,
+      objectType: 'PREFERENCE',
+      actionType: 'PREFERENCE_UPDATE',
+      summary: '更新用户偏好',
+      detail: {
+        fields: Object.keys(patch)
+      }
+    });
     sendSuccess(res, '偏好已更新', nextPreferences);
   } catch (error) {
     next(error);
@@ -269,7 +306,8 @@ const ensurePreferences = async (userID: number): Promise<PreferenceData> => {
       hueToThemeColor(defaultPreferences.themeHue),
       JSON.stringify({
         themeMode: defaultPreferences.themeMode,
-        tablePageSize: defaultPreferences.tablePageSize
+        tablePageSize: defaultPreferences.tablePageSize,
+        dashboardLayout: defaultPreferences.dashboardLayout
       }),
       JSON.stringify({
         confirmBatchInsert: defaultPreferences.confirmBatchInsert,
@@ -343,6 +381,10 @@ const validatePreferencePatch = (body: PreferencePatchBody): Partial<PreferenceD
 
   if (body.tablePageSize !== undefined) {
     patch.tablePageSize = parseInteger(body.tablePageSize, 'tablePageSize', 1, limits.maxPageSize);
+  }
+
+  if (body.dashboardLayout !== undefined) {
+    patch.dashboardLayout = normalizeDashboardLayout(body.dashboardLayout);
   }
 
   if (body.backgroundPreset !== undefined) {
@@ -535,6 +577,78 @@ const parseBoolean = (value: unknown, fieldName: string): boolean => {
   return booleanValue;
 };
 
+const normalizeDashboardLayout = (value: unknown): DashboardLayout => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return cloneDefaultDashboardLayout();
+  }
+
+  const rawLayout = value as Record<string, unknown>;
+  const rawCards = Array.isArray(rawLayout.cards) ? rawLayout.cards : [];
+  const cardMap = new Map<string, DashboardCardLayout>();
+
+  rawCards.forEach((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      return;
+    }
+
+    const rawCard = item as Record<string, unknown>;
+
+    if (typeof rawCard.id !== 'string' || !dashboardCardIDs.has(rawCard.id)) {
+      return;
+    }
+
+    const order = typeof rawCard.order === 'number' && Number.isFinite(rawCard.order)
+      ? Math.max(0, Math.min(9999, Math.trunc(rawCard.order)))
+      : getDefaultDashboardCard(rawCard.id).order;
+
+    cardMap.set(rawCard.id, {
+      id: rawCard.id,
+      visible: typeof rawCard.visible === 'boolean' ? rawCard.visible : true,
+      order,
+      config: normalizeDashboardCardConfig(rawCard.config)
+    });
+  });
+
+  defaultPreferences.dashboardLayout.cards.forEach((card) => {
+    if (!cardMap.has(card.id)) {
+      cardMap.set(card.id, {
+        ...card,
+        config: { ...card.config }
+      });
+    }
+  });
+
+  return {
+    version: 1,
+    cards: [...cardMap.values()].sort((left, right) => left.order - right.order)
+  };
+};
+
+const normalizeDashboardCardConfig = (value: unknown): Record<string, unknown> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => /^[A-Za-z][A-Za-z0-9_]{0,31}$/.test(key))
+      .filter(([, item]) => typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean' || item === null)
+      .slice(0, 12)
+  );
+};
+
+const cloneDefaultDashboardLayout = (): DashboardLayout => ({
+  version: defaultPreferences.dashboardLayout.version,
+  cards: defaultPreferences.dashboardLayout.cards.map((card) => ({
+    ...card,
+    config: { ...card.config }
+  }))
+});
+
+const getDefaultDashboardCard = (id: string): DashboardCardLayout => {
+  return defaultPreferences.dashboardLayout.cards.find((card) => card.id === id) ?? defaultPreferences.dashboardLayout.cards[0]!;
+};
+
 const rowToPreferenceData = (row: PreferenceRow): PreferenceData => {
   const layout = parseJsonObject(row.layout_json);
   const confirmation = parseJsonObject(row.confirm_preferences_json);
@@ -545,6 +659,7 @@ const rowToPreferenceData = (row: PreferenceRow): PreferenceData => {
     backgroundPreset: row.background_mode,
     backgroundAssetID: row.background_asset_id === null ? null : Number(row.background_asset_id),
     tablePageSize: typeof layout.tablePageSize === 'number' ? layout.tablePageSize : defaultPreferences.tablePageSize,
+    dashboardLayout: normalizeDashboardLayout(layout.dashboardLayout),
     confirmBatchInsert: typeof confirmation.confirmBatchInsert === 'boolean' ? confirmation.confirmBatchInsert : true,
     confirmBatchUpdate: typeof confirmation.confirmBatchUpdate === 'boolean' ? confirmation.confirmBatchUpdate : true,
     confirmBatchDelete: typeof confirmation.confirmBatchDelete === 'boolean' ? confirmation.confirmBatchDelete : true,
@@ -580,6 +695,8 @@ const themeColorToHue = (themeColor: string): number => {
   const hue = Number(match[1]);
   return Number.isInteger(hue) && hue >= 0 && hue <= 359 ? hue : defaultPreferences.themeHue;
 };
+
+const dashboardCardIDs = new Set(defaultPreferences.dashboardLayout.cards.map((card) => card.id));
 
 const getCurrentUserID = (req: Request): number => {
   if (!req.user) {

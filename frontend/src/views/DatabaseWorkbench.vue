@@ -14,6 +14,12 @@ import {
   type SelectQueryAst
 } from '../utils/query';
 import {
+  fetchDatabaseStats,
+  fetchTableStats,
+  type DatabaseStats,
+  type TableStats
+} from '../utils/stats';
+import {
   createTable,
   createTableRow,
   deleteTable,
@@ -104,9 +110,13 @@ const tableObjects = ref<DatabaseObject[]>([]);
 const selectedTableName = ref('');
 const selectedTableSchema = ref<TableSchema | null>(null);
 const queryBaseSchema = ref<TableSchema | null>(null);
+const databaseStats = ref<DatabaseStats | null>(null);
+const tableStats = ref<TableStats | null>(null);
 const isDatabaseLoading = ref(false);
 const isObjectLoading = ref(false);
 const isSchemaLoading = ref(false);
+const isDatabaseStatsLoading = ref(false);
+const isTableStatsLoading = ref(false);
 const isPreviewLoading = ref(false);
 const isRowSaving = ref(false);
 const tableError = ref('');
@@ -124,6 +134,7 @@ const deleteTableConfirmName = ref('');
 const deleteTableDialogError = ref('');
 const isDeletingTable = ref(false);
 const isSchemaDialogVisible = ref(false);
+const isTableStatsDialogVisible = ref(false);
 const tablePreview = ref<TablePreviewData | null>(null);
 const columnFilters = ref<Record<string, ColumnFilterDraft>>({});
 const rowDrafts = ref<Record<string, RowDraft>>({});
@@ -317,6 +328,12 @@ const formatBytes = (bytes: number) => {
   return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
+const formatNumber = (value: number) => {
+  return new Intl.NumberFormat('zh-CN', {
+    maximumFractionDigits: 0
+  }).format(value);
+};
+
 const formatDate = (value: string | null) => {
   if (!value) {
     return '-';
@@ -349,7 +366,10 @@ const loadDatabase = async (preferredTableName = selectedTableName.value) => {
       return;
     }
 
-    await loadDatabaseObjects(preferredTableName);
+    await Promise.all([
+      loadDatabaseObjects(preferredTableName),
+      loadDatabaseStats()
+    ]);
   } catch (error) {
     tableError.value = getErrorMessage(error, '数据库信息加载失败，请稍后重试。');
   } finally {
@@ -380,10 +400,28 @@ const loadDatabaseObjects = async (preferredTableName = selectedTableName.value)
     } else if (!baseTables.value.some((table) => table.name === selectedTableName.value)) {
       selectedTableName.value = baseTables.value[0]?.name ?? '';
     }
+    void loadDatabaseStats();
   } catch (error) {
     tableError.value = getErrorMessage(error, '表列表加载失败，请稍后重试。');
   } finally {
     isObjectLoading.value = false;
+  }
+};
+
+const loadDatabaseStats = async () => {
+  if (!selectedDatabase.value) {
+    databaseStats.value = null;
+    return;
+  }
+
+  isDatabaseStatsLoading.value = true;
+
+  try {
+    databaseStats.value = await fetchDatabaseStats(selectedDatabase.value.id);
+  } catch (error) {
+    console.warn('数据库统计加载失败', error);
+  } finally {
+    isDatabaseStatsLoading.value = false;
   }
 };
 
@@ -601,6 +639,12 @@ const createQueryFieldDraft = (overrides: Partial<QueryFieldDraft> = {}): QueryF
   distinct: false,
   ...overrides
 });
+const databaseStatsSummary = computed(() => ({
+  tableCount: databaseStats.value?.summary.tableCount ?? selectedDatabase.value?.tableCount ?? 0,
+  viewCount: databaseStats.value?.summary.viewCount ?? selectedDatabase.value?.viewCount ?? 0,
+  indexCount: databaseStats.value?.summary.indexCount ?? 0,
+  storageBytes: (databaseStats.value?.summary.dataBytes ?? 0) + (databaseStats.value?.summary.indexBytes ?? selectedDatabase.value?.sizeBytes ?? 0)
+}));
 
 const createQueryJoinDraft = (overrides: Partial<QueryJoinDraft> = {}): QueryJoinDraft => ({
   id: ++queryJoinSeed,
@@ -925,6 +969,36 @@ const openSchemaDialog = () => {
   }
 
   resetSchemaEditor();
+};
+
+const openTableStatsDialog = async () => {
+  if (!selectedDatabase.value || !selectedTableName.value) {
+    showTableNotice('请先选择一张表');
+    return;
+  }
+
+  isTableStatsDialogVisible.value = true;
+  await loadSelectedTableStats();
+};
+
+const loadSelectedTableStats = async () => {
+  if (!selectedDatabase.value || !selectedTableName.value) {
+    tableStats.value = null;
+    return;
+  }
+
+  isTableStatsLoading.value = true;
+
+  try {
+    tableStats.value = await fetchTableStats(selectedDatabase.value.id, selectedTableName.value, {
+      sampleLimit: 1000,
+      topN: 8
+    });
+  } catch (error) {
+    tableError.value = getErrorMessage(error, '表统计加载失败');
+  } finally {
+    isTableStatsLoading.value = false;
+  }
 };
 
 const formatCellValue = (value: unknown) => {
@@ -1954,6 +2028,7 @@ const selectSchemaEditorMode = (mode: SchemaEditorMode) => {
 };
 
 watch(selectedTableName, (tableName) => {
+  tableStats.value = null;
   void loadSelectedTableSchema(tableName);
   void loadSelectedTablePreview();
   if (!queryBaseTableName.value) {
@@ -1995,23 +2070,82 @@ onUnmounted(() => {
       </header>
 
       <section
-        v-loading="isDatabaseLoading"
+        v-loading="isDatabaseLoading || isDatabaseStatsLoading"
         class="database-summary-grid"
       >
         <article class="summary-card glass-card">
           <span>数据表</span>
-          <strong>{{ selectedDatabase?.tableCount ?? 0 }}</strong>
+          <strong>{{ databaseStatsSummary.tableCount }}</strong>
           <p>当前数据库中的基础表数量</p>
         </article>
         <article class="summary-card glass-card">
           <span>视图</span>
-          <strong>{{ selectedDatabase?.viewCount ?? 0 }}</strong>
+          <strong>{{ databaseStatsSummary.viewCount }}</strong>
           <p>视图管理会在后续阶段开放</p>
         </article>
         <article class="summary-card glass-card">
+          <span>索引</span>
+          <strong>{{ databaseStatsSummary.indexCount }}</strong>
+          <p>按 information_schema 统计</p>
+        </article>
+        <article class="summary-card glass-card">
           <span>占用空间</span>
-          <strong>{{ formatBytes(selectedDatabase?.sizeBytes ?? 0) }}</strong>
+          <strong>{{ formatBytes(databaseStatsSummary.storageBytes) }}</strong>
           <p>按 information_schema 估算</p>
+        </article>
+      </section>
+
+      <section
+        v-if="databaseStats"
+        class="database-insight-grid"
+      >
+        <article class="insight-card glass-card">
+          <div class="table-panel-title">
+            <span>表容量 Top</span>
+            <small>Storage</small>
+          </div>
+          <div
+            v-if="databaseStats.tableSizeTop.length === 0"
+            class="mini-empty"
+          >
+            暂无数据表
+          </div>
+          <div
+            v-else
+            class="insight-list"
+          >
+            <div
+              v-for="table in databaseStats.tableSizeTop"
+              :key="table.tableName"
+            >
+              <span>{{ table.tableName }}</span>
+              <em>{{ formatBytes(table.storageBytes) }} · {{ formatNumber(table.rowCountEstimated) }} 行</em>
+            </div>
+          </div>
+        </article>
+
+        <article class="insight-card glass-card">
+          <div class="table-panel-title">
+            <span>字段类型分布</span>
+            <small>Columns</small>
+          </div>
+          <div
+            v-if="databaseStats.columnTypeDistribution.length === 0"
+            class="mini-empty"
+          >
+            暂无字段
+          </div>
+          <div
+            v-else
+            class="type-chip-list"
+          >
+            <span
+              v-for="item in databaseStats.columnTypeDistribution"
+              :key="item.type"
+            >
+              {{ item.type }} · {{ item.total }}
+            </span>
+          </div>
         </article>
       </section>
 
@@ -2172,6 +2306,14 @@ onUnmounted(() => {
                     @click="openSchemaDialog"
                   >
                     结构管理
+                  </button>
+                  <button
+                    class="dialog-button"
+                    type="button"
+                    :disabled="isTableStatsLoading"
+                    @click="openTableStatsDialog"
+                  >
+                    {{ isTableStatsLoading ? '统计中…' : '统计' }}
                   </button>
                   <button
                     class="dialog-button"
@@ -3533,6 +3675,149 @@ onUnmounted(() => {
     </GlassDialog>
 
     <GlassDialog
+      v-model="isTableStatsDialogVisible"
+      label="STATS"
+      title="表统计"
+      :description="selectedTableName ? `${selectedTableName} 的字段、索引、空值和数值聚合统计` : '表级统计'"
+      width="min(94vw, 920px)"
+      hide-header
+    >
+      <div
+        v-loading="isTableStatsLoading"
+        class="table-stats-dialog"
+      >
+        <template v-if="tableStats">
+          <div class="schema-head">
+            <div>
+              <span class="schema-kicker">TABLE STATS</span>
+              <h3>{{ tableStats.tableName }}</h3>
+              <p>
+                估算 {{ formatNumber(tableStats.summary.rowCountEstimated) }} 行 ·
+                采样上限 {{ formatNumber(tableStats.summary.sampleLimit) }} 行
+              </p>
+            </div>
+            <div class="schema-stats">
+              <span>{{ tableStats.summary.columnCount }} 字段</span>
+              <span>{{ tableStats.indexes.length }} 索引</span>
+              <span>{{ formatBytes(tableStats.summary.dataBytes + tableStats.summary.indexBytes) }}</span>
+            </div>
+          </div>
+
+          <div class="table-stat-grid">
+            <section class="schema-mini-card">
+              <div class="table-panel-title">
+                <span>键与索引</span>
+                <small>Keys</small>
+              </div>
+              <p>主键：{{ tableStats.primaryKeys.join(', ') || '无' }}</p>
+              <p>外键：{{ tableStats.foreignKeys.length }} 个</p>
+              <p>索引：{{ tableStats.indexes.map((item) => item.name).join(', ') || '无' }}</p>
+            </section>
+
+            <section class="schema-mini-card">
+              <div class="table-panel-title">
+                <span>空值比例</span>
+                <small>Null Ratio</small>
+              </div>
+              <div class="stat-row-list">
+                <div
+                  v-for="item in tableStats.nullRatios.slice(0, 8)"
+                  :key="item.column"
+                >
+                  <span>{{ item.column }}</span>
+                  <em>{{ Math.round(item.ratio * 100) }}%</em>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section class="schema-mini-card">
+            <div class="table-panel-title">
+              <span>数值字段聚合</span>
+              <small>Numeric</small>
+            </div>
+            <div
+              v-if="tableStats.numericStats.length === 0"
+              class="mini-empty"
+            >
+              暂无数值字段
+            </div>
+            <div
+              v-else
+              class="stat-row-list three"
+            >
+              <div
+                v-for="item in tableStats.numericStats"
+                :key="item.column"
+              >
+                <span>{{ item.column }}</span>
+                <em>min {{ item.min ?? '-' }} · max {{ item.max ?? '-' }} · avg {{ item.avg?.toFixed(2) ?? '-' }}</em>
+              </div>
+            </div>
+          </section>
+
+          <section class="schema-mini-card">
+            <div class="table-panel-title">
+              <span>分类字段 Top N</span>
+              <small>Category</small>
+            </div>
+            <div
+              v-if="tableStats.categoryTopN.length === 0"
+              class="mini-empty"
+            >
+              暂无分类统计
+            </div>
+            <div
+              v-else
+              class="category-stat-grid"
+            >
+              <article
+                v-for="group in tableStats.categoryTopN"
+                :key="group.column"
+              >
+                <strong>{{ group.column }}</strong>
+                <span
+                  v-for="item in group.items"
+                  :key="`${group.column}-${String(item.value)}`"
+                >
+                  {{ item.value ?? 'NULL' }} · {{ item.total }}
+                </span>
+              </article>
+            </div>
+          </section>
+        </template>
+
+        <div
+          v-else
+          class="table-empty compact"
+        >
+          <strong>正在读取统计</strong>
+          <span>表级统计会限制采样规模，避免大表阻塞。</span>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <button
+            class="dialog-button"
+            type="button"
+            :disabled="isTableStatsLoading"
+            @click="loadSelectedTableStats"
+          >
+            刷新统计
+          </button>
+          <button
+            class="dialog-button primary"
+            type="button"
+            @click="isTableStatsDialogVisible = false"
+          >
+            关闭
+          </button>
+        </div>
+      </template>
+    </GlassDialog>
+
+    <GlassDialog
       v-model="isBatchInsertDialogVisible"
       label="ROWS"
       title="批量新增行"
@@ -3899,7 +4184,7 @@ onUnmounted(() => {
 
 .database-summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: clamp(18px, 2.4vw, 30px);
 }
 
@@ -3923,6 +4208,85 @@ onUnmounted(() => {
 
 .summary-card p {
   margin-bottom: 0;
+}
+
+.database-insight-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: clamp(18px, 2.4vw, 30px);
+}
+
+.insight-card {
+  display: grid;
+  gap: 16px;
+  min-height: 180px;
+  padding: clamp(20px, 2.2vw, 28px);
+}
+
+.insight-list,
+.type-chip-list,
+.stat-row-list,
+.category-stat-grid,
+.table-stats-dialog {
+  display: grid;
+  gap: 10px;
+}
+
+.insight-list div,
+.stat-row-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.insight-list span,
+.stat-row-list span,
+.insight-list em,
+.stat-row-list em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.insight-list span,
+.stat-row-list span {
+  color: var(--glass-text-strong);
+  font-weight: 700;
+}
+
+.insight-list em,
+.stat-row-list em {
+  color: var(--glass-text-muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.type-chip-list {
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+}
+
+.type-chip-list span {
+  padding: 9px 10px;
+  color: var(--glass-text);
+  text-align: center;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.14);
+  border-radius: 999px;
+  background: hsla(var(--theme-hue), 80%, 60%, 0.08);
+}
+
+.mini-empty {
+  display: grid;
+  place-items: center;
+  min-height: 96px;
+  color: var(--glass-text-muted);
+  border: 1px dashed hsla(var(--theme-hue), 80%, 72%, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .table-workbench {
@@ -4125,6 +4489,39 @@ onUnmounted(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   margin-top: 14px;
+}
+
+.table-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stat-row-list.three div {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.category-stat-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.category-stat-grid article {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.category-stat-grid strong {
+  color: var(--glass-text-strong);
+}
+
+.category-stat-grid span {
+  color: var(--glass-text-muted);
+  font-size: 12px;
 }
 
 .schema-mini-card p {
@@ -5129,7 +5526,10 @@ onUnmounted(() => {
   }
 
   .database-summary-grid,
-  .schema-mini-grid {
+  .database-insight-grid,
+  .schema-mini-grid,
+  .table-stat-grid,
+  .category-stat-grid {
     grid-template-columns: 1fr;
   }
 

@@ -81,6 +81,55 @@ CREATE TABLE IF NOT EXISTS user_databases (
   KEY idx_user_databases_user_status_time (user_id, status, created_at)
 ) COMMENT='用户数据库元数据表';
 
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '日志 ID',
+  trace_id VARCHAR(64) NOT NULL COMMENT '请求追踪 ID',
+  user_id INT NULL COMMENT '操作用户 ID',
+  database_id BIGINT NULL COMMENT '平台数据库 ID',
+  transaction_id BIGINT UNSIGNED NULL COMMENT '事务会话 ID',
+  object_type VARCHAR(30) NOT NULL COMMENT '对象类型',
+  object_name VARCHAR(128) NULL COMMENT '对象名称',
+  action_type VARCHAR(50) NOT NULL COMMENT '操作类型',
+  summary VARCHAR(255) NOT NULL COMMENT '操作摘要',
+  detail_json JSON NULL COMMENT '操作详情',
+  success BOOLEAN NOT NULL DEFAULT TRUE COMMENT '成功状态',
+  error_code VARCHAR(80) NULL COMMENT '错误码',
+  error_message VARCHAR(500) NULL COMMENT '错误消息',
+  duration_ms INT UNSIGNED NULL COMMENT '耗时毫秒',
+  ip_address VARCHAR(45) NULL COMMENT '客户端 IP',
+  user_agent VARCHAR(255) NULL COMMENT 'User-Agent',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  CONSTRAINT fk_audit_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_audit_database
+    FOREIGN KEY (database_id) REFERENCES user_databases(id)
+    ON DELETE SET NULL,
+  KEY idx_audit_trace (trace_id),
+  KEY idx_audit_user_time (user_id, created_at),
+  KEY idx_audit_database_time (database_id, created_at),
+  KEY idx_audit_action_time (action_type, created_at),
+  KEY idx_audit_object_time (object_type, created_at)
+) COMMENT='操作审计日志表';
+
+CREATE TABLE IF NOT EXISTS stat_snapshots (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '快照 ID',
+  user_id INT NOT NULL COMMENT '用户 ID',
+  database_id BIGINT NULL COMMENT '平台数据库 ID',
+  table_name VARCHAR(64) NULL COMMENT '表名',
+  scope ENUM('user', 'database', 'table') NOT NULL COMMENT '统计范围',
+  metric_json JSON NOT NULL COMMENT '统计指标',
+  captured_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '采集时间',
+  CONSTRAINT fk_stat_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_stat_database
+    FOREIGN KEY (database_id) REFERENCES user_databases(id)
+    ON DELETE CASCADE,
+  KEY idx_stat_user_scope_time (user_id, scope, captured_at),
+  KEY idx_stat_database_time (database_id, captured_at)
+) COMMENT='统计快照表';
+
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'Refresh Token ID',
   user_id INT NOT NULL COMMENT '用户 ID',

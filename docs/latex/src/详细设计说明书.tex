@@ -2757,7 +2757,7 @@ stat\_snapshots & 统计快照表 \\
   \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}事务会话 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  transaction\_key }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{UNIQUE} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}对外事务 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  database\_id BIGINT UNSIGNED }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  database\_id BIGINT }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
   \KeywordTok{isolation\_level}\NormalTok{ ENUM(}\StringTok{\textquotesingle{}READ COMMITTED\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}REPEATABLE READ\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}SERIALIZABLE\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}REPEATABLE READ\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}隔离级别\textquotesingle{}}\NormalTok{,}
 \NormalTok{  status ENUM(}\StringTok{\textquotesingle{}active\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}committed\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}rolled\_back\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}expired\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \StringTok{\textquotesingle{}active\textquotesingle{}} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}事务状态\textquotesingle{}}\NormalTok{,}
 \NormalTok{  started\_at }\DataTypeTok{TIMESTAMP} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{DEFAULT} \FunctionTok{CURRENT\_TIMESTAMP} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}开始时间\textquotesingle{}}\NormalTok{,}
@@ -2798,7 +2798,7 @@ stat\_snapshots & 统计快照表 \\
   \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}日志 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  trace\_id }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}请求追踪 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}操作用户 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  database\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  database\_id BIGINT }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  transaction\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}事务会话 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  object\_type }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{30}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}对象类型\textquotesingle{}}\NormalTok{,}
 \NormalTok{  object\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{128}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}对象名称\textquotesingle{}}\NormalTok{,}
@@ -2897,7 +2897,7 @@ stat\_snapshots & 统计快照表 \\
 \KeywordTok{CREATE} \KeywordTok{TABLE} \ControlFlowTok{IF} \KeywordTok{NOT} \KeywordTok{EXISTS}\NormalTok{ stat\_snapshots (}
   \KeywordTok{id}\NormalTok{ BIGINT UNSIGNED AUTO\_INCREMENT }\KeywordTok{PRIMARY} \KeywordTok{KEY} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}快照 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  user\_id }\DataTypeTok{INT} \KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}用户 ID\textquotesingle{}}\NormalTok{,}
-\NormalTok{  database\_id BIGINT UNSIGNED }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
+\NormalTok{  database\_id BIGINT }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}平台数据库 ID\textquotesingle{}}\NormalTok{,}
 \NormalTok{  table\_name }\DataTypeTok{VARCHAR}\NormalTok{(}\DecValTok{64}\NormalTok{) }\KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}表名\textquotesingle{}}\NormalTok{,}
   \KeywordTok{scope}\NormalTok{ ENUM(}\StringTok{\textquotesingle{}user\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}database\textquotesingle{}}\NormalTok{, }\StringTok{\textquotesingle{}table\textquotesingle{}}\NormalTok{) }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}统计范围\textquotesingle{}}\NormalTok{,}
 \NormalTok{  metric\_json JSON }\KeywordTok{NOT} \KeywordTok{NULL} \KeywordTok{COMMENT} \StringTok{\textquotesingle{}统计指标\textquotesingle{}}\NormalTok{,}
