@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import GlassDialog from '../components/GlassDialog.vue';
+import ThemeHueControl from '../components/ThemeHueControl.vue';
 import { fetchDatabases, type UserDatabase } from '../utils/databases';
 import { applyPreferences, fetchPreferences } from '../utils/preferences';
 import {
@@ -131,6 +132,8 @@ const isNewRowVisible = ref(false);
 const isDeleteRowDialogVisible = ref(false);
 const deletingRow = ref<Record<string, unknown> | null>(null);
 const selectedRowKeys = ref<string[]>([]);
+const isRowSelectionDragging = ref(false);
+const rowSelectionMode = ref<'select' | 'deselect' | null>(null);
 const isBatchDeleteDialogVisible = ref(false);
 const batchDeleteError = ref('');
 const isBatchInsertDialogVisible = ref(false);
@@ -202,6 +205,7 @@ const queryOperatorOptions: Array<{ value: QueryFilterDraft['operator']; label: 
 const previewPageSize = 20;
 let draftColumnSeed = 0;
 let tableNoticeTimer: number | null = null;
+let rowSelectionTimer: number | null = null;
 
 const databaseID = computed(() => Number(route.params.databaseId));
 const baseTables = computed(() => tableObjects.value.filter((object) => object.objectType === 'table'));
@@ -1242,28 +1246,71 @@ const isRowSelected = (row: Record<string, unknown>, rowIndex: number) => {
   return selectedRowKeys.value.includes(getRowKey(row, rowIndex));
 };
 
-const toggleRowSelection = (row: Record<string, unknown>, rowIndex: number) => {
-  if (!hasPrimaryKey.value) {
-    return;
+const shouldIgnoreRowSelection = (event: PointerEvent) => {
+  const target = event.target;
+
+  if (!(target instanceof HTMLElement)) {
+    return false;
   }
 
-  const rowKey = getRowKey(row, rowIndex);
-  selectedRowKeys.value = selectedRowKeys.value.includes(rowKey)
-    ? selectedRowKeys.value.filter((key) => key !== rowKey)
-    : [...selectedRowKeys.value, rowKey];
+  return Boolean(target.closest('button, input, textarea, select, .el-input, .el-select, .row-action-button'));
 };
 
-const toggleAllRowsSelection = () => {
-  if (!hasPrimaryKey.value || previewRows.value.length === 0) {
+const setRowSelection = (row: Record<string, unknown>, rowIndex: number, mode: 'select' | 'deselect') => {
+  const rowKey = getRowKey(row, rowIndex);
+  const selectedKeys = new Set(selectedRowKeys.value);
+
+  if (mode === 'select') {
+    selectedKeys.add(rowKey);
+  } else {
+    selectedKeys.delete(rowKey);
+  }
+
+  selectedRowKeys.value = [...selectedKeys];
+};
+
+const clearRowSelectionTimer = () => {
+  if (rowSelectionTimer !== null) {
+    window.clearTimeout(rowSelectionTimer);
+    rowSelectionTimer = null;
+  }
+};
+
+const startRowSelectionGesture = (event: PointerEvent, row: Record<string, unknown>, rowIndex: number) => {
+  if (!hasPrimaryKey.value || isRowEditing(row, rowIndex) || shouldIgnoreRowSelection(event)) {
     return;
   }
 
-  if (selectedRowKeys.value.length === previewRows.value.length) {
-    selectedRowKeys.value = [];
+  const shouldDeselect = isRowSelected(row, rowIndex);
+  rowSelectionMode.value = shouldDeselect ? 'deselect' : 'select';
+  clearRowSelectionTimer();
+
+  rowSelectionTimer = window.setTimeout(() => {
+    if (!rowSelectionMode.value) {
+      return;
+    }
+
+    isRowSelectionDragging.value = true;
+    setRowSelection(row, rowIndex, rowSelectionMode.value);
+  }, 180);
+};
+
+const extendRowSelectionGesture = (row: Record<string, unknown>, rowIndex: number) => {
+  if (!isRowSelectionDragging.value || !rowSelectionMode.value || isRowEditing(row, rowIndex)) {
     return;
   }
 
-  selectedRowKeys.value = previewRows.value.map((row, index) => getRowKey(row, index));
+  setRowSelection(row, rowIndex, rowSelectionMode.value);
+};
+
+const finishRowSelectionGesture = () => {
+  clearRowSelectionTimer();
+  isRowSelectionDragging.value = false;
+  rowSelectionMode.value = null;
+};
+
+const clearSelectedRows = () => {
+  selectedRowKeys.value = [];
 };
 
 const removeSelectedRows = async () => {
@@ -1918,6 +1965,10 @@ onMounted(() => {
   void loadPreferences();
   void loadDatabase();
 });
+
+onUnmounted(() => {
+  clearRowSelectionTimer();
+});
 </script>
 
 <template>
@@ -1932,6 +1983,7 @@ onMounted(() => {
           <p>表、字段和后续数据操作都放在这里，首页只做总览和入口。</p>
         </div>
         <div class="topbar-actions">
+          <ThemeHueControl />
           <button
             class="dialog-button"
             type="button"
@@ -2122,22 +2174,6 @@ onMounted(() => {
                     结构管理
                   </button>
                   <button
-                    class="dialog-button danger"
-                    type="button"
-                    :disabled="selectedRows.length === 0 || isRowSaving"
-                    @click="openBatchUpdateDialog"
-                  >
-                    批量修改 {{ selectedRows.length || '' }}
-                  </button>
-                  <button
-                    class="dialog-button danger"
-                    type="button"
-                    :disabled="selectedRows.length === 0 || isRowSaving"
-                    @click="openBatchDeleteDialog"
-                  >
-                    批量删除 {{ selectedRows.length || '' }}
-                  </button>
-                  <button
                     class="dialog-button"
                     type="button"
                     :disabled="isPreviewLoading"
@@ -2169,6 +2205,42 @@ onMounted(() => {
                 >
                   {{ rowError }}
                 </p>
+
+                <div
+                  v-if="selectedRows.length > 0"
+                  class="selection-toolbar"
+                >
+                  <div>
+                    <span>已选中 {{ selectedRows.length }} 行</span>
+                    <small>继续长按并拖过行可追加选择；从已选行开始拖动可取消选择。</small>
+                  </div>
+                  <div class="selection-actions">
+                    <button
+                      class="dialog-button primary"
+                      type="button"
+                      :disabled="!canEditRows || isRowSaving"
+                      @click="openBatchUpdateDialog"
+                    >
+                      批量修改
+                    </button>
+                    <button
+                      class="dialog-button danger"
+                      type="button"
+                      :disabled="isRowSaving"
+                      @click="openBatchDeleteDialog"
+                    >
+                      批量删除
+                    </button>
+                    <button
+                      class="dialog-button"
+                      type="button"
+                      :disabled="isRowSaving"
+                      @click="clearSelectedRows"
+                    >
+                      取消选择
+                    </button>
+                  </div>
+                </div>
 
                 <div
                   v-if="previewColumns.length > 0"
@@ -2204,19 +2276,15 @@ onMounted(() => {
                 <div
                   v-else
                   class="preview-table-shell"
+                  @pointerleave="finishRowSelectionGesture"
                 >
                   <table class="preview-table">
                     <thead>
                       <tr>
                         <th class="preview-action-column">
                           <div class="preview-action-head">
-                            <span>操作</span>
-                            <input
-                              type="checkbox"
-                              :checked="selectedRowKeys.length === previewRows.length && previewRows.length > 0"
-                              :disabled="!hasPrimaryKey || previewRows.length === 0"
-                              @change="toggleAllRowsSelection"
-                            />
+                            <span>行操作</span>
+                            <small>{{ hasPrimaryKey ? '长按拖选' : '只读浏览' }}</small>
                           </div>
                         </th>
                         <th
@@ -2315,19 +2383,27 @@ onMounted(() => {
                       <tr
                         v-for="(row, rowIndex) in previewRows"
                         :key="getRowKey(row, rowIndex)"
-                        :class="{ 'is-editing-row': isRowEditing(row, rowIndex) }"
+                        :class="{
+                          'is-editing-row': isRowEditing(row, rowIndex),
+                          'is-selected-row': isRowSelected(row, rowIndex),
+                          'is-selectable-row': hasPrimaryKey && !isRowEditing(row, rowIndex)
+                        }"
+                        @pointerdown="startRowSelectionGesture($event, row, rowIndex)"
+                        @pointerenter="extendRowSelectionGesture(row, rowIndex)"
+                        @pointerup="finishRowSelectionGesture"
+                        @pointercancel="finishRowSelectionGesture"
                       >
                         <td class="preview-action-column row-action-cell">
                           <div
                             v-if="isRowEditing(row, rowIndex)"
                             class="row-actions"
                           >
-                            <input
-                              type="checkbox"
-                              :checked="isRowSelected(row, rowIndex)"
-                              :disabled="!hasPrimaryKey"
-                              @change="toggleRowSelection(row, rowIndex)"
-                            />
+                            <span
+                              v-if="isRowSelected(row, rowIndex)"
+                              class="row-selected-badge"
+                            >
+                              已选中
+                            </span>
                             <button
                               class="row-action-button primary"
                               type="button"
@@ -2349,12 +2425,18 @@ onMounted(() => {
                             v-else
                             class="row-actions"
                           >
-                            <input
-                              type="checkbox"
-                              :checked="isRowSelected(row, rowIndex)"
-                              :disabled="!hasPrimaryKey"
-                              @change="toggleRowSelection(row, rowIndex)"
-                            />
+                            <span
+                              v-if="isRowSelected(row, rowIndex)"
+                              class="row-selected-badge"
+                            >
+                              已选中
+                            </span>
+                            <span
+                              v-else
+                              class="row-select-hint"
+                            >
+                              长按选择
+                            </span>
                             <button
                               class="row-action-button"
                               type="button"
@@ -3521,7 +3603,7 @@ onMounted(() => {
       <div class="batch-row-form">
         <div class="batch-row-hint">
           <span>{{ selectedRows.length }} ROWS</span>
-          <p>当前批量修改只支持一次修改一个字段；需要先勾选行，再确认提交。</p>
+          <p>当前批量修改只支持一次修改一个字段；需要先长按拖动选择行，再确认提交。</p>
         </div>
 
         <label class="dialog-field">
@@ -3595,7 +3677,7 @@ onMounted(() => {
     >
       <div class="delete-table-form">
         <p>
-          这次会删除已勾选的
+          这次会删除已长按拖选的
           <strong>{{ selectedRows.length }}</strong>
           行数据。服务端会使用主键列表定位，并要求表名确认。
         </p>
@@ -4147,6 +4229,45 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.selection-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid hsla(var(--theme-hue), 90%, 72%, 0.2);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 0% 50%, hsla(var(--theme-hue), 86%, 60%, 0.18), transparent 36%),
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.105), rgba(255, 255, 255, 0.04));
+  box-shadow:
+    0 0 28px hsla(var(--theme-hue), 80%, 62%, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.selection-toolbar span,
+.selection-toolbar small {
+  display: block;
+}
+
+.selection-toolbar span {
+  color: var(--glass-text-strong);
+  font-weight: 800;
+}
+
+.selection-toolbar small {
+  margin-top: 4px;
+  color: var(--glass-text-muted);
+  line-height: 1.6;
+}
+
+.selection-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .preview-toolbar span {
   color: var(--glass-text-muted);
   font-size: 13px;
@@ -4373,10 +4494,19 @@ onMounted(() => {
 }
 
 .preview-action-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: center;
+  display: grid;
+  gap: 4px;
+}
+
+.preview-action-head span {
+  color: var(--glass-text-strong);
+  font-weight: 800;
+}
+
+.preview-action-head small {
+  color: var(--glass-text-muted);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .sort-button {
@@ -4429,6 +4559,28 @@ onMounted(() => {
   background: hsla(var(--theme-hue), 80%, 60%, 0.065);
 }
 
+.preview-table tbody tr.is-selectable-row {
+  cursor: grab;
+  user-select: none;
+}
+
+.preview-table tbody tr.is-selectable-row:active {
+  cursor: grabbing;
+}
+
+.preview-table tbody tr.is-selected-row td {
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 82%, 58%, 0.18), rgba(255, 255, 255, 0.052));
+  box-shadow:
+    inset 3px 0 0 hsla(var(--theme-hue), 90%, 72%, 0.72),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.preview-table tbody tr.is-selected-row:hover td {
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 82%, 58%, 0.22), rgba(255, 255, 255, 0.062));
+}
+
 .preview-table tbody tr.is-editing-row td,
 .preview-table tbody tr.new-row-line td {
   background:
@@ -4443,6 +4595,30 @@ onMounted(() => {
 .row-actions {
   display: grid;
   gap: 8px;
+}
+
+.row-selected-badge,
+.row-select-hint {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  border-radius: 999px;
+}
+
+.row-selected-badge {
+  color: var(--glass-text-strong);
+  border: 1px solid hsla(var(--theme-hue), 90%, 72%, 0.38);
+  background: hsla(var(--theme-hue), 82%, 58%, 0.16);
+  box-shadow: 0 0 18px hsla(var(--theme-hue), 80%, 62%, 0.16);
+}
+
+.row-select-hint {
+  color: rgba(255, 255, 255, 0.44);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .row-action-button {
@@ -4943,6 +5119,11 @@ onMounted(() => {
 @media (max-width: 820px) {
   .workbench-topbar,
   .table-workbench-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .selection-toolbar {
     align-items: flex-start;
     flex-direction: column;
   }

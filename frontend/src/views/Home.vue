@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import GlassDialog from '../components/GlassDialog.vue';
+import ThemeHueControl from '../components/ThemeHueControl.vue';
 import request from '../utils/request';
 import { clearAuthState, getAuthUser } from '../utils/auth';
 import {
@@ -18,13 +19,11 @@ import {
   uploadUserAsset,
   type UserProfile
 } from '../utils/profile';
-import { applyPreferences, fetchPreferences, updatePreferences } from '../utils/preferences';
+import { applyPreferences, fetchPreferences } from '../utils/preferences';
 
 const router = useRouter();
 
 const user = computed(() => getAuthUser());
-const themeHue = ref(210);
-const isPreferenceSaving = ref(false);
 const profile = ref<UserProfile | null>(null);
 const isProfileDialogVisible = ref(false);
 const isProfileLoading = ref(false);
@@ -327,7 +326,6 @@ const handleLogout = async () => {
 const loadPreferences = async () => {
   try {
     const preferences = await fetchPreferences();
-    themeHue.value = preferences.themeHue;
     applyPreferences(preferences);
   } catch {
     console.warn('偏好加载失败，已使用默认主题');
@@ -447,27 +445,6 @@ const handleAssetSelected = async (event: Event, assetType: 'avatar' | 'backgrou
   } finally {
     isProfileLoading.value = false;
   }
-};
-
-const saveThemeHue = async () => {
-  isPreferenceSaving.value = true;
-
-  try {
-    const preferences = await updatePreferences({
-      themeHue: themeHue.value
-    });
-    applyPreferences(preferences);
-  } finally {
-    isPreferenceSaving.value = false;
-  }
-};
-
-const previewThemeHue = () => {
-  document.documentElement.style.setProperty('--theme-hue', String(themeHue.value));
-};
-
-const saveThemeHueOnChange = () => {
-  void saveThemeHue();
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -672,19 +649,7 @@ onUnmounted(() => {
         </div>
 
         <div class="user-summary">
-          <div class="topbar-theme-control" aria-label="主题色设置">
-            <span class="theme-dot" aria-hidden="true"></span>
-            <span class="theme-label">主题</span>
-            <el-slider
-              v-model="themeHue"
-              :min="0"
-              :max="359"
-              :show-tooltip="false"
-              size="small"
-              @input="previewThemeHue"
-              @change="saveThemeHueOnChange"
-            />
-          </div>
+          <ThemeHueControl />
           <button
             class="profile-chip"
             type="button"
@@ -1204,86 +1169,6 @@ onUnmounted(() => {
   justify-content: flex-end;
   min-width: 0;
   color: var(--glass-text-muted);
-}
-
-.topbar-theme-control {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 40px;
-  height: 40px;
-  padding: 0 11px;
-  border: 1px solid var(--glass-border-soft);
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.18), transparent 32%),
-    linear-gradient(135deg, hsla(var(--theme-hue), 84%, 60%, 0.18), rgba(255, 255, 255, 0.06));
-  box-shadow:
-    var(--glass-shadow-control),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  overflow: hidden;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition:
-    width 0.34s ease,
-    border-color 0.3s ease,
-    background 0.3s ease,
-    box-shadow 0.3s ease;
-}
-
-.topbar-theme-control:hover,
-.topbar-theme-control:focus-within {
-  width: 176px;
-  justify-content: flex-start;
-  border-color: hsla(var(--theme-hue), 90%, 72%, 0.34);
-  box-shadow:
-    0 14px 34px rgba(0, 0, 0, 0.2),
-    0 0 28px hsla(var(--theme-hue), 82%, 62%, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-.theme-dot {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.74);
-  border-radius: 50%;
-  background: hsl(var(--theme-hue), 82%, 60%);
-  box-shadow: 0 0 18px var(--theme-primary-glow);
-}
-
-.theme-label {
-  flex: 0 0 auto;
-  width: 0;
-  overflow: hidden;
-  font-size: 12px;
-  color: var(--glass-text-muted);
-  opacity: 0;
-  white-space: nowrap;
-  transition: width 0.3s ease, opacity 0.22s ease;
-}
-
-.topbar-theme-control:hover .theme-label,
-.topbar-theme-control:focus-within .theme-label {
-  width: 26px;
-  opacity: 1;
-}
-
-.topbar-theme-control :deep(.el-slider) {
-  flex: 1 1 auto;
-  width: 0;
-  min-width: 0;
-  opacity: 0;
-  transform: translateX(-4px);
-  transition: width 0.34s ease, opacity 0.24s ease, transform 0.3s ease;
-}
-
-.topbar-theme-control:hover :deep(.el-slider),
-.topbar-theme-control:focus-within :deep(.el-slider) {
-  width: 92px;
-  opacity: 1;
-  transform: translateX(0);
 }
 
 .account-chip {
@@ -2149,10 +2034,6 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .topbar-theme-control:hover,
-  .topbar-theme-control:focus-within {
-    width: 164px;
-  }
 }
 
 @media (max-height: 760px) and (min-width: 900px) {
