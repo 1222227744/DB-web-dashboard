@@ -1,6 +1,8 @@
 import express from 'express';
 import authRoutes from './routes/authRoutes.js';
+import auditRoutes from './routes/auditRoutes.js';
 import databaseRoutes from './routes/databaseRoutes.js';
+import statsRoutes from './routes/statsRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import cors from 'cors';
 import { env } from './config/env.js';
@@ -30,7 +32,9 @@ app.get('/api/v1/health', (_req, res) => {
 });
 
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/audit-logs', auditRoutes);
 app.use('/api/v1/databases', databaseRoutes);
+app.use('/api/v1/stats', statsRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

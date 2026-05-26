@@ -3,6 +3,7 @@ import { type NextFunction, type Request, type Response } from 'express';
 import pool from '../config/db.js';
 import { limits } from '../config/limits.js';
 import { AppError } from '../errors/AppError.js';
+import { recordAuditLog } from '../services/auditService.js';
 import { sendSuccess } from '../utils/response.js';
 
 type DatabaseRow = {
@@ -142,6 +143,15 @@ export const createDatabase = async (req: Request, res: Response, next: NextFunc
             });
           }
 
+          await recordAuditLog({
+            req,
+            userID,
+            databaseID: database.id,
+            objectType: 'DATABASE',
+            objectName: database.displayName,
+            actionType: 'DB_CREATE',
+            summary: `创建数据库 ${database.displayName}`
+          });
           sendSuccess(res, '数据库已创建', {
             database: toPublicDatabase(database)
           });
@@ -211,6 +221,15 @@ export const renameDatabase = async (
     );
 
     const updatedDatabase = await findDatabaseByID(userID, databaseID);
+    await recordAuditLog({
+      req,
+      userID,
+      databaseID,
+      objectType: 'DATABASE',
+      objectName: displayName,
+      actionType: 'DB_UPDATE',
+      summary: `重命名数据库 ${database.displayName} 为 ${displayName}`
+    });
     sendSuccess(res, '数据库已重命名', {
       database: updatedDatabase ? toPublicDatabase(updatedDatabase) : null
     });
@@ -272,6 +291,15 @@ export const deleteDatabase = async (
       throw error;
     }
 
+    await recordAuditLog({
+      req,
+      userID,
+      databaseID,
+      objectType: 'DATABASE',
+      objectName: database.displayName,
+      actionType: 'DB_DELETE',
+      summary: `删除数据库 ${database.displayName}`
+    });
     sendSuccess(res, '数据库已删除', {
       databaseID
     });

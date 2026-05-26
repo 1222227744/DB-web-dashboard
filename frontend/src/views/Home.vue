@@ -13,13 +13,21 @@ import {
   type UserDatabase
 } from '../utils/databases';
 import {
-  fetchUserAssetBlob,
   fetchProfile,
+  fetchUserAssetBlob,
   updateProfile,
   uploadUserAsset,
   type UserProfile
 } from '../utils/profile';
-import { applyPreferences, fetchPreferences } from '../utils/preferences';
+import {
+  applyPreferences,
+  fetchPreferences,
+  updatePreferences,
+  type DashboardCardLayout,
+  type DashboardLayout
+} from '../utils/preferences';
+import { fetchAuditLogs, type AuditLogListData } from '../utils/audit';
+import { fetchUserStats, type UserStats } from '../utils/stats';
 
 const router = useRouter();
 
@@ -49,26 +57,20 @@ const isDeleteDialogVisible = ref(false);
 const deletingDatabase = ref<UserDatabase | null>(null);
 const deleteConfirmName = ref('');
 const isDeletingDatabase = ref(false);
-
-const dashboardCards = computed(() => [
-  {
-    title: '我的数据库',
-    value: String(databases.value.length),
-    description: databases.value.length > 0
-      ? `最多可创建 ${databaseLimit.value} 个`
-      : '暂未创建数据库'
-  },
-  {
-    title: '最近操作',
-    value: '0',
-    description: '暂无最近操作'
-  },
-  {
-    title: '数据库容量',
-    value: formatBytes(totalStorageBytes.value),
-    description: '按当前数据库统计'
-  }
-]);
+const userStats = ref<UserStats | null>(null);
+const isStatsLoading = ref(false);
+const statsError = ref('');
+const dashboardLayout = ref<DashboardLayout>({
+  version: 1,
+  cards: []
+});
+const isDashboardDialogVisible = ref(false);
+const isDashboardSaving = ref(false);
+const dashboardNotice = ref('');
+const isAuditDialogVisible = ref(false);
+const isAuditLoading = ref(false);
+const auditError = ref('');
+const auditLogs = ref<AuditLogListData | null>(null);
 
 const displayName = computed(() => {
   return profile.value?.nickname || user.value?.displayName || '用户';
@@ -126,6 +128,100 @@ const isDatabaseLimitReached = computed(() => {
 
 const capabilityTags = ['安全登录', '主题外观', '个人空间', '数据库管理'];
 const databaseNamePattern = /^[A-Za-z][A-Za-z0-9_]{1,31}$/;
+type DashboardCardID =
+  | 'database-count'
+  | 'table-count'
+  | 'storage-usage'
+  | 'operation-trend'
+  | 'database-distribution'
+  | 'recent-operations';
+
+type DashboardCardDefinition = {
+  id: DashboardCardID;
+  title: string;
+  type: 'stat' | 'trend' | 'distribution' | 'recent';
+  order: number;
+};
+
+type ResolvedDashboardCard = DashboardCardDefinition & DashboardCardLayout;
+
+const dashboardCardDefinitions: DashboardCardDefinition[] = [
+  { id: 'database-count', title: '我的数据库', type: 'stat', order: 10 },
+  { id: 'table-count', title: '对象规模', type: 'stat', order: 20 },
+  { id: 'storage-usage', title: '数据库容量', type: 'stat', order: 30 },
+  { id: 'operation-trend', title: '操作趋势', type: 'trend', order: 40 },
+  { id: 'database-distribution', title: '数据库分布', type: 'distribution', order: 50 },
+  { id: 'recent-operations', title: '最近操作', type: 'recent', order: 60 }
+];
+
+const resolvedDashboardCards = computed<ResolvedDashboardCard[]>(() => {
+  const layoutMap = new Map(dashboardLayout.value.cards.map((card) => [card.id, card]));
+
+  return dashboardCardDefinitions
+    .map((definition) => {
+      const layout = layoutMap.get(definition.id) ?? {
+        id: definition.id,
+        visible: true,
+        order: definition.order,
+        config: {}
+      };
+
+      return {
+        ...layout,
+        ...definition,
+        id: definition.id,
+        visible: layout.visible,
+        order: layout.order,
+        config: layout.config
+      };
+    })
+    .sort((left, right) => left.order - right.order);
+});
+
+const visibleDashboardCards = computed(() => resolvedDashboardCards.value.filter((card) => card.visible));
+const statsSummary = computed(() => userStats.value?.summary ?? {
+  databaseCount: databases.value.length,
+  tableCount: databases.value.reduce((total, database) => total + database.tableCount, 0),
+  viewCount: databases.value.reduce((total, database) => total + database.viewCount, 0),
+  indexCount: 0,
+  rowCountEstimated: 0,
+  storageBytes: totalStorageBytes.value
+});
+const operationTrend = computed(() => userStats.value?.operationTrend ?? []);
+const databaseDistribution = computed(() => userStats.value?.databaseDistribution ?? []);
+const recentOperations = computed(() => userStats.value?.recentOperations ?? []);
+const operationTrendTotal = computed(() => operationTrend.value.reduce((total, item) => total + item.total, 0));
+const operationTrendMax = computed(() => Math.max(1, ...operationTrend.value.map((item) => item.total)));
+const operationTrendPolyline = computed(() => {
+  if (operationTrend.value.length === 0) {
+    return '';
+  }
+
+  const width = 220;
+  const height = 72;
+  const max = operationTrendMax.value;
+
+  return operationTrend.value
+    .map((item, index) => {
+      const x = operationTrend.value.length === 1 ? width / 2 : (index / (operationTrend.value.length - 1)) * width;
+      const y = height - (item.total / max) * (height - 12) - 6;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+});
+const databaseDistributionMax = computed(() => Math.max(1, ...databaseDistribution.value.map((item) => item.storageBytes)));
+
+function createDefaultDashboardLayout(): DashboardLayout {
+  return {
+    version: 1,
+    cards: dashboardCardDefinitions.map((card) => ({
+      id: card.id,
+      visible: true,
+      order: card.order,
+      config: {}
+    }))
+  };
+}
 
 type AuroraBlob = {
   id: string;
@@ -327,7 +423,9 @@ const loadPreferences = async () => {
   try {
     const preferences = await fetchPreferences();
     applyPreferences(preferences);
+    dashboardLayout.value = normalizeDashboardLayout(preferences.dashboardLayout);
   } catch {
+    dashboardLayout.value = createDefaultDashboardLayout();
     console.warn('偏好加载失败，已使用默认主题');
   }
 };
@@ -475,6 +573,181 @@ const formatBytes = (bytes: number) => {
   return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
+const formatNumber = (value: number) => {
+  return new Intl.NumberFormat('zh-CN', {
+    maximumFractionDigits: 0
+  }).format(value);
+};
+
+const formatOperationTime = (value: string) => {
+  return new Date(value).toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const getDashboardCardValue = (card: ResolvedDashboardCard) => {
+  switch (card.id) {
+    case 'database-count':
+      return `${formatNumber(statsSummary.value.databaseCount)} 个`;
+    case 'table-count':
+      return `${formatNumber(statsSummary.value.tableCount)} 表`;
+    case 'storage-usage':
+      return formatBytes(statsSummary.value.storageBytes);
+    case 'operation-trend':
+      return `${formatNumber(operationTrendTotal.value)} 次`;
+    case 'database-distribution':
+      return `${formatNumber(databaseDistribution.value.length)} 库`;
+    case 'recent-operations':
+      return `${formatNumber(recentOperations.value.length)} 条`;
+    default:
+      return '-';
+  }
+};
+
+const getDashboardCardDescription = (card: ResolvedDashboardCard) => {
+  switch (card.id) {
+    case 'database-count':
+      return statsSummary.value.databaseCount > 0
+        ? `最多可创建 ${databaseLimit.value} 个，当前已使用 ${statsSummary.value.databaseCount} 个`
+        : '暂未创建数据库';
+    case 'table-count':
+      return `${formatNumber(statsSummary.value.viewCount)} 个视图 · ${formatNumber(statsSummary.value.indexCount)} 个索引`;
+    case 'storage-usage':
+      return `${formatNumber(statsSummary.value.rowCountEstimated)} 行估算数据`;
+    case 'operation-trend':
+      return '最近 7 天审计日志趋势';
+    case 'database-distribution':
+      return '按数据库统计容量、表数量和估算行数';
+    case 'recent-operations':
+      return recentOperations.value[0]?.summary ?? '暂无审计记录';
+    default:
+      return '';
+  }
+};
+
+const normalizeDashboardLayout = (layout: DashboardLayout | null | undefined): DashboardLayout => {
+  const rawCards = Array.isArray(layout?.cards) ? layout.cards : [];
+  const cardMap = new Map(rawCards.map((card) => [card.id, card]));
+
+  return {
+    version: 1,
+    cards: dashboardCardDefinitions
+      .map((definition) => {
+        const card = cardMap.get(definition.id);
+
+        return {
+          id: definition.id,
+          visible: typeof card?.visible === 'boolean' ? card.visible : true,
+          order: typeof card?.order === 'number' ? card.order : definition.order,
+          config: card?.config && typeof card.config === 'object' ? card.config : {}
+        };
+      })
+      .sort((left, right) => left.order - right.order)
+  };
+};
+
+const openDashboardDialog = () => {
+  dashboardNotice.value = '';
+  isDashboardDialogVisible.value = true;
+};
+
+const persistDashboardLayout = async (nextLayout: DashboardLayout) => {
+  dashboardLayout.value = normalizeDashboardLayout(nextLayout);
+  dashboardNotice.value = '';
+  isDashboardSaving.value = true;
+
+  try {
+    const preferences = await updatePreferences({
+      dashboardLayout: dashboardLayout.value
+    });
+    dashboardLayout.value = normalizeDashboardLayout(preferences.dashboardLayout);
+    dashboardNotice.value = '布局已保存';
+  } catch (error) {
+    dashboardNotice.value = getErrorMessage(error, '布局保存失败，请稍后重试');
+  } finally {
+    isDashboardSaving.value = false;
+  }
+};
+
+const toggleDashboardCard = (cardID: string) => {
+  const nextCards = resolvedDashboardCards.value.map((card) => ({
+    id: card.id,
+    visible: card.id === cardID ? !card.visible : card.visible,
+    order: card.order,
+    config: card.config
+  }));
+  void persistDashboardLayout({
+    version: 1,
+    cards: nextCards
+  });
+};
+
+const moveDashboardCard = (cardID: string, direction: -1 | 1) => {
+  const nextCards = resolvedDashboardCards.value.map((card) => ({
+    id: card.id,
+    visible: card.visible,
+    order: card.order,
+    config: card.config
+  }));
+  const index = nextCards.findIndex((card) => card.id === cardID);
+  const targetIndex = index + direction;
+
+  if (index < 0 || targetIndex < 0 || targetIndex >= nextCards.length) {
+    return;
+  }
+
+  [nextCards[index], nextCards[targetIndex]] = [nextCards[targetIndex]!, nextCards[index]!];
+  nextCards.forEach((card, cardIndex) => {
+    card.order = (cardIndex + 1) * 10;
+  });
+
+  void persistDashboardLayout({
+    version: 1,
+    cards: nextCards
+  });
+};
+
+const resetDashboardLayout = () => {
+  void persistDashboardLayout(createDefaultDashboardLayout());
+};
+
+const loadUserStats = async () => {
+  isStatsLoading.value = true;
+  statsError.value = '';
+
+  try {
+    userStats.value = await fetchUserStats();
+  } catch (error) {
+    statsError.value = getErrorMessage(error, '统计数据加载失败，请稍后重试。');
+  } finally {
+    isStatsLoading.value = false;
+  }
+};
+
+const openAuditDialog = async () => {
+  isAuditDialogVisible.value = true;
+  await loadAuditLogs(1);
+};
+
+const loadAuditLogs = async (page = auditLogs.value?.page ?? 1) => {
+  isAuditLoading.value = true;
+  auditError.value = '';
+
+  try {
+    auditLogs.value = await fetchAuditLogs({
+      page,
+      pageSize: 20
+    });
+  } catch (error) {
+    auditError.value = getErrorMessage(error, '审计日志加载失败，请稍后重试。');
+  } finally {
+    isAuditLoading.value = false;
+  }
+};
+
 const loadDatabases = async () => {
   isDatabaseLoading.value = true;
   databaseError.value = '';
@@ -544,6 +817,7 @@ const submitCreateDatabase = async () => {
     }
 
     isCreateDialogVisible.value = false;
+    void loadUserStats();
   } catch (error) {
     databaseDialogError.value = getErrorMessage(error, editingDatabase.value ? '数据库重命名失败' : '数据库创建失败');
   } finally {
@@ -581,6 +855,7 @@ const confirmDeleteDatabase = async () => {
     showDatabaseNotice('数据库已删除');
     isDeleteDialogVisible.value = false;
     deletingDatabase.value = null;
+    void loadUserStats();
   } catch (error) {
     showDatabaseNotice(getErrorMessage(error, '数据库删除失败'));
   } finally {
@@ -607,6 +882,7 @@ onMounted(() => {
   void loadPreferences();
   void loadProfile();
   void loadDatabases();
+  void loadUserStats();
   resetAuroraBlobs();
   window.addEventListener('resize', resizeAuroraBlobs);
   auroraAnimationId = requestAnimationFrame(moveAuroraBlobs);
@@ -796,17 +1072,122 @@ onUnmounted(() => {
             </div>
           </section>
 
-          <div class="dashboard-grid">
-            <article
-              v-for="card in dashboardCards"
-              :key="card.title"
-              class="dashboard-card glass-card"
-            >
-              <span>{{ card.title }}</span>
-              <strong>{{ card.value }}</strong>
-              <p>{{ card.description }}</p>
-            </article>
-          </div>
+          <section
+            v-loading="isStatsLoading"
+            class="dashboard-section"
+          >
+            <div class="dashboard-head">
+              <div>
+                <p class="home-label">STATISTICS DASHBOARD</p>
+                <h2>统计面板</h2>
+                <p>{{ statsError || '用户级统计、最近操作和数据库分布集中在这里。' }}</p>
+              </div>
+              <button
+                class="dialog-button"
+                type="button"
+                @click="openDashboardDialog"
+              >
+                自定义面板
+              </button>
+            </div>
+
+            <div class="dashboard-grid">
+              <article
+                v-for="card in visibleDashboardCards"
+                :key="card.id"
+                class="dashboard-card glass-card"
+                :class="`dashboard-card-${card.type}`"
+              >
+                <div class="dashboard-card-head">
+                  <span>{{ card.title }}</span>
+                  <em>{{ getDashboardCardDescription(card) }}</em>
+                </div>
+
+                <template v-if="card.type === 'stat'">
+                  <strong>{{ getDashboardCardValue(card) }}</strong>
+                  <p>{{ getDashboardCardDescription(card) }}</p>
+                </template>
+
+                <template v-else-if="card.type === 'trend'">
+                  <strong>{{ getDashboardCardValue(card) }}</strong>
+                  <svg
+                    class="trend-chart"
+                    viewBox="0 0 220 84"
+                    role="img"
+                    aria-label="最近七天操作趋势"
+                  >
+                    <polyline
+                      v-if="operationTrendPolyline"
+                      :points="operationTrendPolyline"
+                    />
+                  </svg>
+                  <div class="trend-days">
+                    <span
+                      v-for="item in operationTrend"
+                      :key="item.day"
+                    >
+                      {{ item.day.slice(5) }}
+                    </span>
+                  </div>
+                </template>
+
+                <template v-else-if="card.type === 'distribution'">
+                  <div
+                    v-if="databaseDistribution.length === 0"
+                    class="dashboard-empty"
+                  >
+                    暂无数据库分布
+                  </div>
+                  <div
+                    v-else
+                    class="distribution-list"
+                  >
+                    <div
+                      v-for="item in databaseDistribution.slice(0, 5)"
+                      :key="item.databaseId"
+                      class="distribution-row"
+                    >
+                      <span>{{ item.displayName }}</span>
+                      <div>
+                        <i :style="{ width: `${Math.max(8, (item.storageBytes / databaseDistributionMax) * 100)}%` }"></i>
+                      </div>
+                      <em>{{ formatBytes(item.storageBytes) }}</em>
+                    </div>
+                  </div>
+                </template>
+
+                <template v-else>
+                  <div
+                    v-if="recentOperations.length === 0"
+                    class="dashboard-empty"
+                  >
+                    暂无最近操作
+                  </div>
+                  <div
+                    v-else
+                    class="recent-operation-list"
+                  >
+                    <button
+                      v-for="operation in recentOperations.slice(0, 4)"
+                      :key="operation.id"
+                      type="button"
+                      @click="openAuditDialog"
+                    >
+                      <span>{{ operation.summary }}</span>
+                      <em>{{ formatOperationTime(operation.createdAt) }}</em>
+                    </button>
+                  </div>
+                  <button
+                    class="database-text-button audit-entry-button"
+                    type="button"
+                    @click="openAuditDialog"
+                  >
+                    查看审计日志 →
+                  </button>
+                </template>
+              </article>
+            </div>
+          </section>
 
           <section class="database-focus-card glass-card">
             <div
@@ -935,6 +1316,153 @@ onUnmounted(() => {
         >
           删除
         </el-button>
+      </template>
+    </GlassDialog>
+
+    <GlassDialog
+      v-model="isDashboardDialogVisible"
+      label="DASHBOARD"
+      title="自定义统计面板"
+      description="先支持卡片显示、隐藏和排序；拖拽网格留到后续增强。"
+      width="min(94vw, 680px)"
+      hide-header
+    >
+      <div class="dashboard-layout-editor">
+        <article
+          v-for="(card, index) in resolvedDashboardCards"
+          :key="card.id"
+          class="layout-card-row"
+        >
+          <div>
+            <strong>{{ card.title }}</strong>
+            <span>{{ getDashboardCardDescription(card) }}</span>
+          </div>
+          <div class="layout-card-actions">
+            <button
+              class="database-text-button"
+              type="button"
+              :disabled="index === 0 || isDashboardSaving"
+              @click="moveDashboardCard(card.id, -1)"
+            >
+              上移
+            </button>
+            <button
+              class="database-text-button"
+              type="button"
+              :disabled="index === resolvedDashboardCards.length - 1 || isDashboardSaving"
+              @click="moveDashboardCard(card.id, 1)"
+            >
+              下移
+            </button>
+            <button
+              class="database-text-button"
+              type="button"
+              :disabled="isDashboardSaving"
+              @click="toggleDashboardCard(card.id)"
+            >
+              {{ card.visible ? '隐藏' : '显示' }}
+            </button>
+          </div>
+        </article>
+
+        <p
+          v-if="dashboardNotice"
+          class="database-feedback"
+        >
+          {{ dashboardNotice }}
+        </p>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <button
+            class="dialog-button"
+            type="button"
+            :disabled="isDashboardSaving"
+            @click="resetDashboardLayout"
+          >
+            恢复默认
+          </button>
+          <button
+            class="dialog-button primary"
+            type="button"
+            @click="isDashboardDialogVisible = false"
+          >
+            完成
+          </button>
+        </div>
+      </template>
+    </GlassDialog>
+
+    <GlassDialog
+      v-model="isAuditDialogVisible"
+      label="AUDIT"
+      title="审计日志"
+      description="记录数据库、表、行、查询、统计和偏好等关键操作。"
+      width="min(94vw, 820px)"
+      hide-header
+    >
+      <div
+        v-loading="isAuditLoading"
+        class="audit-log-panel"
+      >
+        <p
+          v-if="auditError"
+          class="dialog-error"
+        >
+          {{ auditError }}
+        </p>
+
+        <div
+          v-else-if="!auditLogs?.items.length"
+          class="dashboard-empty large"
+        >
+          暂无审计日志
+        </div>
+
+        <div
+          v-else
+          class="audit-log-list"
+        >
+          <article
+            v-for="item in auditLogs.items"
+            :key="item.id"
+          >
+            <div>
+              <strong>{{ item.summary }}</strong>
+              <span>{{ item.actionType }} · {{ item.objectType }} · {{ item.traceId }}</span>
+            </div>
+            <em>{{ formatOperationTime(item.createdAt) }}</em>
+          </article>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <button
+            class="dialog-button"
+            type="button"
+            :disabled="isAuditLoading || (auditLogs?.page ?? 1) <= 1"
+            @click="loadAuditLogs((auditLogs?.page ?? 1) - 1)"
+          >
+            上一页
+          </button>
+          <button
+            class="dialog-button"
+            type="button"
+            :disabled="isAuditLoading || !auditLogs?.hasMore"
+            @click="loadAuditLogs((auditLogs?.page ?? 1) + 1)"
+          >
+            下一页
+          </button>
+          <button
+            class="dialog-button primary"
+            type="button"
+            @click="isAuditDialogVisible = false"
+          >
+            关闭
+          </button>
+        </div>
       </template>
     </GlassDialog>
 
@@ -1617,6 +2145,28 @@ onUnmounted(() => {
   transform: rotateX(72deg) rotateZ(96deg);
 }
 
+.dashboard-section {
+  display: grid;
+  gap: clamp(18px, 2.4vw, 28px);
+}
+
+.dashboard-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.dashboard-head h2 {
+  margin: 0;
+  font-size: clamp(26px, 3vw, 42px);
+}
+
+.dashboard-head p:not(.home-label) {
+  margin: 10px 0 0;
+  color: var(--glass-text-muted);
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1630,9 +2180,30 @@ onUnmounted(() => {
   padding: clamp(24px, 2.6vw, 34px);
 }
 
-.dashboard-card span,
-.dashboard-card p {
+.dashboard-card-head {
+  display: grid;
+  gap: 6px;
+}
+
+.dashboard-card-head span,
+.dashboard-card p,
+.dashboard-card-head em {
   color: var(--glass-text-muted);
+}
+
+.dashboard-card-head span {
+  color: var(--glass-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dashboard-card-head em {
+  overflow: hidden;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dashboard-card strong {
@@ -1646,6 +2217,157 @@ onUnmounted(() => {
 .dashboard-card p {
   margin: auto 0 0;
   line-height: 1.7;
+}
+
+.dashboard-card-trend,
+.dashboard-card-distribution,
+.dashboard-card-recent {
+  min-height: 260px;
+}
+
+.trend-chart {
+  width: 100%;
+  height: 84px;
+  margin-top: auto;
+  overflow: visible;
+}
+
+.trend-chart polyline {
+  fill: none;
+  stroke: hsl(var(--theme-hue), 88%, 66%);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 8px var(--theme-primary-glow));
+}
+
+.trend-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  color: var(--glass-text-muted);
+  font-size: 11px;
+}
+
+.distribution-list,
+.recent-operation-list,
+.dashboard-layout-editor,
+.audit-log-list {
+  display: grid;
+  gap: 10px;
+}
+
+.distribution-row {
+  display: grid;
+  grid-template-columns: minmax(74px, 0.8fr) minmax(90px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.distribution-row span,
+.distribution-row em {
+  overflow: hidden;
+  color: var(--glass-text-muted);
+  font-size: 12px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.distribution-row div {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.075);
+}
+
+.distribution-row i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, hsla(var(--theme-hue), 88%, 64%, 0.72), hsla(calc(var(--theme-hue) + 28), 88%, 66%, 0.32));
+  box-shadow: 0 0 16px hsla(var(--theme-hue), 80%, 62%, 0.28);
+}
+
+.recent-operation-list button,
+.layout-card-row,
+.audit-log-list article {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px;
+  color: var(--glass-text);
+  text-align: left;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.recent-operation-list button {
+  cursor: pointer;
+  transition: var(--glass-transition);
+}
+
+.recent-operation-list button:hover {
+  border-color: hsla(var(--theme-hue), 90%, 72%, 0.34);
+  background: hsla(var(--theme-hue), 80%, 60%, 0.09);
+}
+
+.recent-operation-list span,
+.layout-card-row strong,
+.audit-log-list strong {
+  overflow: hidden;
+  color: var(--glass-text-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-operation-list em,
+.layout-card-row span,
+.audit-log-list span,
+.audit-log-list em {
+  color: var(--glass-text-muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.audit-entry-button {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.dashboard-empty {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  color: var(--glass-text-muted);
+  text-align: center;
+  border: 1px dashed hsla(var(--theme-hue), 80%, 72%, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.dashboard-empty.large {
+  min-height: 260px;
+}
+
+.layout-card-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.audit-log-panel {
+  min-height: 260px;
+}
+
+.audit-log-list article > div {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
 }
 
 .database-focus-card {
@@ -1968,6 +2690,13 @@ onUnmounted(() => {
     flex-direction: column;
   }
 
+  .dashboard-head,
+  .layout-card-row,
+  .audit-log-list article {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .workbench-topbar h1 {
     white-space: normal;
   }
@@ -1982,7 +2711,7 @@ onUnmounted(() => {
   }
 
   .dashboard-grid {
-    grid-template-columns: repeat(3, minmax(150px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .focus-metrics {
@@ -2011,6 +2740,14 @@ onUnmounted(() => {
   .dashboard-grid {
     grid-template-columns: 1fr;
     overflow-x: visible;
+  }
+
+  .distribution-row {
+    grid-template-columns: 1fr;
+  }
+
+  .layout-card-actions {
+    width: 100%;
   }
 
   .focus-metrics {

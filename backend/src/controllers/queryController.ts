@@ -3,6 +3,7 @@ import pool from '../config/db.js';
 import { limits } from '../config/limits.js';
 import { AppError } from '../errors/AppError.js';
 import { getDatabaseIDFromParams, resolveOwnedDatabase } from '../services/databaseResolver.js';
+import { recordAuditLog } from '../services/auditService.js';
 import { quoteIdentifier, validateSqlIdentifier } from '../utils/sqlIdentifier.js';
 import { sendSuccess } from '../utils/response.js';
 
@@ -150,6 +151,8 @@ export const executeSelectQuery = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+  const startedAt = Date.now();
+
   try {
     const userID = getCurrentUserID(req);
     const databaseID = getDatabaseIDFromParams(req.params);
@@ -176,6 +179,20 @@ export const executeSelectQuery = async (
     const hasMore = builtQuery.pageSize !== null && rawRows.length > pageSize;
     const resultRows = hasMore ? rawRows.slice(0, pageSize) : rawRows;
 
+    await recordAuditLog({
+      req,
+      userID,
+      databaseID,
+      objectType: 'QUERY',
+      actionType: 'QUERY_SELECT',
+      summary: '执行 GUI 查询',
+      detail: {
+        columns: builtQuery.columns.length,
+        rows: resultRows.length,
+        hasMore
+      },
+      durationMs: Date.now() - startedAt
+    });
     sendSuccess(res, '查询执行成功', {
       columns: builtQuery.columns,
       rows: resultRows.map(normalizeQueryRow),

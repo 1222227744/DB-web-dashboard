@@ -4,6 +4,7 @@ import pool from '../config/db.js';
 import { limits } from '../config/limits.js';
 import { AppError } from '../errors/AppError.js';
 import { getDatabaseIDFromParams, resolveOwnedDatabase } from '../services/databaseResolver.js';
+import { recordAuditLog } from '../services/auditService.js';
 import { quoteIdentifier, validateSqlIdentifier } from '../utils/sqlIdentifier.js';
 import { sendSuccess } from '../utils/response.js';
 
@@ -344,6 +345,15 @@ export const createTable = async (
     await pool.query(createTableSql);
 
     const schema = await readTableSchema(database.schemaName, tableName);
+    await recordAuditLog({
+      req,
+      userID,
+      databaseID,
+      objectType: 'TABLE',
+      objectName: tableName,
+      actionType: 'TABLE_CREATE',
+      summary: `创建数据表 ${tableName}`
+    });
     sendSuccess(res, '表已创建', schema);
   } catch (error) {
     next(convertMysqlError(error, '表创建失败'));
@@ -387,6 +397,18 @@ export const updateTableSchema = async (
     }
 
     const schema = await readTableSchema(context.schemaName, context.tableName);
+    await recordAuditLog({
+      req,
+      userID: getCurrentUserID(req),
+      databaseID: getDatabaseIDFromParams(req.params),
+      objectType: 'TABLE',
+      objectName: context.tableName,
+      actionType: 'TABLE_ALTER',
+      summary: `更新表结构 ${context.tableName}`,
+      detail: {
+        operations: operations.map((operation) => operation.action)
+      }
+    });
     sendSuccess(res, '表结构已更新', schema);
   } catch (error) {
     next(convertMysqlError(error, '表结构更新失败'));
@@ -477,6 +499,19 @@ export const createTableRow = async (
       };
     });
 
+    await recordAuditLog({
+      req,
+      userID: getCurrentUserID(req),
+      databaseID: getDatabaseIDFromParams(req.params),
+      objectType: 'ROW',
+      objectName: context.tableName,
+      actionType: 'ROW_INSERT',
+      summary: `新增 ${context.tableName} 数据行`,
+      detail: {
+        rows: rowInputs.length,
+        affectedRows: rowInputs.length
+      }
+    });
     sendSuccess(res, '行已新增', {
       tableName: context.tableName,
       row: result.insertedRows[0] ?? null,
@@ -540,6 +575,19 @@ export const updateTableRow = async (
       };
     });
 
+    await recordAuditLog({
+      req,
+      userID: getCurrentUserID(req),
+      databaseID: getDatabaseIDFromParams(req.params),
+      objectType: 'ROW',
+      objectName: context.tableName,
+      actionType: 'ROW_UPDATE',
+      summary: `更新 ${context.tableName} 数据行`,
+      detail: {
+        rows: primaryKeys.length,
+        affectedRows: result.affectedRows
+      }
+    });
     sendSuccess(res, '行已更新', {
       tableName: context.tableName,
       row: result.updatedRows[0] ?? null,
@@ -588,6 +636,19 @@ export const deleteTableRow = async (
       return totalAffectedRows;
     });
 
+    await recordAuditLog({
+      req,
+      userID: getCurrentUserID(req),
+      databaseID: getDatabaseIDFromParams(req.params),
+      objectType: 'ROW',
+      objectName: context.tableName,
+      actionType: 'ROW_DELETE',
+      summary: `删除 ${context.tableName} 数据行`,
+      detail: {
+        rows: primaryKeys.length,
+        affectedRows
+      }
+    });
     sendSuccess(res, '行已删除', {
       tableName: context.tableName,
       primaryKey: primaryKeys[0] ?? null,
@@ -614,6 +675,15 @@ export const deleteTable = async (
     validateDeleteConfirmation(req.body.confirmation, tableName);
     await pool.query(`DROP TABLE ${quoteIdentifier(database.schemaName)}.${quoteIdentifier(tableName)}`);
 
+    await recordAuditLog({
+      req,
+      userID,
+      databaseID,
+      objectType: 'TABLE',
+      objectName: tableName,
+      actionType: 'TABLE_DELETE',
+      summary: `删除数据表 ${tableName}`
+    });
     sendSuccess(res, '表已删除', {
       tableName
     });
