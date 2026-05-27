@@ -3127,13 +3127,12 @@ onUnmounted(() => {
                 </div>
                 <div class="query-list">
                   <article
-                    v-for="(filter, filterIndex) in queryFilters"
+                    v-for="filter in queryFilters"
                     :key="filter.id"
                     class="query-row filter-row"
                   >
                     <el-select
                       v-model="filter.logic"
-                      :disabled="filterIndex === 0"
                       popper-class="workbench-select-popper"
                       placeholder=""
                     >
@@ -3273,13 +3272,12 @@ onUnmounted(() => {
                 </div>
                 <div class="query-list">
                   <article
-                    v-for="(filter, filterIndex) in queryHavingFilters"
+                    v-for="filter in queryHavingFilters"
                     :key="filter.id"
                     class="query-row filter-row"
                   >
                     <el-select
                       v-model="filter.logic"
-                      :disabled="filterIndex === 0"
                       popper-class="workbench-select-popper"
                       placeholder=""
                     >
@@ -5132,6 +5130,53 @@ onUnmounted(() => {
     0 10px 22px rgba(0, 0, 0, 0.1) !important;
 }
 
+.query-row :deep(.el-select__wrapper.is-focused),
+.query-builder-card :deep(.el-select__wrapper.is-focused) {
+  border-color: hsla(var(--theme-hue), 90%, 72%, 0.42);
+  box-shadow:
+    0 0 0 1px hsla(var(--theme-hue), 90%, 72%, 0.16),
+    0 0 24px hsla(var(--theme-hue), 80%, 62%, 0.14) !important;
+}
+
+.query-row :deep(.el-input__inner),
+.query-row :deep(.el-select__placeholder),
+.query-row :deep(.el-select__input),
+.query-row :deep(.el-select__selected-item),
+.query-builder-card :deep(.el-input__inner),
+.query-builder-card :deep(.el-select__placeholder),
+.query-builder-card :deep(.el-select__input),
+.query-builder-card :deep(.el-select__selected-item) {
+  color: var(--glass-text-strong);
+}
+
+.query-row :deep(.el-select__selected-item.is-transparent),
+.query-builder-card :deep(.el-select__selected-item.is-transparent) {
+  color: var(--glass-text-muted);
+}
+
+.query-builder-card :deep(.el-tag) {
+  --el-tag-bg-color: hsla(var(--theme-hue), 80%, 60%, 0.15);
+  --el-tag-border-color: hsla(var(--theme-hue), 86%, 72%, 0.22);
+  --el-tag-text-color: var(--glass-text-strong);
+  max-width: 100%;
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 86%, 62%, 0.18), rgba(255, 255, 255, 0.055)) !important;
+}
+
+.query-builder-card :deep(.el-tag__content) {
+  color: var(--glass-text-strong);
+}
+
+.query-builder-card :deep(.el-tag__close) {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.query-builder-card :deep(.el-tag__close:hover) {
+  color: var(--glass-text-strong);
+  background: hsla(var(--theme-hue), 80%, 62%, 0.24);
+}
+
 .query-builder-card :deep(.el-input-number) {
   width: 100%;
 }
@@ -5613,8 +5658,16 @@ onUnmounted(() => {
 }
 
 :global(.workbench-select-popper .el-select-dropdown__item.is-selected) {
-  color: var(--theme-primary-light);
-  background: hsla(var(--theme-hue), 80%, 60%, 0.18);
+  color: var(--glass-text-strong);
+  font-weight: 800;
+  background:
+    radial-gradient(circle at 12% 50%, hsla(var(--theme-hue), 92%, 74%, 0.22), transparent 34%),
+    hsla(var(--theme-hue), 80%, 60%, 0.24);
+}
+
+:global(.workbench-select-popper .el-select-dropdown__item.is-disabled) {
+  color: rgba(255, 255, 255, 0.36);
+  background: transparent;
 }
 
 .create-table-form {
