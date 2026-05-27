@@ -38,11 +38,6 @@ type IndexCountRow = {
   total: number;
 };
 
-type ColumnTypeRow = {
-  data_type: string;
-  total: number;
-};
-
 type AuditTrendRow = {
   day: string | Date;
   total: number;
@@ -180,7 +175,6 @@ export const getDatabaseStats = async (
     const database = await resolveOwnedDatabase(userID, databaseID);
     const tableRows = await readTableRows([database.schemaName]);
     const indexCount = await readIndexCount([database.schemaName]);
-    const columnTypeDistribution = await readColumnTypeDistribution(database.schemaName);
     const recentOperations = await readRecentOperations(userID, databaseID, 8);
     const baseTableRows = tableRows.filter((table) => table.table_type === 'BASE TABLE');
     const tableSizeTop = baseTableRows
@@ -206,7 +200,6 @@ export const getDatabaseStats = async (
       },
       tableSizeTop,
       rowCountBuckets: buildRowCountBuckets(baseTableRows),
-      columnTypeDistribution,
       recentOperations
     };
 
@@ -395,22 +388,6 @@ const readRecentOperations = async (userID: number, databaseID: number | null, l
   );
 
   return (rows as AuditLogRow[]).map(rowToAuditSummary);
-};
-
-const readColumnTypeDistribution = async (schemaName: string) => {
-  const [rows] = await pool.query(
-    `SELECT DATA_TYPE AS data_type, COUNT(*) AS total
-     FROM information_schema.columns
-     WHERE TABLE_SCHEMA = ?
-     GROUP BY DATA_TYPE
-     ORDER BY total DESC, DATA_TYPE ASC`,
-    [schemaName]
-  );
-
-  return (rows as ColumnTypeRow[]).map((row) => ({
-    type: row.data_type,
-    total: Number(row.total)
-  }));
 };
 
 const readTableMeta = async (schemaName: string, tableName: string): Promise<TableMetaRow | null> => {

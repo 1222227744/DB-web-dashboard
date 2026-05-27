@@ -58,10 +58,6 @@ export type DatabaseStats = {
     label: string;
     total: number;
   }>;
-  columnTypeDistribution: Array<{
-    type: string;
-    total: number;
-  }>;
   recentOperations: OperationSummary[];
 };
 

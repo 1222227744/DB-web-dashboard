@@ -1510,7 +1510,8 @@ confirmation & object & 条件必填 & \texttt{rows} 超过 1 行时必填 \\
 \item
   前端新增行时空白字段默认不提交，避免误写入 \texttt{NULL}。
 \item
-  批量新增由前端弹窗输入 JSON 数组，超过单行时携带表名确认。
+  批量新增由前端弹窗输入 JSON 数组或导入 CSV 文件；CSV 导入支持
+  UTF-8、GBK 编码和跳过起始行数。
 \item
   后端按表结构校验数字、布尔、JSON 和非空字段。
 \item
@@ -1983,8 +1984,8 @@ recentOperations & array & 最近审计记录摘要 \\
 \end{Highlighting}
 \end{Shaded}
 
-返回表数量、视图数量、索引数量、数据大小、索引大小、字段类型分布、表大小
-Top N、表行数分布和最近操作。
+返回表数量、视图数量、索引数量、数据大小、索引大小、表大小 Top
+N、表行数分布和最近操作。
 
 成功响应 \texttt{data}：
 
@@ -2000,7 +2001,6 @@ summary.dataBytes & number & 数据大小 \\
 summary.indexBytes & number & 索引大小 \\
 tableSizeTop & array & 按容量排序的表 Top N \\
 rowCountBuckets & array & 表行数区间分布 \\
-columnTypeDistribution & array & 字段类型分布 \\
 recentOperations & array & 当前数据库最近操作 \\
 \bottomrule
 \end{longtable}

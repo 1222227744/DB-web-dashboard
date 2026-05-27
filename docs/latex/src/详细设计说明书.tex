@@ -1134,7 +1134,8 @@ V5 已落地前端交互：
 \item
   新增行在表格顶部进入草稿态，保存后刷新预览。
 \item
-  批量新增通过 JSON 数组弹窗提交。
+  批量新增通过 JSON 数组或 CSV 文件导入弹窗提交；CSV 文件在前端按
+  UTF-8/GBK 解码、按可写字段顺序映射，并允许跳过起始行数。
 \item
   行内编辑只修改本地草稿，点击``更新''后才提交。
 \item
@@ -1152,7 +1153,8 @@ V5 已落地前端交互：
 \item
   后端支持批量新增、批量修改和批量删除，并使用事务保证批次原子性。
 \item
-  前端支持排序、列显示控制、批量新增、基于主键列表的批量修改和批量删除。
+  前端支持排序、列显示控制、JSON/CSV
+  批量新增、基于主键列表的批量修改和批量删除。
 \item
   结构管理支持字段新增、字段修改、字段删除、索引新增/删除和字符串有限取值检查约束。
 \end{itemize}
@@ -1479,10 +1481,9 @@ statsService.databaseOverview}\label{statsservice.databaseoverview}}
 \begin{Highlighting}[]
 \NormalTok{1. resolveUserDatabase。}
 \NormalTok{2. 查询 information\_schema.tables。}
-\NormalTok{3. 查询 information\_schema.columns。}
-\NormalTok{4. 聚合表数量、视图数量、数据大小、索引大小。}
-\NormalTok{5. 统计字段类型分布。}
-\NormalTok{6. 查询 audit\_logs 得到最近操作。}
+\NormalTok{3. 聚合表数量、视图数量、数据大小、索引大小。}
+\NormalTok{4. 统计表大小 Top N 和行数区间分布。}
+\NormalTok{5. 查询 audit\_logs 得到最近操作。}
 \end{Highlighting}
 \end{Shaded}
 
@@ -1801,7 +1802,8 @@ state；当页面状态变复杂时再引入 Pinia。正式设计推荐使用 Pi
 \item
   支持基于主键删除单行。
 \item
-  支持排序、列显示控制、批量新增、基于主键列表的批量修改和批量删除。
+  支持排序、列显示控制、JSON/CSV
+  批量新增、基于主键列表的批量修改和批量删除。
 \end{itemize}
 
 行状态：
@@ -2154,7 +2156,7 @@ V7.5 & 统一错误、审计、性能收口 & 响应式、加载态、空状态�
   用户级统计：数据库数量、表数量、视图数量、索引数量、估算行数、容量占用、操作趋势、最近操作。
 \item
   数据库级统计：表/视图/索引数量、数据大小、索引大小、表大小 Top
-  N、字段类型分布。
+  N、表行数分布。
 \item
   表级统计：字段数量、主键、外键、索引、估算行数、空值比例、数值字段聚合、分类字段
   Top N。

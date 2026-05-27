@@ -67,6 +67,8 @@ type RowDraft = {
 
 type SchemaEditorMode = 'ADD_COLUMN' | 'MODIFY_COLUMN' | 'ADD_INDEX' | 'ADD_CONSTRAINT';
 type WorkbenchMode = 'tables' | 'query';
+type BatchInsertMode = 'json' | 'csv';
+type CsvEncoding = 'utf-8' | 'gbk';
 type QueryAggregate = '' | 'COUNT' | 'SUM' | 'AVG' | 'MIN' | 'MAX';
 
 type QueryFieldDraft = {
@@ -148,8 +150,15 @@ const rowSelectionMode = ref<'select' | 'deselect' | null>(null);
 const isBatchDeleteDialogVisible = ref(false);
 const batchDeleteError = ref('');
 const isBatchInsertDialogVisible = ref(false);
+const batchInsertMode = ref<BatchInsertMode>('json');
 const batchInsertText = ref('');
 const batchInsertError = ref('');
+const batchInsertFileInputRef = ref<HTMLInputElement | null>(null);
+const batchInsertCsvEncoding = ref<CsvEncoding>('utf-8');
+const batchInsertSkipRows = ref(1);
+const batchInsertCsvFileName = ref('');
+const batchInsertCsvBuffer = ref<ArrayBuffer | null>(null);
+const batchInsertCsvRows = ref<Array<Record<string, unknown>>>([]);
 const isBatchUpdateDialogVisible = ref(false);
 const batchUpdateColumnName = ref('');
 const batchUpdateValue = ref('');
@@ -1017,6 +1026,12 @@ const formatFacetValue = (value: string | number | boolean | null) => {
   return value === null ? 'NULL' : String(value);
 };
 
+const formatCsvPreviewRow = (row: Record<string, unknown>) => {
+  return Object.entries(row)
+    .map(([name, value]) => `${name}: ${formatCellValue(value)}`)
+    .join('，');
+};
+
 const isColumnInsertable = (column: TableColumnSchema) => {
   return !column.extra.includes('auto_increment');
 };
@@ -1122,14 +1137,259 @@ const showNewRowEditor = () => {
   isNewRowVisible.value = true;
 };
 
+const resetBatchInsertCsvState = () => {
+  batchInsertCsvEncoding.value = 'utf-8';
+  batchInsertSkipRows.value = 1;
+  batchInsertCsvFileName.value = '';
+  batchInsertCsvBuffer.value = null;
+  batchInsertCsvRows.value = [];
+
+  if (batchInsertFileInputRef.value) {
+    batchInsertFileInputRef.value.value = '';
+  }
+};
+
+const trimTrailingEmptyCells = (cells: string[]) => {
+  let endIndex = cells.length;
+
+  while (endIndex > 0 && cells[endIndex - 1].trim() === '') {
+    endIndex -= 1;
+  }
+
+  return cells.slice(0, endIndex);
+};
+
+const parseCsvText = (text: string) => {
+  const rows: string[][] = [];
+  const normalizedText = text.replace(/^\uFEFF/, '');
+  let row: string[] = [];
+  let cell = '';
+  let isInsideQuotes = false;
+  let hasPendingCell = false;
+
+  for (let index = 0; index < normalizedText.length; index += 1) {
+    const char = normalizedText[index];
+
+    if (isInsideQuotes) {
+      if (char === '"' && normalizedText[index + 1] === '"') {
+        cell += '"';
+        index += 1;
+      } else if (char === '"') {
+        isInsideQuotes = false;
+      } else {
+        cell += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      if (cell.length === 0) {
+        isInsideQuotes = true;
+        hasPendingCell = true;
+      } else {
+        cell += char;
+      }
+      continue;
+    }
+
+    if (char === ',') {
+      row.push(cell);
+      cell = '';
+      hasPendingCell = true;
+      continue;
+    }
+
+    if (char === '\r' || char === '\n') {
+      if (hasPendingCell || row.length > 0) {
+        row.push(cell);
+        rows.push(row);
+      }
+
+      row = [];
+      cell = '';
+      hasPendingCell = false;
+
+      if (char === '\r' && normalizedText[index + 1] === '\n') {
+        index += 1;
+      }
+      continue;
+    }
+
+    cell += char;
+    hasPendingCell = true;
+  }
+
+  if (isInsideQuotes) {
+    throw new Error('CSV 文件存在未闭合的引号');
+  }
+
+  if (hasPendingCell || row.length > 0) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  return rows;
+};
+
+const buildRowsFromCsvRecords = (records: string[][]) => {
+  const skipRows = Math.max(0, Math.floor(Number(batchInsertSkipRows.value) || 0));
+  const dataRows = records
+    .map((cells, index) => ({
+      cells,
+      rowNumber: index + 1
+    }))
+    .slice(skipRows)
+    .filter(({ cells }) => cells.some((cell) => cell.trim() !== ''));
+
+  return dataRows.map(({ cells, rowNumber }) => {
+    const normalizedCells = trimTrailingEmptyCells(cells);
+    const extraValues = normalizedCells
+      .slice(insertableColumns.value.length)
+      .filter((cell) => cell.trim() !== '');
+
+    if (extraValues.length > 0) {
+      throw new Error(`CSV 第 ${rowNumber} 行的列数超过可写字段数量`);
+    }
+
+    const rowPayload: Record<string, unknown> = {};
+
+    insertableColumns.value.forEach((column, index) => {
+      const value = cells[index] ?? '';
+
+      if (value === '') {
+        return;
+      }
+
+      rowPayload[column.name] = value;
+    });
+
+    if (Object.keys(rowPayload).length === 0) {
+      throw new Error(`CSV 第 ${rowNumber} 行没有可导入字段`);
+    }
+
+    return rowPayload;
+  });
+};
+
+const parseBatchInsertCsvFile = () => {
+  batchInsertCsvRows.value = [];
+
+  if (!batchInsertCsvBuffer.value) {
+    return;
+  }
+
+  batchInsertError.value = '';
+
+  try {
+    const text = new TextDecoder(batchInsertCsvEncoding.value).decode(batchInsertCsvBuffer.value);
+    const records = parseCsvText(text);
+    const rows = buildRowsFromCsvRecords(records);
+    batchInsertCsvRows.value = rows;
+
+    if (rows.length === 0) {
+      batchInsertError.value = 'CSV 文件没有可导入的数据行';
+    }
+  } catch (error) {
+    batchInsertCsvRows.value = [];
+    batchInsertError.value = error instanceof Error ? error.message : 'CSV 文件解析失败';
+  }
+};
+
+const openBatchInsertFilePicker = () => {
+  if (batchInsertFileInputRef.value) {
+    batchInsertFileInputRef.value.value = '';
+    batchInsertFileInputRef.value.click();
+  }
+};
+
+const handleBatchInsertFileChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  const isCsvFile = file.name.toLowerCase().endsWith('.csv') || ['text/csv', 'application/vnd.ms-excel'].includes(file.type);
+
+  if (!isCsvFile) {
+    batchInsertCsvFileName.value = '';
+    batchInsertCsvBuffer.value = null;
+    batchInsertCsvRows.value = [];
+    batchInsertError.value = '请选择 CSV 文件';
+    input.value = '';
+    return;
+  }
+
+  batchInsertCsvFileName.value = file.name;
+  batchInsertError.value = '';
+
+  try {
+    batchInsertCsvBuffer.value = await file.arrayBuffer();
+    parseBatchInsertCsvFile();
+  } catch {
+    batchInsertCsvBuffer.value = null;
+    batchInsertCsvRows.value = [];
+    batchInsertError.value = 'CSV 文件读取失败';
+  }
+};
+
+const parseJsonBatchInsertRows = (): Array<Record<string, unknown>> | null => {
+  let rows: unknown[];
+
+  try {
+    const parsed = JSON.parse(batchInsertText.value);
+    rows = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    batchInsertError.value = '请输入合法 JSON 数组';
+    return null;
+  }
+
+  if (rows.length < 1) {
+    batchInsertError.value = '请至少填写一行数据';
+    return null;
+  }
+
+  if (!rows.every((row) => row && typeof row === 'object' && !Array.isArray(row))) {
+    batchInsertError.value = 'JSON 数组中的每一项都必须是对象';
+    return null;
+  }
+
+  return rows as Array<Record<string, unknown>>;
+};
+
+const resolveBatchInsertRows = () => {
+  if (batchInsertMode.value === 'json') {
+    return parseJsonBatchInsertRows();
+  }
+
+  if (!batchInsertCsvBuffer.value) {
+    batchInsertError.value = '请选择要导入的 CSV 文件';
+    return null;
+  }
+
+  parseBatchInsertCsvFile();
+
+  if (batchInsertCsvRows.value.length < 1) {
+    if (!batchInsertError.value) {
+      batchInsertError.value = 'CSV 文件没有可导入的数据行';
+    }
+    return null;
+  }
+
+  return batchInsertCsvRows.value;
+};
+
 const openBatchInsertDialog = () => {
   if (!canInsertRows.value) {
     showTableNotice('当前表没有可手动填写的字段');
     return;
   }
 
+  batchInsertMode.value = 'json';
   batchInsertText.value = '';
   batchInsertError.value = '';
+  resetBatchInsertCsvState();
   isBatchInsertDialogVisible.value = true;
 };
 
@@ -1139,23 +1399,9 @@ const submitBatchInsert = async () => {
   }
 
   batchInsertError.value = '';
-  let rows: Array<Record<string, unknown>>;
+  const rows = resolveBatchInsertRows();
 
-  try {
-    const parsed = JSON.parse(batchInsertText.value);
-    rows = Array.isArray(parsed) ? parsed : [];
-  } catch {
-    batchInsertError.value = '请输入合法 JSON 数组';
-    return;
-  }
-
-  if (rows.length < 1) {
-    batchInsertError.value = '请至少填写一行数据';
-    return;
-  }
-
-  if (!rows.every((row) => row && typeof row === 'object' && !Array.isArray(row))) {
-    batchInsertError.value = 'JSON 数组中的每一项都必须是对象';
+  if (!rows) {
     return;
   }
 
@@ -2036,6 +2282,12 @@ watch(selectedTableName, (tableName) => {
   }
 });
 
+watch([batchInsertCsvEncoding, batchInsertSkipRows], () => {
+  if (batchInsertMode.value === 'csv' && batchInsertCsvBuffer.value) {
+    parseBatchInsertCsvFile();
+  }
+});
+
 onMounted(() => {
   void loadPreferences();
   void loadDatabase();
@@ -2126,25 +2378,26 @@ onUnmounted(() => {
 
         <article class="insight-card glass-card">
           <div class="table-panel-title">
-            <span>字段类型分布</span>
-            <small>Columns</small>
+            <span>行数分布</span>
+            <small>Rows</small>
           </div>
           <div
-            v-if="databaseStats.columnTypeDistribution.length === 0"
+            v-if="databaseStats.rowCountBuckets.length === 0"
             class="mini-empty"
           >
-            暂无字段
+            暂无数据表
           </div>
           <div
             v-else
-            class="type-chip-list"
+            class="insight-list"
           >
-            <span
-              v-for="item in databaseStats.columnTypeDistribution"
-              :key="item.type"
+            <div
+              v-for="bucket in databaseStats.rowCountBuckets"
+              :key="bucket.label"
             >
-              {{ item.type }} · {{ item.total }}
-            </span>
+              <span>{{ bucket.label }}</span>
+              <em>{{ formatNumber(bucket.total) }} 张表</em>
+            </div>
           </div>
         </article>
       </section>
@@ -3826,12 +4079,39 @@ onUnmounted(() => {
       hide-header
     >
       <div class="batch-row-form">
-        <div class="batch-row-hint">
-          <span>JSON ARRAY</span>
-          <p>请输入对象数组，字段名需要与表字段一致；不填写的字段会交给数据库默认值或空值规则处理。</p>
+        <div class="batch-mode-tabs">
+          <button
+            class="schema-mode-button"
+            :class="{ active: batchInsertMode === 'json' }"
+            type="button"
+            @click="batchInsertMode = 'json'; batchInsertError = ''"
+          >
+            JSON 数组
+          </button>
+          <button
+            class="schema-mode-button"
+            :class="{ active: batchInsertMode === 'csv' }"
+            type="button"
+            @click="batchInsertMode = 'csv'; batchInsertError = ''; parseBatchInsertCsvFile()"
+          >
+            CSV 文件
+          </button>
         </div>
 
-        <label class="dialog-field">
+        <div class="batch-row-hint">
+          <span>{{ batchInsertMode === 'json' ? 'JSON ARRAY' : 'CSV IMPORT' }}</span>
+          <p v-if="batchInsertMode === 'json'">
+            请输入对象数组，字段名需要与表字段一致；不填写的字段会交给数据库默认值或空值规则处理。
+          </p>
+          <p v-else>
+            CSV 按可写字段顺序映射，空单元格会跳过并交给数据库默认值或空值规则处理；跳过 1 行即可跳过标题行。
+          </p>
+        </div>
+
+        <label
+          v-if="batchInsertMode === 'json'"
+          class="dialog-field"
+        >
           <span>数据内容</span>
           <el-input
             v-model="batchInsertText"
@@ -3841,6 +4121,83 @@ onUnmounted(() => {
             placeholder='例如：[{"name":"Alice","age":18},{"name":"Bob","age":20}]'
           />
         </label>
+
+        <div
+          v-else
+          class="csv-import-panel"
+        >
+          <input
+            ref="batchInsertFileInputRef"
+            class="csv-file-input"
+            type="file"
+            accept=".csv,text/csv"
+            @change="handleBatchInsertFileChange"
+          >
+
+          <div class="csv-import-controls">
+            <label class="dialog-field compact-field">
+              <span>编码格式</span>
+              <div class="csv-encoding-options">
+                <button
+                  class="schema-mode-button"
+                  :class="{ active: batchInsertCsvEncoding === 'utf-8' }"
+                  type="button"
+                  @click="batchInsertCsvEncoding = 'utf-8'"
+                >
+                  UTF-8
+                </button>
+                <button
+                  class="schema-mode-button"
+                  :class="{ active: batchInsertCsvEncoding === 'gbk' }"
+                  type="button"
+                  @click="batchInsertCsvEncoding = 'gbk'"
+                >
+                  GBK
+                </button>
+              </div>
+            </label>
+
+            <label class="dialog-field compact-field">
+              <span>跳过行数</span>
+              <el-input-number
+                v-model="batchInsertSkipRows"
+                :min="0"
+                :max="100"
+                :step="1"
+                controls-position="right"
+              />
+            </label>
+          </div>
+
+          <button
+            class="csv-pick-button"
+            type="button"
+            @click="openBatchInsertFilePicker"
+          >
+            {{ batchInsertCsvFileName ? '重新选择 CSV 文件' : '选择 CSV 文件' }}
+          </button>
+
+          <div
+            v-if="batchInsertCsvFileName"
+            class="csv-file-card"
+          >
+            <strong>{{ batchInsertCsvFileName }}</strong>
+            <span>{{ batchInsertCsvRows.length }} 行待导入 · {{ batchInsertCsvEncoding.toUpperCase() }}</span>
+          </div>
+
+          <div
+            v-if="batchInsertCsvRows.length > 0"
+            class="csv-preview-list"
+          >
+            <div
+              v-for="(row, index) in batchInsertCsvRows.slice(0, 3)"
+              :key="`${batchInsertCsvFileName}-${index}`"
+            >
+              <span>预览 {{ index + 1 }}</span>
+              <em>{{ formatCsvPreviewRow(row) }}</em>
+            </div>
+          </div>
+        </div>
 
         <div class="batch-row-meta">
           <span>可写字段：{{ insertableColumns.map((column) => column.name).join('、') || '无' }}</span>
@@ -4224,7 +4581,6 @@ onUnmounted(() => {
 }
 
 .insight-list,
-.type-chip-list,
 .stat-row-list,
 .category-stat-grid,
 .table-stats-dialog {
@@ -4264,19 +4620,6 @@ onUnmounted(() => {
   color: var(--glass-text-muted);
   font-size: 12px;
   font-style: normal;
-}
-
-.type-chip-list {
-  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-}
-
-.type-chip-list span {
-  padding: 9px 10px;
-  color: var(--glass-text);
-  text-align: center;
-  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.14);
-  border-radius: 999px;
-  background: hsla(var(--theme-hue), 80%, 60%, 0.08);
 }
 
 .mini-empty {
@@ -5399,6 +5742,13 @@ onUnmounted(() => {
   gap: 18px;
 }
 
+.batch-mode-tabs,
+.csv-encoding-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .batch-row-hint {
   display: grid;
   gap: 8px;
@@ -5436,6 +5786,87 @@ onUnmounted(() => {
   border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.14);
   border-radius: 999px;
   background: hsla(var(--theme-hue), 80%, 60%, 0.06);
+}
+
+.csv-import-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.csv-file-input {
+  display: none;
+}
+
+.csv-import-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(160px, 0.7fr);
+  gap: 14px;
+}
+
+.csv-pick-button {
+  min-height: 54px;
+  color: var(--glass-text-strong);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border: 1px dashed hsla(var(--theme-hue), 90%, 72%, 0.32);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 20% 20%, hsla(var(--theme-hue), 90%, 70%, 0.16), transparent 34%),
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 56%, 0.1), rgba(255, 255, 255, 0.045));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: var(--glass-transition);
+}
+
+.csv-pick-button:hover {
+  border-color: hsla(var(--theme-hue), 90%, 74%, 0.5);
+  box-shadow:
+    0 14px 32px rgba(0, 0, 0, 0.2),
+    0 0 26px hsla(var(--theme-hue), 80%, 62%, 0.14);
+  transform: translateY(-1px);
+}
+
+.csv-file-card,
+.csv-preview-list div {
+  padding: 12px 14px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.csv-file-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.csv-file-card strong,
+.csv-preview-list span {
+  color: var(--glass-text-strong);
+}
+
+.csv-file-card span,
+.csv-preview-list em {
+  color: var(--glass-text-muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.csv-preview-list {
+  display: grid;
+  gap: 10px;
+}
+
+.csv-preview-list div {
+  display: grid;
+  gap: 6px;
+}
+
+.csv-preview-list em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .batch-null-toggle {
@@ -5542,6 +5973,7 @@ onUnmounted(() => {
   }
 
   .query-form-grid,
+  .csv-import-controls,
   .query-row,
   .query-row.join-row,
   .query-row.filter-row,
