@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import GlassDialog from '../components/GlassDialog.vue';
 import ThemeHueControl from '../components/ThemeHueControl.vue';
@@ -66,6 +66,7 @@ type RowDraft = {
 };
 
 type SchemaEditorMode = 'ADD_COLUMN' | 'MODIFY_COLUMN' | 'ADD_INDEX' | 'ADD_CONSTRAINT';
+type SchemaConstraintType = 'PRIMARY_KEY' | 'UNIQUE' | 'FOREIGN_KEY' | 'CHECK_IN';
 type WorkbenchMode = 'tables' | 'query';
 type BatchInsertMode = 'json' | 'csv';
 type CsvEncoding = 'utf-8' | 'gbk';
@@ -166,8 +167,6 @@ const isNewRowVisible = ref(false);
 const isDeleteRowDialogVisible = ref(false);
 const deletingRow = ref<Record<string, unknown> | null>(null);
 const selectedRowKeys = ref<string[]>([]);
-const isRowSelectionDragging = ref(false);
-const rowSelectionMode = ref<'select' | 'deselect' | null>(null);
 const isBatchDeleteDialogVisible = ref(false);
 const batchDeleteError = ref('');
 const isBatchInsertDialogVisible = ref(false);
@@ -194,6 +193,9 @@ const importTableCsvData = ref<ImportedCsvData | null>(null);
 const importTableColumns = ref<ImportTableColumnDraft[]>([]);
 const importTablePreviewRows = ref<Array<Record<string, unknown>>>([]);
 const isImportingTable = ref(false);
+const isBackgroundImporting = ref(false);
+const importTaskMessage = ref('');
+const importTaskError = ref('');
 const isBatchUpdateDialogVisible = ref(false);
 const batchUpdateColumnName = ref('');
 const batchUpdateValue = ref('');
@@ -209,8 +211,14 @@ const schemaIndexName = ref('');
 const schemaIndexUnique = ref(false);
 const schemaIndexColumns = ref<string[]>([]);
 const schemaConstraintName = ref('');
+const schemaConstraintType = ref<SchemaConstraintType>('CHECK_IN');
 const schemaConstraintColumn = ref('');
+const schemaConstraintColumns = ref<string[]>([]);
 const schemaConstraintValues = ref('');
+const schemaReferenceTable = ref('');
+const schemaReferenceColumns = ref('');
+const schemaReferenceOnDelete = ref<'RESTRICT' | 'CASCADE' | 'SET NULL' | 'NO ACTION'>('RESTRICT');
+const schemaReferenceOnUpdate = ref<'RESTRICT' | 'CASCADE' | 'SET NULL' | 'NO ACTION'>('RESTRICT');
 const schemaActionError = ref('');
 const isSchemaSaving = ref(false);
 const queryBaseTableName = ref('');
@@ -241,8 +249,15 @@ const schemaEditorModeOptions: Array<{ value: SchemaEditorMode; label: string }>
   { value: 'ADD_COLUMN', label: '新增字段' },
   { value: 'MODIFY_COLUMN', label: '修改字段' },
   { value: 'ADD_INDEX', label: '新增索引' },
-  { value: 'ADD_CONSTRAINT', label: '有限取值约束' }
+  { value: 'ADD_CONSTRAINT', label: '新增约束' }
 ];
+const schemaConstraintTypeOptions: Array<{ value: SchemaConstraintType; label: string }> = [
+  { value: 'PRIMARY_KEY', label: '主键' },
+  { value: 'UNIQUE', label: '唯一约束' },
+  { value: 'FOREIGN_KEY', label: '外键' },
+  { value: 'CHECK_IN', label: '有限取值' }
+];
+const referenceActionOptions = ['RESTRICT', 'CASCADE', 'SET NULL', 'NO ACTION'] as const;
 const aggregateOptions: QueryAggregate[] = ['', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX'];
 const queryOperatorOptions: Array<{ value: QueryFilterDraft['operator']; label: string; needsValue: boolean }> = [
   { value: 'eq', label: '= 等于', needsValue: true },
@@ -261,7 +276,6 @@ const queryOperatorOptions: Array<{ value: QueryFilterDraft['operator']; label: 
 const previewPageSize = 20;
 let draftColumnSeed = 0;
 let tableNoticeTimer: number | null = null;
-let rowSelectionTimer: number | null = null;
 
 const databaseID = computed(() => Number(route.params.databaseId));
 const baseTables = computed(() => tableObjects.value.filter((object) => object.objectType === 'table'));
@@ -303,6 +317,14 @@ const updatableColumns = computed(() => {
 });
 const canInsertRows = computed(() => Boolean(selectedDatabase.value && selectedTableName.value && insertableColumns.value.length > 0));
 const canEditRows = computed(() => Boolean(selectedDatabase.value && selectedTableName.value && hasPrimaryKey.value && updatableColumns.value.length > 0));
+const dirtyRowKeys = computed(() => {
+  return Object.entries(rowDrafts.value)
+    .filter(([, draft]) => draft.isEditing && Object.keys(buildRowPayload(draft.values, updatableColumns.value, {
+      onlyChanged: draft.original
+    })).length > 0)
+    .map(([rowKey]) => rowKey);
+});
+const hasDirtyRows = computed(() => dirtyRowKeys.value.length > 0);
 const selectedRows = computed(() => {
   const selectedKeys = new Set(selectedRowKeys.value);
   return previewRows.value.filter((row, index) => selectedKeys.has(getRowKey(row, index)));
@@ -524,6 +546,23 @@ const loadSelectedTablePreview = async (options: { append?: boolean } = {}) => {
     previewError.value = getErrorMessage(error, '表数据预览加载失败，请稍后重试。');
   } finally {
     isPreviewLoading.value = false;
+  }
+};
+
+const refreshCurrentTable = async () => {
+  if (!selectedDatabase.value) {
+    await loadDatabase();
+    return;
+  }
+
+  const currentTableName = selectedTableName.value;
+  await loadDatabaseObjects(currentTableName);
+
+  if (currentTableName && selectedTableName.value === currentTableName) {
+    await Promise.all([
+      loadSelectedTableSchema(currentTableName),
+      loadSelectedTablePreview()
+    ]);
   }
 };
 
@@ -1062,6 +1101,18 @@ const formatFacetValue = (value: string | number | boolean | null) => {
   return value === null ? 'NULL' : String(value);
 };
 
+const getVisibleColumnSummary = () => {
+  if (visibleColumnNames.value.length === previewColumns.value.length) {
+    return '全部列';
+  }
+
+  if (visibleColumnNames.value.length === 0) {
+    return '未选择';
+  }
+
+  return visibleColumnNames.value.join('、');
+};
+
 const formatCsvPreviewRow = (row: Record<string, unknown>) => {
   return Object.entries(row)
     .map(([name, value]) => `${name}: ${formatCellValue(value)}`)
@@ -1162,6 +1213,38 @@ const getDraftValue = (row: Record<string, unknown>, rowIndex: number, columnNam
   return rowDrafts.value[rowKey]?.values[columnName] ?? '';
 };
 
+const isColumnNumeric = (column: TableColumnSchema) => {
+  return ['TINYINT', 'SMALLINT', 'INT', 'BIGINT', 'DECIMAL', 'FLOAT', 'DOUBLE'].includes(column.dataType);
+};
+
+const getColumnInputType = (column: TableColumnSchema) => {
+  if (isColumnNumeric(column)) {
+    return 'number';
+  }
+
+  if (column.dataType === 'DATE') {
+    return 'date';
+  }
+
+  if (['DATETIME', 'TIMESTAMP'].includes(column.dataType)) {
+    return 'datetime-local';
+  }
+
+  return 'text';
+};
+
+const hasRowChanges = (row: Record<string, unknown>, rowIndex: number) => {
+  const draft = rowDrafts.value[getRowKey(row, rowIndex)];
+
+  if (!draft?.isEditing) {
+    return false;
+  }
+
+  return Object.keys(buildRowPayload(draft.values, updatableColumns.value, {
+    onlyChanged: draft.original
+  })).length > 0;
+};
+
 const updateDraftValue = (row: Record<string, unknown>, rowIndex: number, columnName: string, value: string) => {
   const rowKey = getRowKey(row, rowIndex);
   const draft = rowDrafts.value[rowKey];
@@ -1173,13 +1256,19 @@ const updateDraftValue = (row: Record<string, unknown>, rowIndex: number, column
   draft.values[columnName] = value;
 };
 
-const updateDraftInputValue = (
+const updateDraftCellValue = (
   row: Record<string, unknown>,
   rowIndex: number,
-  columnName: string,
+  column: TableColumnSchema,
   value: string | number
 ) => {
-  updateDraftValue(row, rowIndex, columnName, String(value));
+  let nextValue = String(value);
+
+  if (isColumnNumeric(column) && nextValue && Number.isNaN(Number(nextValue))) {
+    return;
+  }
+
+  updateDraftValue(row, rowIndex, column.name, nextValue);
 };
 
 const handleNewRowInputEnter = () => {
@@ -1891,6 +1980,10 @@ const submitImportTable = async () => {
   }
 
   isImportingTable.value = true;
+  isBackgroundImporting.value = true;
+  importTaskMessage.value = `正在导入 ${payload.tableName}，你可以继续浏览当前页面。`;
+  importTaskError.value = '';
+  isImportTableDialogVisible.value = false;
 
   try {
     const schema = await createTable(selectedDatabase.value.id, payload);
@@ -1913,13 +2006,22 @@ const submitImportTable = async () => {
     }
 
     selectedTableSchema.value = schema;
-    isImportTableDialogVisible.value = false;
+    importTaskMessage.value = `已导入 ${rows.length} 行到 ${schema.tableName}`;
     showTableNotice(`已导入 ${rows.length} 行到 ${schema.tableName}`);
     await loadDatabase(schema.tableName);
   } catch (error) {
-    importTableError.value = getErrorMessage(error, 'CSV 导入建表失败');
+    const message = getErrorMessage(error, 'CSV 导入建表失败');
+    importTableError.value = message;
+    importTaskError.value = message;
+    importTaskMessage.value = '';
+    isImportTableDialogVisible.value = true;
   } finally {
     isImportingTable.value = false;
+    window.setTimeout(() => {
+      isBackgroundImporting.value = false;
+      importTaskMessage.value = '';
+      importTaskError.value = '';
+    }, importTaskError.value ? 4200 : 2200);
   }
 };
 
@@ -2003,6 +2105,50 @@ const cancelEditRow = (row: Record<string, unknown>, rowIndex: number) => {
     isEditing: false
   };
   rowError.value = '';
+};
+
+const startEditCell = (row: Record<string, unknown>, rowIndex: number, column: TableColumnSchema) => {
+  if (!isColumnUpdatable(column)) {
+    return;
+  }
+
+  startEditRow(row, rowIndex);
+};
+
+const submitDirtyRows = async () => {
+  if (!selectedDatabase.value || !selectedTableName.value || dirtyRowKeys.value.length === 0) {
+    return;
+  }
+
+  isRowSaving.value = true;
+  rowError.value = '';
+
+  try {
+    for (const rowKey of dirtyRowKeys.value) {
+      const draft = rowDrafts.value[rowKey];
+
+      if (!draft) {
+        continue;
+      }
+
+      const payload = buildRowPayload(draft.values, updatableColumns.value, {
+        onlyChanged: draft.original
+      });
+
+      if (Object.keys(payload).length === 0) {
+        continue;
+      }
+
+      await updateTableRow(selectedDatabase.value.id, selectedTableName.value, buildPrimaryKeyFromRow(draft.original), payload);
+    }
+
+    showTableNotice(`已提交 ${dirtyRowKeys.value.length} 行修改`);
+    await loadSelectedTablePreview();
+  } catch (error) {
+    rowError.value = getErrorMessage(error, '批量提交修改失败');
+  } finally {
+    isRowSaving.value = false;
+  }
 };
 
 const submitEditRow = async (row: Record<string, unknown>, rowIndex: number) => {
@@ -2109,16 +2255,6 @@ const isRowSelected = (row: Record<string, unknown>, rowIndex: number) => {
   return selectedRowKeys.value.includes(getRowKey(row, rowIndex));
 };
 
-const shouldIgnoreRowSelection = (event: PointerEvent) => {
-  const target = event.target;
-
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  return Boolean(target.closest('button, input, textarea, select, .el-input, .el-select, .row-action-button'));
-};
-
 const setRowSelection = (row: Record<string, unknown>, rowIndex: number, mode: 'select' | 'deselect') => {
   const rowKey = getRowKey(row, rowIndex);
   const selectedKeys = new Set(selectedRowKeys.value);
@@ -2132,44 +2268,20 @@ const setRowSelection = (row: Record<string, unknown>, rowIndex: number, mode: '
   selectedRowKeys.value = [...selectedKeys];
 };
 
-const clearRowSelectionTimer = () => {
-  if (rowSelectionTimer !== null) {
-    window.clearTimeout(rowSelectionTimer);
-    rowSelectionTimer = null;
-  }
-};
-
-const startRowSelectionGesture = (event: PointerEvent, row: Record<string, unknown>, rowIndex: number) => {
-  if (!hasPrimaryKey.value || isRowEditing(row, rowIndex) || shouldIgnoreRowSelection(event)) {
+const toggleRowSelection = (row: Record<string, unknown>, rowIndex: number) => {
+  if (!hasPrimaryKey.value) {
     return;
   }
 
-  const shouldDeselect = isRowSelected(row, rowIndex);
-  rowSelectionMode.value = shouldDeselect ? 'deselect' : 'select';
-  clearRowSelectionTimer();
-
-  rowSelectionTimer = window.setTimeout(() => {
-    if (!rowSelectionMode.value) {
-      return;
-    }
-
-    isRowSelectionDragging.value = true;
-    setRowSelection(row, rowIndex, rowSelectionMode.value);
-  }, 180);
+  setRowSelection(row, rowIndex, isRowSelected(row, rowIndex) ? 'deselect' : 'select');
 };
 
-const extendRowSelectionGesture = (row: Record<string, unknown>, rowIndex: number) => {
-  if (!isRowSelectionDragging.value || !rowSelectionMode.value || isRowEditing(row, rowIndex)) {
+const handlePreviewCellClick = (event: MouseEvent, row: Record<string, unknown>, rowIndex: number) => {
+  if (event.detail > 1) {
     return;
   }
 
-  setRowSelection(row, rowIndex, rowSelectionMode.value);
-};
-
-const finishRowSelectionGesture = () => {
-  clearRowSelectionTimer();
-  isRowSelectionDragging.value = false;
-  rowSelectionMode.value = null;
+  toggleRowSelection(row, rowIndex);
 };
 
 const clearSelectedRows = () => {
@@ -2334,8 +2446,14 @@ const resetSchemaEditor = () => {
   schemaIndexUnique.value = false;
   schemaIndexColumns.value = [];
   schemaConstraintName.value = '';
+  schemaConstraintType.value = 'CHECK_IN';
   schemaConstraintColumn.value = '';
+  schemaConstraintColumns.value = [];
   schemaConstraintValues.value = '';
+  schemaReferenceTable.value = '';
+  schemaReferenceColumns.value = '';
+  schemaReferenceOnDelete.value = 'RESTRICT';
+  schemaReferenceOnUpdate.value = 'RESTRICT';
   schemaActionError.value = '';
 };
 
@@ -2659,36 +2777,76 @@ const buildSchemaOperation = (): TableSchemaOperation | null => {
     };
   }
 
-  const name = schemaConstraintName.value.trim();
+  const type = schemaConstraintType.value;
+  const selectedColumns = type === 'CHECK_IN'
+    ? [schemaConstraintColumn.value].filter(Boolean)
+    : schemaConstraintColumns.value;
+  const name = type === 'PRIMARY_KEY' ? 'PRIMARY' : schemaConstraintName.value.trim();
 
-  if (!sqlIdentifierPattern.test(name)) {
+  if (type !== 'PRIMARY_KEY' && !sqlIdentifierPattern.test(name)) {
     schemaActionError.value = '约束名需以英文字母开头，只能包含英文字母、数字和下划线';
     return null;
   }
 
-  if (!schemaConstraintColumn.value) {
-    schemaActionError.value = '请选择有限取值字段';
+  if (selectedColumns.length === 0) {
+    schemaActionError.value = '请至少选择一个约束字段';
     return null;
   }
 
-  const values = schemaConstraintValues.value
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
+  if (type === 'CHECK_IN') {
+    const values = schemaConstraintValues.value
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
 
-  if (values.length === 0) {
-    schemaActionError.value = '请用英文逗号分隔填写允许值';
-    return null;
+    if (values.length === 0) {
+      schemaActionError.value = '请用英文逗号分隔填写允许值';
+      return null;
+    }
+
+    return {
+      action: 'ADD_CONSTRAINT',
+      constraint: {
+        name,
+        type,
+        columns: selectedColumns,
+        column: selectedColumns[0],
+        values
+      }
+    };
+  }
+
+  if (type === 'FOREIGN_KEY') {
+    const referencedColumns = schemaReferenceColumns.value
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (!schemaReferenceTable.value.trim() || referencedColumns.length === 0) {
+      schemaActionError.value = '外键需要填写引用表和引用字段';
+      return null;
+    }
+
+    return {
+      action: 'ADD_CONSTRAINT',
+      constraint: {
+        name,
+        type,
+        columns: selectedColumns,
+        referencedTable: schemaReferenceTable.value.trim(),
+        referencedColumns,
+        onDelete: schemaReferenceOnDelete.value,
+        onUpdate: schemaReferenceOnUpdate.value
+      }
+    };
   }
 
   return {
     action: 'ADD_CONSTRAINT',
     constraint: {
       name,
-      type: 'CHECK_IN',
-      columns: [schemaConstraintColumn.value],
-      column: schemaConstraintColumn.value,
-      values
+      type,
+      columns: selectedColumns
     }
   };
 };
@@ -2843,9 +3001,6 @@ onMounted(() => {
   void loadDatabase();
 });
 
-onUnmounted(() => {
-  clearRowSelectionTimer();
-});
 </script>
 
 <template>
@@ -2988,7 +3143,7 @@ onUnmounted(() => {
               class="dialog-button"
               type="button"
               :disabled="!selectedDatabase || isObjectLoading"
-              @click="loadDatabaseObjects()"
+              @click="refreshCurrentTable"
             >
               {{ isObjectLoading ? '刷新中…' : '刷新' }}
             </button>
@@ -3032,6 +3187,15 @@ onUnmounted(() => {
             <div class="table-panel-title">
               <span>数据表</span>
               <small>{{ baseTables.length }} 张表</small>
+            </div>
+
+            <div
+              v-if="isBackgroundImporting || importTaskMessage || importTaskError"
+              class="import-task-card"
+              :class="{ error: Boolean(importTaskError) }"
+            >
+              <span>{{ importTaskError ? '导入失败' : (isBackgroundImporting ? '后台导入中' : '导入完成') }}</span>
+              <p>{{ importTaskError || importTaskMessage }}</p>
             </div>
 
             <div
@@ -3131,7 +3295,7 @@ onUnmounted(() => {
                     class="dialog-button"
                     type="button"
                     :disabled="isPreviewLoading"
-                    @click="loadSelectedTablePreview()"
+                    @click="refreshCurrentTable"
                   >
                     {{ isPreviewLoading ? '刷新中…' : '刷新预览' }}
                   </button>
@@ -3166,7 +3330,7 @@ onUnmounted(() => {
                 >
                   <div>
                     <span>已选中 {{ selectedRows.length }} 行</span>
-                    <small>继续长按并拖过行可追加选择；从已选行开始拖动可取消选择。</small>
+                    <small>点击任意单元格即可选中整行；双击可编辑单元格。</small>
                   </div>
                   <div class="selection-actions">
                     <button
@@ -3204,12 +3368,13 @@ onUnmounted(() => {
                   <el-select
                     v-model="visibleColumnNames"
                     multiple
-                    collapse-tags
-                    collapse-tags-tooltip
                     popper-class="workbench-select-popper"
                     placeholder="选择显示列"
                     size="small"
                   >
+                    <template #tag>
+                      <span class="visible-column-summary">{{ getVisibleColumnSummary() }}</span>
+                    </template>
                     <el-option
                       v-for="column in previewColumns"
                       :key="column.name"
@@ -3230,7 +3395,6 @@ onUnmounted(() => {
                 <div
                   v-else
                   class="preview-table-shell"
-                  @pointerleave="finishRowSelectionGesture"
                 >
                   <table class="preview-table">
                     <thead>
@@ -3238,7 +3402,7 @@ onUnmounted(() => {
                         <th class="preview-action-column">
                           <div class="preview-action-head">
                             <span>行操作</span>
-                            <small>{{ hasPrimaryKey ? '长按拖选' : '只读浏览' }}</small>
+                            <small>{{ hasPrimaryKey ? '单元格选行' : '只读浏览' }}</small>
                           </div>
                         </th>
                         <th
@@ -3260,6 +3424,7 @@ onUnmounted(() => {
                               v-model="columnFilters[column.name].value"
                               clearable
                               filterable
+                              popper-class="workbench-select-popper"
                               placeholder=""
                               size="small"
                               @keyup.enter="applyPreviewFilter"
@@ -3340,12 +3505,9 @@ onUnmounted(() => {
                         :class="{
                           'is-editing-row': isRowEditing(row, rowIndex),
                           'is-selected-row': isRowSelected(row, rowIndex),
-                          'is-selectable-row': hasPrimaryKey && !isRowEditing(row, rowIndex)
+                          'is-dirty-row': hasRowChanges(row, rowIndex),
+                          'is-selectable-row': hasPrimaryKey
                         }"
-                        @pointerdown="startRowSelectionGesture($event, row, rowIndex)"
-                        @pointerenter="extendRowSelectionGesture(row, rowIndex)"
-                        @pointerup="finishRowSelectionGesture"
-                        @pointercancel="finishRowSelectionGesture"
                       >
                         <td class="preview-action-column row-action-cell">
                           <div
@@ -3359,6 +3521,7 @@ onUnmounted(() => {
                               已选中
                             </span>
                             <button
+                              v-if="hasRowChanges(row, rowIndex)"
                               class="row-action-button primary"
                               type="button"
                               :disabled="isRowSaving"
@@ -3389,16 +3552,8 @@ onUnmounted(() => {
                               v-else
                               class="row-select-hint"
                             >
-                              长按选择
+                              点击选行
                             </span>
-                            <button
-                              class="row-action-button"
-                              type="button"
-                              :disabled="!canEditRows || isRowSaving"
-                              @click="startEditRow(row, rowIndex)"
-                            >
-                              编辑
-                            </button>
                             <button
                               class="row-action-button danger"
                               type="button"
@@ -3412,14 +3567,20 @@ onUnmounted(() => {
                         <td
                           v-for="column in displayedPreviewColumns"
                           :key="column.name"
+                          class="preview-cell"
+                          :title="formatCellValue(row[column.name])"
+                          @click="handlePreviewCellClick($event, row, rowIndex)"
+                          @dblclick.stop="startEditCell(row, rowIndex, column)"
                         >
                           <el-input
                             v-if="isRowEditing(row, rowIndex) && isColumnUpdatable(column)"
                             class="cell-editor"
                             size="small"
+                            :type="getColumnInputType(column)"
                             :model-value="getDraftValue(row, rowIndex, column.name)"
                             placeholder=""
-                            @update:model-value="updateDraftInputValue(row, rowIndex, column.name, $event)"
+                            @click.stop
+                            @update:model-value="updateDraftCellValue(row, rowIndex, column, $event)"
                             @keyup.enter="handleEditRowInputEnter(row, rowIndex)"
                           />
                           <span
@@ -3442,10 +3603,20 @@ onUnmounted(() => {
               </template>
 
               <div
-                v-if="tablePreview?.hasMore"
+                v-if="tablePreview?.hasMore || hasDirtyRows"
                 class="preview-more-row"
               >
                 <button
+                  v-if="hasDirtyRows"
+                  class="dialog-button primary"
+                  type="button"
+                  :disabled="isRowSaving"
+                  @click="submitDirtyRows"
+                >
+                  提交全部修改（{{ dirtyRowKeys.length }}）
+                </button>
+                <button
+                  v-if="tablePreview?.hasMore"
                   class="dialog-button"
                   type="button"
                   :disabled="isPreviewLoading"
@@ -4065,6 +4236,7 @@ onUnmounted(() => {
               <span>类型</span>
               <el-select
                 v-model="column.type"
+                popper-class="workbench-select-popper"
                 placeholder="选择类型"
                 @change="applyColumnTypeDefaults(column)"
               >
@@ -4391,6 +4563,7 @@ onUnmounted(() => {
               <span>目标字段</span>
               <el-select
                 v-model="schemaTargetColumnName"
+                popper-class="workbench-select-popper"
                 placeholder="选择字段"
                 @change="loadColumnIntoSchemaDraft"
               >
@@ -4414,6 +4587,7 @@ onUnmounted(() => {
                 <span>类型</span>
                 <el-select
                   v-model="schemaDraftColumn.type"
+                  popper-class="workbench-select-popper"
                   placeholder="选择类型"
                   @change="applyColumnTypeDefaults(schemaDraftColumn)"
                 >
@@ -4476,6 +4650,7 @@ onUnmounted(() => {
               <el-select
                 v-model="schemaIndexColumns"
                 multiple
+                popper-class="workbench-select-popper"
                 placeholder="选择字段"
               >
                 <el-option
@@ -4496,13 +4671,48 @@ onUnmounted(() => {
             class="schema-editor-form"
           >
             <label class="dialog-field">
-              <span>约束名</span>
-              <el-input v-model="schemaConstraintName" maxlength="64" />
+              <span>约束类型</span>
+              <el-select
+                v-model="schemaConstraintType"
+                popper-class="workbench-select-popper"
+              >
+                <el-option
+                  v-for="option in schemaConstraintTypeOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
             </label>
             <label class="dialog-field">
-              <span>字段</span>
+              <span>约束名</span>
+              <el-input
+                v-model="schemaConstraintName"
+                :disabled="schemaConstraintType === 'PRIMARY_KEY'"
+                maxlength="64"
+                :placeholder="schemaConstraintType === 'PRIMARY_KEY' ? 'PRIMARY' : ''"
+              />
+            </label>
+            <label class="dialog-field">
+              <span>{{ schemaConstraintType === 'CHECK_IN' ? '字段' : '约束字段' }}</span>
               <el-select
+                v-if="schemaConstraintType === 'CHECK_IN'"
                 v-model="schemaConstraintColumn"
+                popper-class="workbench-select-popper"
+                placeholder="选择字段"
+              >
+                <el-option
+                  v-for="column in selectedTableSchema.columns"
+                  :key="column.name"
+                  :label="column.name"
+                  :value="column.name"
+                />
+              </el-select>
+              <el-select
+                v-else
+                v-model="schemaConstraintColumns"
+                multiple
+                popper-class="workbench-select-popper"
                 placeholder="选择字段"
               >
                 <el-option
@@ -4513,13 +4723,70 @@ onUnmounted(() => {
                 />
               </el-select>
             </label>
-            <label class="dialog-field schema-wide-field">
+            <label
+              v-if="schemaConstraintType === 'CHECK_IN'"
+              class="dialog-field schema-wide-field"
+            >
               <span>允许值</span>
               <el-input
                 v-model="schemaConstraintValues"
                 placeholder="例如：男,女"
               />
             </label>
+            <template v-else-if="schemaConstraintType === 'FOREIGN_KEY'">
+              <label class="dialog-field">
+                <span>引用表</span>
+                <el-select
+                  v-model="schemaReferenceTable"
+                  filterable
+                  allow-create
+                  popper-class="workbench-select-popper"
+                  placeholder="选择或输入引用表"
+                >
+                  <el-option
+                    v-for="table in baseTables"
+                    :key="table.name"
+                    :label="table.name"
+                    :value="table.name"
+                  />
+                </el-select>
+              </label>
+              <label class="dialog-field">
+                <span>引用字段</span>
+                <el-input
+                  v-model="schemaReferenceColumns"
+                  placeholder="例如：id 或 id,tenant_id"
+                />
+              </label>
+              <label class="dialog-field compact-field">
+                <span>删除策略</span>
+                <el-select
+                  v-model="schemaReferenceOnDelete"
+                  popper-class="workbench-select-popper"
+                >
+                  <el-option
+                    v-for="action in referenceActionOptions"
+                    :key="action"
+                    :label="action"
+                    :value="action"
+                  />
+                </el-select>
+              </label>
+              <label class="dialog-field compact-field">
+                <span>更新策略</span>
+                <el-select
+                  v-model="schemaReferenceOnUpdate"
+                  popper-class="workbench-select-popper"
+                >
+                  <el-option
+                    v-for="action in referenceActionOptions"
+                    :key="action"
+                    :label="action"
+                    :value="action"
+                  />
+                </el-select>
+              </label>
+            </template>
           </div>
 
           <p
@@ -5022,6 +5289,7 @@ onUnmounted(() => {
           <span>目标字段</span>
           <el-select
             v-model="batchUpdateColumnName"
+            popper-class="workbench-select-popper"
             placeholder="选择要修改的字段"
           >
             <el-option
@@ -5778,6 +6046,37 @@ onUnmounted(() => {
   gap: 10px;
 }
 
+.import-task-card {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid hsla(var(--theme-hue), 90%, 72%, 0.2);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 0% 50%, hsla(var(--theme-hue), 86%, 60%, 0.16), transparent 38%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.import-task-card.error {
+  border-color: rgba(248, 113, 113, 0.34);
+  background: rgba(127, 29, 29, 0.1);
+}
+
+.import-task-card span {
+  color: var(--glass-text-strong);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.import-task-card p {
+  margin: 0;
+  color: var(--glass-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .preview-toolbar span {
   color: var(--glass-text-muted);
   font-size: 13px;
@@ -5807,8 +6106,26 @@ onUnmounted(() => {
 }
 
 .preview-toolbar :deep(.el-select__placeholder),
-.preview-toolbar :deep(.el-select__input) {
-  color: var(--glass-text-muted);
+.preview-toolbar :deep(.el-select__input),
+.preview-toolbar :deep(.el-select__selected-item) {
+  color: var(--glass-text-strong);
+}
+
+.visible-column-summary {
+  display: inline-flex;
+  overflow: hidden;
+  align-items: center;
+  max-width: min(52vw, 460px);
+  min-height: 24px;
+  padding: 0 10px;
+  color: var(--glass-text-strong) !important;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.18);
+  border-radius: 999px;
+  background: hsla(var(--theme-hue), 80%, 60%, 0.12);
 }
 
 .preview-toolbar :deep(.el-tag) {
@@ -6024,21 +6341,25 @@ onUnmounted(() => {
 }
 
 .preview-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   min-width: 720px;
   color: var(--glass-text);
   font-size: 13px;
+  table-layout: auto;
   border-spacing: 0;
 }
 
 .preview-table th,
 .preview-table td {
-  max-width: 260px;
+  width: max-content;
+  min-width: 120px;
+  max-width: min(34vw, 420px);
   padding: 12px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
-  text-align: left;
-  vertical-align: top;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .preview-table .preview-action-column {
@@ -6106,10 +6427,10 @@ onUnmounted(() => {
 }
 
 .preview-table td {
-  overflow: hidden;
+  overflow: visible;
   line-height: 1.6;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .preview-table tbody tr:hover td {
@@ -6117,12 +6438,12 @@ onUnmounted(() => {
 }
 
 .preview-table tbody tr.is-selectable-row {
-  cursor: grab;
+  cursor: cell;
   user-select: none;
 }
 
 .preview-table tbody tr.is-selectable-row:active {
-  cursor: grabbing;
+  cursor: cell;
 }
 
 .preview-table tbody tr.is-selected-row td {
@@ -6142,6 +6463,12 @@ onUnmounted(() => {
 .preview-table tbody tr.new-row-line td {
   background:
     linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.12), rgba(255, 255, 255, 0.045));
+}
+
+.preview-table tbody tr.is-dirty-row td {
+  box-shadow:
+    inset 0 -2px 0 hsla(var(--theme-hue), 90%, 72%, 0.56),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .row-action-cell {
@@ -6244,8 +6571,26 @@ onUnmounted(() => {
   min-height: 30px;
   border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.16);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06) !important;
-  box-shadow: none !important;
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.1), rgba(255, 255, 255, 0.055)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 18px rgba(0, 0, 0, 0.1) !important;
+}
+
+.preview-column-head :deep(.el-select__selected-item),
+.preview-column-head :deep(.el-select__placeholder),
+.preview-column-head :deep(.el-select__input),
+.preview-column-head :deep(.el-input__inner) {
+  color: var(--glass-text-strong);
+}
+
+.preview-cell {
+  transition: var(--glass-transition);
+}
+
+.preview-cell:hover {
+  background: hsla(var(--theme-hue), 80%, 60%, 0.1) !important;
 }
 
 .null-cell {
