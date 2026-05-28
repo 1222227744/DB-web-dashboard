@@ -69,6 +69,27 @@ type SchemaEditorMode = 'ADD_COLUMN' | 'MODIFY_COLUMN' | 'ADD_INDEX' | 'ADD_CONS
 type WorkbenchMode = 'tables' | 'query';
 type BatchInsertMode = 'json' | 'csv';
 type CsvEncoding = 'utf-8' | 'gbk';
+type CsvColumnMapping = {
+  sourceIndex: number;
+  targetName: string;
+};
+
+type ImportTableColumnDraft = {
+  id: number;
+  sourceIndex: number;
+  sourceName: string;
+  name: string;
+  type: string;
+  length: number | null;
+  nullable: boolean;
+};
+
+type ImportedCsvData = {
+  fileName: string;
+  records: string[][];
+  header: string[];
+  rows: string[][];
+};
 type QueryAggregate = '' | 'COUNT' | 'SUM' | 'AVG' | 'MIN' | 'MAX';
 
 type QueryFieldDraft = {
@@ -158,7 +179,21 @@ const batchInsertCsvEncoding = ref<CsvEncoding>('utf-8');
 const batchInsertSkipRows = ref(1);
 const batchInsertCsvFileName = ref('');
 const batchInsertCsvBuffer = ref<ArrayBuffer | null>(null);
+const batchInsertCsvData = ref<ImportedCsvData | null>(null);
 const batchInsertCsvRows = ref<Array<Record<string, unknown>>>([]);
+const batchInsertColumnMappings = ref<CsvColumnMapping[]>([]);
+const isImportTableDialogVisible = ref(false);
+const importTableFileInputRef = ref<HTMLInputElement | null>(null);
+const importTableEncoding = ref<CsvEncoding>('utf-8');
+const importTableUseHeader = ref(true);
+const importTableError = ref('');
+const importTableName = ref('');
+const importTableCsvFileName = ref('');
+const importTableCsvBuffer = ref<ArrayBuffer | null>(null);
+const importTableCsvData = ref<ImportedCsvData | null>(null);
+const importTableColumns = ref<ImportTableColumnDraft[]>([]);
+const importTablePreviewRows = ref<Array<Record<string, unknown>>>([]);
+const isImportingTable = ref(false);
 const isBatchUpdateDialogVisible = ref(false);
 const batchUpdateColumnName = ref('');
 const batchUpdateValue = ref('');
@@ -201,6 +236,7 @@ let querySortSeed = 0;
 
 const sqlIdentifierPattern = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
 const supportedTableTypes = ['INT', 'BIGINT', 'VARCHAR', 'TEXT', 'DATETIME', 'DATE', 'BOOLEAN', 'DECIMAL', 'JSON'];
+const csvImportColumnTypes = ['VARCHAR', 'INT', 'DECIMAL', 'DATE', 'DATETIME', 'TEXT', 'BOOLEAN', 'JSON'];
 const schemaEditorModeOptions: Array<{ value: SchemaEditorMode; label: string }> = [
   { value: 'ADD_COLUMN', label: '新增字段' },
   { value: 'MODIFY_COLUMN', label: '修改字段' },
@@ -1032,6 +1068,34 @@ const formatCsvPreviewRow = (row: Record<string, unknown>) => {
     .join('，');
 };
 
+const normalizeIdentifierText = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+
+const makeSafeIdentifier = (value: string, fallback: string) => {
+  const asciiText = value
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[^A-Za-z0-9_]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  const withPrefix = /^[A-Za-z]/.test(asciiText) ? asciiText : `col_${asciiText || fallback}`;
+  return withPrefix.slice(0, 64);
+};
+
+const ensureUniqueIdentifier = (value: string, usedNames: Set<string>, fallback: string) => {
+  const baseName = makeSafeIdentifier(value, fallback) || fallback;
+  let name = baseName;
+  let index = 2;
+
+  while (usedNames.has(name)) {
+    const suffix = `_${index}`;
+    name = `${baseName.slice(0, 64 - suffix.length)}${suffix}`;
+    index += 1;
+  }
+
+  usedNames.add(name);
+  return name;
+};
+
 const isColumnInsertable = (column: TableColumnSchema) => {
   return !column.extra.includes('auto_increment');
 };
@@ -1142,7 +1206,9 @@ const resetBatchInsertCsvState = () => {
   batchInsertSkipRows.value = 1;
   batchInsertCsvFileName.value = '';
   batchInsertCsvBuffer.value = null;
+  batchInsertCsvData.value = null;
   batchInsertCsvRows.value = [];
+  batchInsertColumnMappings.value = [];
 
   if (batchInsertFileInputRef.value) {
     batchInsertFileInputRef.value.value = '';
@@ -1231,40 +1297,94 @@ const parseCsvText = (text: string) => {
   return rows;
 };
 
-const buildRowsFromCsvRecords = (records: string[][]) => {
-  const skipRows = Math.max(0, Math.floor(Number(batchInsertSkipRows.value) || 0));
-  const dataRows = records
-    .map((cells, index) => ({
-      cells,
-      rowNumber: index + 1
-    }))
+const readCsvData = (
+  buffer: ArrayBuffer,
+  encoding: CsvEncoding,
+  options: {
+    fileName: string;
+    skipRows: number;
+  }
+): ImportedCsvData => {
+  const text = new TextDecoder(encoding).decode(buffer);
+  const records = parseCsvText(text);
+  const skipRows = Math.max(0, Math.floor(Number(options.skipRows) || 0));
+  const header = records[0] ?? [];
+  const rows = records
     .slice(skipRows)
-    .filter(({ cells }) => cells.some((cell) => cell.trim() !== ''));
+    .filter((cells) => cells.some((cell) => cell.trim() !== ''));
 
-  return dataRows.map(({ cells, rowNumber }) => {
-    const normalizedCells = trimTrailingEmptyCells(cells);
-    const extraValues = normalizedCells
-      .slice(insertableColumns.value.length)
-      .filter((cell) => cell.trim() !== '');
+  return {
+    fileName: options.fileName,
+    records,
+    header,
+    rows
+  };
+};
 
-    if (extraValues.length > 0) {
-      throw new Error(`CSV 第 ${rowNumber} 行的列数超过可写字段数量`);
+const buildAutoCsvMappings = (header: string[], columns: TableColumnSchema[]) => {
+  const columnMap = new Map(columns.map((column) => [normalizeIdentifierText(column.name), column.name]));
+  const usedTargets = new Set<string>();
+
+  return header.map((cell, index) => {
+    const matchedTarget = columnMap.get(normalizeIdentifierText(cell)) ?? columns[index]?.name ?? '';
+    const targetName = matchedTarget && !usedTargets.has(matchedTarget) ? matchedTarget : '';
+
+    if (targetName) {
+      usedTargets.add(targetName);
     }
 
+    return {
+      sourceIndex: index,
+      targetName
+    };
+  });
+};
+
+const ensureCsvMappingsCoverData = (data: ImportedCsvData) => {
+  const maxColumnCount = Math.max(
+    data.header.length,
+    ...data.rows.map((row) => trimTrailingEmptyCells(row).length),
+    0
+  );
+  const existing = new Map(batchInsertColumnMappings.value.map((mapping) => [mapping.sourceIndex, mapping.targetName]));
+
+  batchInsertColumnMappings.value = Array.from({ length: maxColumnCount }, (_, index) => ({
+    sourceIndex: index,
+    targetName: existing.get(index) ?? ''
+  }));
+};
+
+const buildRowsFromCsvData = (data: ImportedCsvData, mappings: CsvColumnMapping[]) => {
+  const activeMappings = mappings.filter((mapping) => mapping.targetName);
+  const usedTargets = new Set<string>();
+
+  activeMappings.forEach((mapping) => {
+    if (usedTargets.has(mapping.targetName)) {
+      throw new Error(`字段 ${mapping.targetName} 被映射了多次`);
+    }
+
+    usedTargets.add(mapping.targetName);
+  });
+
+  if (activeMappings.length === 0) {
+    throw new Error('请至少选择一个 CSV 列与表字段的映射关系');
+  }
+
+  return data.rows.map((cells, rowIndex) => {
     const rowPayload: Record<string, unknown> = {};
 
-    insertableColumns.value.forEach((column, index) => {
-      const value = cells[index] ?? '';
+    activeMappings.forEach((mapping) => {
+      const value = cells[mapping.sourceIndex] ?? '';
 
       if (value === '') {
         return;
       }
 
-      rowPayload[column.name] = value;
+      rowPayload[mapping.targetName] = value;
     });
 
     if (Object.keys(rowPayload).length === 0) {
-      throw new Error(`CSV 第 ${rowNumber} 行没有可导入字段`);
+      throw new Error(`CSV 第 ${rowIndex + Math.max(0, Math.floor(Number(batchInsertSkipRows.value) || 0)) + 1} 行没有可导入字段`);
     }
 
     return rowPayload;
@@ -1272,6 +1392,7 @@ const buildRowsFromCsvRecords = (records: string[][]) => {
 };
 
 const parseBatchInsertCsvFile = () => {
+  batchInsertCsvData.value = null;
   batchInsertCsvRows.value = [];
 
   if (!batchInsertCsvBuffer.value) {
@@ -1281,17 +1402,52 @@ const parseBatchInsertCsvFile = () => {
   batchInsertError.value = '';
 
   try {
-    const text = new TextDecoder(batchInsertCsvEncoding.value).decode(batchInsertCsvBuffer.value);
-    const records = parseCsvText(text);
-    const rows = buildRowsFromCsvRecords(records);
+    const data = readCsvData(batchInsertCsvBuffer.value, batchInsertCsvEncoding.value, {
+      fileName: batchInsertCsvFileName.value,
+      skipRows: batchInsertSkipRows.value
+    });
+    batchInsertCsvData.value = data;
+
+    if (batchInsertColumnMappings.value.length === 0) {
+      batchInsertColumnMappings.value = buildAutoCsvMappings(data.header, insertableColumns.value);
+    }
+
+    ensureCsvMappingsCoverData(data);
+    const rows = buildRowsFromCsvData(data, batchInsertColumnMappings.value);
     batchInsertCsvRows.value = rows;
 
     if (rows.length === 0) {
       batchInsertError.value = 'CSV 文件没有可导入的数据行';
     }
   } catch (error) {
+    batchInsertCsvData.value = null;
     batchInsertCsvRows.value = [];
     batchInsertError.value = error instanceof Error ? error.message : 'CSV 文件解析失败';
+  }
+};
+
+const updateBatchCsvMapping = (sourceIndex: number, targetName: string) => {
+  const matchedMapping = batchInsertColumnMappings.value.find((mapping) => mapping.sourceIndex === sourceIndex);
+
+  if (matchedMapping) {
+    matchedMapping.targetName = targetName;
+  } else {
+    batchInsertColumnMappings.value.push({
+      sourceIndex,
+      targetName
+    });
+  }
+
+  if (batchInsertCsvBuffer.value) {
+    parseBatchInsertCsvFile();
+  }
+};
+
+const applyAutoBatchCsvMappings = () => {
+  batchInsertColumnMappings.value = buildAutoCsvMappings(batchInsertCsvData.value?.header ?? [], insertableColumns.value);
+
+  if (batchInsertCsvBuffer.value) {
+    parseBatchInsertCsvFile();
   }
 };
 
@@ -1315,7 +1471,9 @@ const handleBatchInsertFileChange = async (event: Event) => {
   if (!isCsvFile) {
     batchInsertCsvFileName.value = '';
     batchInsertCsvBuffer.value = null;
+    batchInsertCsvData.value = null;
     batchInsertCsvRows.value = [];
+    batchInsertColumnMappings.value = [];
     batchInsertError.value = '请选择 CSV 文件';
     input.value = '';
     return;
@@ -1323,13 +1481,16 @@ const handleBatchInsertFileChange = async (event: Event) => {
 
   batchInsertCsvFileName.value = file.name;
   batchInsertError.value = '';
+  batchInsertColumnMappings.value = [];
 
   try {
     batchInsertCsvBuffer.value = await file.arrayBuffer();
     parseBatchInsertCsvFile();
   } catch {
     batchInsertCsvBuffer.value = null;
+    batchInsertCsvData.value = null;
     batchInsertCsvRows.value = [];
+    batchInsertColumnMappings.value = [];
     batchInsertError.value = 'CSV 文件读取失败';
   }
 };
@@ -1378,6 +1539,388 @@ const resolveBatchInsertRows = () => {
   }
 
   return batchInsertCsvRows.value;
+};
+
+const inferCsvColumnType = (values: string[]) => {
+  const samples = values.map((value) => value.trim()).filter(Boolean).slice(0, 80);
+
+  if (samples.length === 0) {
+    return 'VARCHAR';
+  }
+
+  if (samples.every((value) => /^(true|false|yes|no|是|否|0|1)$/i.test(value))) {
+    return 'BOOLEAN';
+  }
+
+  if (samples.every((value) => /^-?\d+$/.test(value))) {
+    return 'INT';
+  }
+
+  if (samples.every((value) => /^-?\d+(\.\d+)?$/.test(value))) {
+    return 'DECIMAL';
+  }
+
+  if (samples.every((value) => /^\d{4}-\d{2}-\d{2}$/.test(value))) {
+    return 'DATE';
+  }
+
+  if (samples.every((value) => /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(value))) {
+    return 'DATETIME';
+  }
+
+  if (samples.some((value) => value.length > 255)) {
+    return 'TEXT';
+  }
+
+  return 'VARCHAR';
+};
+
+const inferCsvVarcharLength = (values: string[]) => {
+  const maxLength = Math.max(...values.map((value) => value.length), 1);
+  return Math.min(Math.max(maxLength + 16, 64), 1024);
+};
+
+const buildImportTablePreviewRows = () => {
+  if (!importTableCsvData.value) {
+    importTablePreviewRows.value = [];
+    return;
+  }
+
+  importTablePreviewRows.value = importTableCsvData.value.rows.slice(0, 3).map((row) => {
+    const payload: Record<string, unknown> = {};
+
+    importTableColumns.value.forEach((column) => {
+      if (!column.name.trim()) {
+        return;
+      }
+
+      payload[column.name.trim()] = row[column.sourceIndex] ?? '';
+    });
+
+    return payload;
+  });
+};
+
+const buildImportTableColumnsFromCsv = () => {
+  const data = importTableCsvData.value;
+
+  if (!data) {
+    importTableColumns.value = [];
+    importTablePreviewRows.value = [];
+    return;
+  }
+
+  const maxColumnCount = Math.max(
+    data.header.length,
+    ...data.rows.map((row) => trimTrailingEmptyCells(row).length),
+    0
+  );
+  const usedNames = new Set<string>();
+
+  importTableColumns.value = Array.from({ length: maxColumnCount }, (_, index) => {
+    const sourceName = importTableUseHeader.value ? (data.header[index] ?? '') : '';
+    const values = data.rows.map((row) => row[index] ?? '');
+    const type = inferCsvColumnType(values);
+
+    return {
+      id: ++draftColumnSeed,
+      sourceIndex: index,
+      sourceName,
+      name: ensureUniqueIdentifier(sourceName, usedNames, `col_${index + 1}`),
+      type,
+      length: type === 'VARCHAR' ? inferCsvVarcharLength(values) : null,
+      nullable: values.some((value) => value === '')
+    };
+  });
+
+  buildImportTablePreviewRows();
+};
+
+const parseImportTableCsvFile = () => {
+  importTableCsvData.value = null;
+  importTableColumns.value = [];
+  importTablePreviewRows.value = [];
+
+  if (!importTableCsvBuffer.value) {
+    return;
+  }
+
+  importTableError.value = '';
+
+  try {
+    const data = readCsvData(importTableCsvBuffer.value, importTableEncoding.value, {
+      fileName: importTableCsvFileName.value,
+      skipRows: importTableUseHeader.value ? 1 : 0
+    });
+    importTableCsvData.value = data;
+    buildImportTableColumnsFromCsv();
+
+    if (data.rows.length === 0) {
+      importTableError.value = 'CSV 文件没有可导入的数据行';
+    }
+  } catch (error) {
+    importTableCsvData.value = null;
+    importTableColumns.value = [];
+    importTablePreviewRows.value = [];
+    importTableError.value = error instanceof Error ? error.message : 'CSV 文件解析失败';
+  }
+};
+
+const resetImportTableForm = () => {
+  importTableEncoding.value = 'utf-8';
+  importTableUseHeader.value = true;
+  importTableError.value = '';
+  importTableName.value = '';
+  importTableCsvFileName.value = '';
+  importTableCsvBuffer.value = null;
+  importTableCsvData.value = null;
+  importTableColumns.value = [];
+  importTablePreviewRows.value = [];
+
+  if (importTableFileInputRef.value) {
+    importTableFileInputRef.value.value = '';
+  }
+};
+
+const openImportTableDialog = () => {
+  if (!selectedDatabase.value) {
+    showTableNotice('请先选择一个数据库');
+    return;
+  }
+
+  resetImportTableForm();
+  isImportTableDialogVisible.value = true;
+};
+
+const openImportTableFilePicker = () => {
+  if (importTableFileInputRef.value) {
+    importTableFileInputRef.value.value = '';
+    importTableFileInputRef.value.click();
+  }
+};
+
+const handleImportTableFileChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  const isCsvFile = file.name.toLowerCase().endsWith('.csv') || ['text/csv', 'application/vnd.ms-excel'].includes(file.type);
+
+  if (!isCsvFile) {
+    importTableError.value = '请选择 CSV 文件';
+    importTableCsvFileName.value = '';
+    importTableCsvBuffer.value = null;
+    importTableCsvData.value = null;
+    importTableColumns.value = [];
+    input.value = '';
+    return;
+  }
+
+  importTableCsvFileName.value = file.name;
+  importTableError.value = '';
+
+  if (!importTableName.value) {
+    importTableName.value = makeSafeIdentifier(file.name.replace(/\.[^.]+$/, ''), 'import_table');
+  }
+
+  try {
+    importTableCsvBuffer.value = await file.arrayBuffer();
+    parseImportTableCsvFile();
+  } catch {
+    importTableCsvBuffer.value = null;
+    importTableCsvData.value = null;
+    importTableColumns.value = [];
+    importTablePreviewRows.value = [];
+    importTableError.value = 'CSV 文件读取失败';
+  }
+};
+
+const updateImportColumnTypeDefaults = (column: ImportTableColumnDraft) => {
+  if (column.type === 'VARCHAR') {
+    column.length = column.length ?? 255;
+  } else {
+    column.length = null;
+  }
+
+  buildImportTablePreviewRows();
+};
+
+const buildImportTablePayload = (): CreateTablePayload | null => {
+  const tableName = importTableName.value.trim();
+  importTableError.value = '';
+
+  if (!selectedDatabase.value) {
+    importTableError.value = '请先选择数据库';
+    return null;
+  }
+
+  if (!tableName) {
+    importTableError.value = '请填写新表名';
+    return null;
+  }
+
+  if (!sqlIdentifierPattern.test(tableName)) {
+    importTableError.value = '表名需以英文字母开头，只能包含英文字母、数字和下划线';
+    return null;
+  }
+
+  if (!importTableCsvData.value) {
+    importTableError.value = '请先选择 CSV 文件';
+    return null;
+  }
+
+  if (importTableCsvData.value.rows.length === 0) {
+    importTableError.value = 'CSV 文件没有可导入的数据行';
+    return null;
+  }
+
+  const names = new Set<string>();
+  const columns: TableColumnInput[] = [];
+
+  for (const draft of importTableColumns.value) {
+    const name = draft.name.trim();
+
+    if (!name) {
+      importTableError.value = `第 ${draft.sourceIndex + 1} 列字段名不能为空`;
+      return null;
+    }
+
+    if (!sqlIdentifierPattern.test(name)) {
+      importTableError.value = `${name} 不是合法字段名`;
+      return null;
+    }
+
+    if (names.has(name)) {
+      importTableError.value = `字段 ${name} 重复`;
+      return null;
+    }
+
+    if (!csvImportColumnTypes.includes(draft.type)) {
+      importTableError.value = `${name} 的字段类型暂不支持`;
+      return null;
+    }
+
+    names.add(name);
+
+    const column: TableColumnInput = {
+      name,
+      type: draft.type,
+      nullable: draft.nullable
+    };
+
+    if (draft.type === 'VARCHAR') {
+      const length = Number(draft.length ?? 0);
+
+      if (!Number.isInteger(length) || length < 1 || length > 16383) {
+        importTableError.value = `${name} 的 VARCHAR 长度需为 1 到 16383`;
+        return null;
+      }
+
+      column.length = length;
+    }
+
+    columns.push(column);
+  }
+
+  if (columns.length === 0) {
+    importTableError.value = '请至少保留一个字段';
+    return null;
+  }
+
+  return {
+    tableName,
+    columns,
+    constraints: []
+  };
+};
+
+const buildImportTableRows = () => {
+  if (!importTableCsvData.value) {
+    return [];
+  }
+
+  return importTableCsvData.value.rows.map((cells, rowIndex) => {
+    const rowPayload: Record<string, unknown> = {};
+
+    importTableColumns.value.forEach((column) => {
+      const name = column.name.trim();
+      const value = cells[column.sourceIndex] ?? '';
+
+      if (!name || value === '') {
+        return;
+      }
+
+      rowPayload[name] = value;
+    });
+
+    if (Object.keys(rowPayload).length === 0) {
+      throw new Error(`CSV 第 ${rowIndex + (importTableUseHeader.value ? 2 : 1)} 行没有可导入字段`);
+    }
+
+    return rowPayload;
+  });
+};
+
+const submitImportTable = async () => {
+  if (!selectedDatabase.value) {
+    importTableError.value = '请先选择数据库';
+    return;
+  }
+
+  const payload = buildImportTablePayload();
+
+  if (!payload) {
+    return;
+  }
+
+  let rows: Array<Record<string, unknown>>;
+
+  try {
+    rows = buildImportTableRows();
+  } catch (error) {
+    importTableError.value = error instanceof Error ? error.message : 'CSV 数据转换失败';
+    return;
+  }
+
+  if (rows.length === 0) {
+    importTableError.value = 'CSV 文件没有可导入的数据行';
+    return;
+  }
+
+  isImportingTable.value = true;
+
+  try {
+    const schema = await createTable(selectedDatabase.value.id, payload);
+
+    try {
+      await createTableRow(
+        selectedDatabase.value.id,
+        schema.tableName,
+        rows,
+        rows.length > 1
+          ? {
+              confirmed: true,
+              confirmText: schema.tableName
+            }
+          : undefined
+      );
+    } catch (error) {
+      await deleteTable(selectedDatabase.value.id, schema.tableName, schema.tableName);
+      throw error;
+    }
+
+    selectedTableSchema.value = schema;
+    isImportTableDialogVisible.value = false;
+    showTableNotice(`已导入 ${rows.length} 行到 ${schema.tableName}`);
+    await loadDatabase(schema.tableName);
+  } catch (error) {
+    importTableError.value = getErrorMessage(error, 'CSV 导入建表失败');
+  } finally {
+    isImportingTable.value = false;
+  }
 };
 
 const openBatchInsertDialog = () => {
@@ -2284,7 +2827,14 @@ watch(selectedTableName, (tableName) => {
 
 watch([batchInsertCsvEncoding, batchInsertSkipRows], () => {
   if (batchInsertMode.value === 'csv' && batchInsertCsvBuffer.value) {
+    batchInsertColumnMappings.value = [];
     parseBatchInsertCsvFile();
+  }
+});
+
+watch([importTableEncoding, importTableUseHeader], () => {
+  if (importTableCsvBuffer.value) {
+    parseImportTableCsvFile();
   }
 });
 
@@ -2450,6 +3000,15 @@ onUnmounted(() => {
               @click="openCreateTableDialog"
             >
               创建表
+            </button>
+            <button
+              v-if="workbenchMode === 'tables'"
+              class="dialog-button"
+              type="button"
+              :disabled="!selectedDatabase"
+              @click="openImportTableDialog"
+            >
+              导入表
             </button>
           </div>
         </header>
@@ -3610,6 +4169,176 @@ onUnmounted(() => {
     </GlassDialog>
 
     <GlassDialog
+      v-model="isImportTableDialogVisible"
+      label="CSV"
+      title="从 CSV 导入新表"
+      description="选择 CSV 文件后，可以用标题行生成字段名，也可以手动调整字段名和字段类型。"
+      width="min(94vw, 980px)"
+      hide-header
+    >
+      <div class="create-table-form import-table-form">
+        <input
+          ref="importTableFileInputRef"
+          class="csv-file-input"
+          type="file"
+          accept=".csv,text/csv"
+          @change="handleImportTableFileChange"
+        >
+
+        <div class="import-table-toolbar">
+          <label class="dialog-field">
+            <span>新表名</span>
+            <el-input
+              v-model="importTableName"
+              maxlength="64"
+            />
+          </label>
+
+          <label class="dialog-field compact-field">
+            <span>编码格式</span>
+            <div class="csv-encoding-options">
+              <button
+                class="schema-mode-button"
+                :class="{ active: importTableEncoding === 'utf-8' }"
+                type="button"
+                @click="importTableEncoding = 'utf-8'"
+              >
+                UTF-8
+              </button>
+              <button
+                class="schema-mode-button"
+                :class="{ active: importTableEncoding === 'gbk' }"
+                type="button"
+                @click="importTableEncoding = 'gbk'"
+              >
+                GBK
+              </button>
+            </div>
+          </label>
+
+          <label class="import-header-toggle">
+            <el-checkbox v-model="importTableUseHeader">首行作为字段名</el-checkbox>
+          </label>
+        </div>
+
+        <button
+          class="csv-pick-button"
+          type="button"
+          @click="openImportTableFilePicker"
+        >
+          {{ importTableCsvFileName ? '重新选择 CSV 文件' : '选择 CSV 文件' }}
+        </button>
+
+        <div
+          v-if="importTableCsvFileName"
+          class="csv-file-card"
+        >
+          <strong>{{ importTableCsvFileName }}</strong>
+          <span>{{ importTableCsvData?.rows.length ?? 0 }} 行待导入 · {{ importTableEncoding.toUpperCase() }}</span>
+        </div>
+
+        <div
+          v-if="importTableColumns.length > 0"
+          class="import-column-list"
+        >
+          <article
+            v-for="column in importTableColumns"
+            :key="column.id"
+            class="import-column-row"
+          >
+            <div class="import-source-cell">
+              <span>CSV 第 {{ column.sourceIndex + 1 }} 列</span>
+              <strong>{{ column.sourceName || `列 ${column.sourceIndex + 1}` }}</strong>
+            </div>
+            <label class="dialog-field">
+              <span>字段名</span>
+              <el-input
+                v-model="column.name"
+                maxlength="64"
+                @input="buildImportTablePreviewRows"
+              />
+            </label>
+            <label class="dialog-field compact-field">
+              <span>类型</span>
+              <el-select
+                v-model="column.type"
+                popper-class="workbench-select-popper"
+                @change="updateImportColumnTypeDefaults(column)"
+              >
+                <el-option
+                  v-for="type in csvImportColumnTypes"
+                  :key="type"
+                  :label="type"
+                  :value="type"
+                />
+              </el-select>
+            </label>
+            <label class="dialog-field compact-field">
+              <span>长度</span>
+              <el-input-number
+                v-model="column.length"
+                :disabled="column.type !== 'VARCHAR'"
+                :min="1"
+                :max="16383"
+                controls-position="right"
+              />
+            </label>
+            <label class="import-header-toggle">
+              <el-checkbox v-model="column.nullable">可空</el-checkbox>
+            </label>
+          </article>
+        </div>
+
+        <div
+          v-if="importTablePreviewRows.length > 0"
+          class="csv-preview-list"
+        >
+          <div
+            v-for="(row, index) in importTablePreviewRows"
+            :key="`${importTableCsvFileName}-table-${index}`"
+          >
+            <span>预览 {{ index + 1 }}</span>
+            <em>{{ formatCsvPreviewRow(row) }}</em>
+          </div>
+        </div>
+
+        <p
+          v-if="importTableError"
+          class="dialog-error"
+        >
+          {{ importTableError }}
+        </p>
+
+        <div class="dialog-tips">
+          <span>CSV 标题行可自动转成合法字段名</span>
+          <span>字段类型可从常用类型下拉选择</span>
+          <span>导入失败会自动删除刚创建的空表</span>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <button
+            class="dialog-button ghost"
+            type="button"
+            :disabled="isImportingTable"
+            @click="isImportTableDialogVisible = false"
+          >
+            取消
+          </button>
+          <button
+            class="dialog-button primary"
+            type="button"
+            :disabled="isImportingTable"
+            @click="submitImportTable"
+          >
+            {{ isImportingTable ? '导入中…' : '创建并导入' }}
+          </button>
+        </div>
+      </template>
+    </GlassDialog>
+
+    <GlassDialog
       v-model="isSchemaDialogVisible"
       label="TABLE"
       title="表结构管理"
@@ -4102,7 +4831,7 @@ onUnmounted(() => {
             请输入对象数组，字段名需要与表字段一致；不填写的字段会交给数据库默认值或空值规则处理。
           </p>
           <p v-else>
-            CSV 按可写字段顺序映射，空单元格会跳过并交给数据库默认值或空值规则处理；跳过 1 行即可跳过标题行。
+            CSV 会先尝试用标题行匹配表字段，匹配不到时可手动下拉选择映射；空单元格会跳过并交给数据库默认值或空值规则处理。
           </p>
         </div>
 
@@ -4181,6 +4910,49 @@ onUnmounted(() => {
           >
             <strong>{{ batchInsertCsvFileName }}</strong>
             <span>{{ batchInsertCsvRows.length }} 行待导入 · {{ batchInsertCsvEncoding.toUpperCase() }}</span>
+          </div>
+
+          <div
+            v-if="batchInsertCsvData"
+            class="csv-mapping-panel"
+          >
+            <div class="table-panel-title">
+              <span>字段映射</span>
+              <button
+                class="database-text-button"
+                type="button"
+                @click="applyAutoBatchCsvMappings"
+              >
+                自动匹配
+              </button>
+            </div>
+            <div class="csv-mapping-list">
+              <article
+                v-for="mapping in batchInsertColumnMappings"
+                :key="mapping.sourceIndex"
+                class="csv-mapping-row"
+              >
+                <div>
+                  <span>CSV 第 {{ mapping.sourceIndex + 1 }} 列</span>
+                  <strong>{{ batchInsertCsvData.header[mapping.sourceIndex] || `列 ${mapping.sourceIndex + 1}` }}</strong>
+                </div>
+                <el-select
+                  :model-value="mapping.targetName"
+                  clearable
+                  popper-class="workbench-select-popper"
+                  placeholder="不导入"
+                  @change="(value: string) => updateBatchCsvMapping(mapping.sourceIndex, value || '')"
+                >
+                  <el-option
+                    v-for="column in insertableColumns"
+                    :key="column.name"
+                    :label="column.name"
+                    :value="column.name"
+                    :disabled="batchInsertColumnMappings.some((item) => item.sourceIndex !== mapping.sourceIndex && item.targetName === column.name)"
+                  />
+                </el-select>
+              </article>
+            </div>
           </div>
 
           <div
@@ -5846,14 +6618,36 @@ onUnmounted(() => {
   gap: 14px;
 }
 
+.import-table-form {
+  max-height: min(74vh, 820px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .csv-file-input {
   display: none;
 }
 
-.csv-import-controls {
+.csv-import-controls,
+.import-table-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(160px, 0.7fr);
   gap: 14px;
+}
+
+.import-table-toolbar {
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 0.8fr) auto;
+  align-items: end;
+}
+
+.import-header-toggle {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .csv-pick-button {
@@ -5918,6 +6712,61 @@ onUnmounted(() => {
 
 .csv-preview-list em {
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.csv-mapping-panel,
+.import-column-list {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid hsla(var(--theme-hue), 80%, 72%, 0.12);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, hsla(var(--theme-hue), 80%, 60%, 0.06), rgba(255, 255, 255, 0.035));
+}
+
+.csv-mapping-list {
+  display: grid;
+  gap: 10px;
+  max-height: min(34vh, 320px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.csv-mapping-row,
+.import-column-row {
+  display: grid;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.csv-mapping-row {
+  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr);
+}
+
+.import-column-row {
+  grid-template-columns: minmax(130px, 0.8fr) minmax(140px, 1fr) minmax(120px, 0.7fr) minmax(110px, 0.55fr) auto;
+}
+
+.csv-mapping-row span,
+.import-source-cell span {
+  display: block;
+  color: var(--glass-text-muted);
+  font-size: 12px;
+}
+
+.csv-mapping-row strong,
+.import-source-cell strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--glass-text-strong);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -6027,6 +6876,9 @@ onUnmounted(() => {
 
   .query-form-grid,
   .csv-import-controls,
+  .import-table-toolbar,
+  .csv-mapping-row,
+  .import-column-row,
   .query-row,
   .query-row.join-row,
   .query-row.filter-row,
